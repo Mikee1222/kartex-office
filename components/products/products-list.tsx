@@ -24,6 +24,7 @@ import {
   type StockStatus,
 } from "@/components/products/types";
 import { Button } from "@/components/ui/button";
+import { usePermissionsOptional } from "@/lib/auth/permissions-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -118,14 +119,14 @@ type ProductExpandedPanelProps = {
   product: Product;
   variants: ProductColorVariant[];
   supplierPhone?: string | null;
-  onDeleted: () => void;
+  onChanged: () => void;
 };
 
 function ProductExpandedPanel({
   product,
   variants,
   supplierPhone,
-  onDeleted,
+  onChanged,
 }: ProductExpandedPanelProps) {
   const router = useRouter();
 
@@ -347,7 +348,7 @@ function ProductExpandedPanel({
           <ProductDeleteButton
             product={product}
             variant="outline"
-            onDeleted={onDeleted}
+            onChanged={onChanged}
           />
         </div>
       </div>
@@ -367,8 +368,11 @@ function ProductsTableSkeleton() {
 
 export function ProductsList() {
   const router = useRouter();
+  const permissions = usePermissionsOptional();
+  const canManageProducts = permissions?.can("canDeleteProducts") ?? false;
   const [search, setSearch] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<ProductFilterTab>("all");
+  const [showInactive, setShowInactive] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -462,10 +466,11 @@ export function ProductsList() {
       setLoading(true);
       setError(null);
       const supabase = createClient();
-      const { data, error: fetchError } = await supabase
-        .from("products")
-        .select("*")
-        .order("name", { ascending: true });
+      let query = supabase.from("products").select("*").order("name", { ascending: true });
+      if (!showInactive) {
+        query = query.eq("is_active", true);
+      }
+      const { data, error: fetchError } = await query;
 
       if (cancelled) return;
 
@@ -504,7 +509,7 @@ export function ProductsList() {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey]);
+  }, [fetchKey, showInactive]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -538,6 +543,18 @@ export function ProductsList() {
             disabled={loading}
           />
         </div>
+
+        {canManageProducts ? (
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(event) => setShowInactive(event.target.checked)}
+              className="size-4 rounded border-border text-kartex-gold focus:ring-kartex-gold/40"
+            />
+            Εμφάνιση ανενεργών προϊόντων
+          </label>
+        ) : null}
 
         <div
           className="flex flex-wrap gap-2"
@@ -667,6 +684,7 @@ export function ProductsList() {
                       });
                     const canExpand = productHasExpandableDetails(product, variants);
                     const isExpanded = expandedProductId === product.id;
+                    const isInactive = product.isActive === false;
                     const supplierPhone = product.supplierId
                       ? supplierPhonesById.get(product.supplierId)
                       : null;
@@ -674,7 +692,11 @@ export function ProductsList() {
                     return (
                       <React.Fragment key={product.id}>
                         <tr
-                          className={cn(premiumTableRow, "cursor-pointer")}
+                          className={cn(
+                            premiumTableRow,
+                            "cursor-pointer",
+                            isInactive && "bg-muted/30 text-muted-foreground",
+                          )}
                           onClick={() => router.push(`/products/${product.id}`)}
                         >
                           <td
@@ -768,7 +790,7 @@ export function ProductsList() {
                           >
                             <ProductRowActions
                               product={product}
-                              onDeleted={() => setFetchKey((k) => k + 1)}
+                              onChanged={() => setFetchKey((k) => k + 1)}
                             />
                           </td>
                         </tr>
@@ -789,7 +811,7 @@ export function ProductsList() {
                                       product={product}
                                       variants={variants}
                                       supplierPhone={supplierPhone}
-                                      onDeleted={() => setFetchKey((k) => k + 1)}
+                                      onChanged={() => setFetchKey((k) => k + 1)}
                                     />
                                   </div>
                                 </div>

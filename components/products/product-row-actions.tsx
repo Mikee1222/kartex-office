@@ -16,10 +16,10 @@ import { printProductBarcode } from "@/lib/products/barcode-print";
 
 type ProductRowActionsProps = {
   product: Product;
-  onDeleted?: () => void;
+  onChanged?: () => void;
 };
 
-export function ProductRowActions({ product, onDeleted }: ProductRowActionsProps) {
+export function ProductRowActions({ product, onChanged }: ProductRowActionsProps) {
   const router = useRouter();
 
   function handlePrintBarcode() {
@@ -35,7 +35,7 @@ export function ProductRowActions({ product, onDeleted }: ProductRowActionsProps
 
   return (
     <div className="flex items-center justify-end gap-1">
-      <ProductDeleteButton product={product} onDeleted={onDeleted} />
+      <ProductDeleteButton product={product} onChanged={onChanged} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

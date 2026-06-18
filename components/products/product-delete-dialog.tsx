@@ -7,39 +7,39 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { deleteProduct } from "@/lib/products/delete-product";
+import { setProductActive } from "@/lib/products/set-product-active";
 import { createClient } from "@/lib/supabase/client";
 
 type ProductDeleteDialogProps = {
   product: { id: string; name: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDeleted?: () => void;
+  onChanged?: () => void;
 };
 
 export function ProductDeleteDialog({
   product,
   open,
   onOpenChange,
-  onDeleted,
+  onChanged,
 }: ProductDeleteDialogProps) {
   const router = useRouter();
-  const [deleting, setDeleting] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
 
   async function handleConfirm() {
-    setDeleting(true);
+    setSubmitting(true);
     const supabase = createClient();
-    const result = await deleteProduct(supabase, product.id);
-    setDeleting(false);
+    const result = await setProductActive(supabase, product.id, false);
+    setSubmitting(false);
 
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
 
-    toast.success("Το προϊόν διαγράφηκε");
+    toast.success("Το προϊόν απενεργοποιήθηκε");
     onOpenChange(false);
-    onDeleted?.();
+    onChanged?.();
     router.refresh();
   }
 
@@ -47,16 +47,15 @@ export function ProductDeleteDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!deleting) onOpenChange(next);
+        if (!submitting) onOpenChange(next);
       }}
-      title="Διαγραφή προϊόντος"
+      title="Απενεργοποίηση προϊόντος"
       className="max-w-lg"
     >
       <DialogBody className="text-sm text-foreground">
         <p>
-          Είστε σίγουροι ότι θέλετε να διαγράψετε οριστικά το προϊόν{" "}
-          <span className="font-semibold text-kartex-navy">{product.name}</span>; Αυτή η
-          ενέργεια δεν αναιρείται.
+          Το προϊόν θα απενεργοποιηθεί και δεν θα εμφανίζεται πλέον. Μπορείτε να το
+          επαναφέρετε αργότερα.
         </p>
       </DialogBody>
       <DialogFooter>
@@ -64,23 +63,22 @@ export function ProductDeleteDialog({
           type="button"
           variant="outline"
           onClick={() => onOpenChange(false)}
-          disabled={deleting}
+          disabled={submitting}
         >
           Ακύρωση
         </Button>
         <Button
           type="button"
-          variant="destructive"
           onClick={() => void handleConfirm()}
-          disabled={deleting}
+          disabled={submitting}
         >
-          {deleting ? (
+          {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Διαγραφή…
+              Απενεργοποίηση…
             </>
           ) : (
-            "Διαγραφή"
+            "Απενεργοποίηση"
           )}
         </Button>
       </DialogFooter>
