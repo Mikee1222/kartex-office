@@ -6,7 +6,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { DataError } from "@/components/dashboard/data-error";
-import { ADJUSTMENT_REASONS } from "@/components/inventory/mock-movements";
+import { ADJUSTMENT_REASONS } from "@/lib/inventory/adjustment-reasons";
 import { type Product } from "@/components/products/types";
 import { StockStatusBadge } from "@/components/products/stock-status-badge";
 import { Button } from "@/components/ui/button";
