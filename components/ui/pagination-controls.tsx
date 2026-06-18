@@ -60,7 +60,7 @@ export function PaginationControls({
         className,
       )}
     >
-      <p className="text-sm text-gray-500">{countLabel}</p>
+      <p className="text-sm text-muted-foreground">{countLabel}</p>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button
@@ -69,15 +69,39 @@ export function PaginationControls({
           size="sm"
           disabled={currentPage <= 1 || totalPages <= 1}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          className="border-gray-200 text-navy-900 hover:bg-gray-50"
+          className="border-gray-200 text-kartex-navy hover:bg-gray-50"
         >
           <ChevronLeft className="size-4" />
           Προηγούμενο
         </Button>
 
-        <span className="px-2 text-sm font-medium tabular-nums text-navy-900">
-          Σελίδα {currentPage} από {safeTotalPages}
-        </span>
+        {visiblePages.length > 1 ? (
+          <div className="flex items-center gap-1">
+            {visiblePages.map((pageNum) => (
+              <Button
+                key={pageNum}
+                type="button"
+                variant={pageNum === currentPage ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "min-w-9 tabular-nums",
+                  pageNum === currentPage
+                    ? "bg-kartex-navy text-white hover:bg-kartex-navy/90"
+                    : "border-gray-200 text-kartex-navy hover:bg-gray-50",
+                )}
+                onClick={() => onPageChange(pageNum)}
+                aria-label={`Σελίδα ${pageNum}`}
+                aria-current={pageNum === currentPage ? "page" : undefined}
+              >
+                {pageNum}
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <span className="px-2 text-sm font-medium tabular-nums text-kartex-navy">
+            Σελίδα {currentPage} από {safeTotalPages}
+          </span>
+        )}
 
         <Button
           type="button"
@@ -85,36 +109,12 @@ export function PaginationControls({
           size="sm"
           disabled={currentPage >= totalPages || totalPages <= 1}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          className="border-gray-200 text-navy-900 hover:bg-gray-50"
+          className="border-gray-200 text-kartex-navy hover:bg-gray-50"
         >
           Επόμενο
           <ChevronRight className="size-4" />
         </Button>
       </div>
-
-      {visiblePages.length > 1 ? (
-        <div className="flex items-center gap-1">
-          {visiblePages.map((pageNum) => (
-            <Button
-              key={pageNum}
-              type="button"
-              variant={pageNum === currentPage ? "default" : "outline"}
-              size="sm"
-              className={cn(
-                "min-w-9 tabular-nums",
-                pageNum === currentPage
-                  ? "bg-navy-900 text-white hover:bg-navy-900/90"
-                  : "border-gray-200 text-navy-900 hover:bg-gray-50",
-              )}
-              onClick={() => onPageChange(pageNum)}
-              aria-label={`Σελίδα ${pageNum}`}
-              aria-current={pageNum === currentPage ? "page" : undefined}
-            >
-              {pageNum}
-            </Button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

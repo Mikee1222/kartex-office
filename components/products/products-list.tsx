@@ -14,11 +14,11 @@ import { toast } from "sonner";
 
 import { DataError } from "@/components/dashboard/data-error";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { CategoryBadge } from "@/components/products/category-badge";
+import { CategoryBadge, getCategoryIconClass } from "@/components/products/category-badge";
 import { ProductDeleteButton } from "@/components/products/product-delete-button";
 import { ProductRowActions } from "@/components/products/product-row-actions";
+import { StockStatusBadge } from "@/components/products/stock-status-badge";
 import {
-  PRODUCT_FILTER_TABS,
   getStockStatus,
   type Product,
   type ProductFilterTab,
@@ -46,11 +46,11 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
-  premiumFilterTabActive,
+  premiumFilterTabActiveCategory,
   premiumFilterTabInactive,
   premiumGoldButton,
   premiumInputFocus,
-  premiumTableHead,
+  premiumTableHeadSticky,
   premiumTableRow,
   premiumTableWrap,
 } from "@/lib/ui/premium-styles";
@@ -132,7 +132,6 @@ function ProductExpandedPanel({
   );
   const marginPct = calcMargin(product.purchasePrice, product.salePrice);
   const profitPerUnit = product.salePrice - product.purchasePrice;
-  const inventoryValue = product.stock * product.purchasePrice;
   const supplierName = product.supplier?.trim() || "—";
   const phone = supplierPhone?.trim();
 
@@ -149,21 +148,43 @@ function ProductExpandedPanel({
 
   return (
     <div
-      className="rounded-xl bg-muted/20 p-4"
+      className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/30 to-background p-4"
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="space-y-3">
+      <div className="mb-4 flex items-center gap-3">
+        <span
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors duration-200",
+            getCategoryIconClass(product.category),
+          )}
+        >
+          <Box className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <p className="font-semibold text-kartex-navy">{product.name}</p>
+          <CategoryBadge category={product.category} className="mt-1" />
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Περιγραφή
+          </p>
+          {product.description?.trim() ? (
+            <p className="mt-2 text-sm leading-relaxed text-kartex-navy/80">
+              {product.description.trim()}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">—</p>
+          )}
           {dimensionsLabel ? (
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Διαστάσεις
-              </p>
-              <p className="mt-1 text-sm text-kartex-navy">{dimensionsLabel}</p>
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              <span className="font-medium text-kartex-navy">Διαστάσεις: </span>
+              {dimensionsLabel}
+            </p>
           ) : null}
-          {product.material || product.qualityGrade ? (
-            <div className="flex flex-wrap gap-2">
+          {(product.material || product.qualityGrade) && (
+            <div className="mt-3 flex flex-wrap gap-2">
               {product.material ? (
                 <span className="inline-flex rounded-full bg-kartex-navy/5 px-2.5 py-1 text-xs font-medium text-kartex-navy">
                   {product.material}
@@ -175,13 +196,11 @@ function ProductExpandedPanel({
                 </span>
               ) : null}
             </div>
-          ) : null}
+          )}
           {product.supplier?.trim() || product.supplierId || phone ? (
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Προμηθευτής
-              </p>
-              <p className="mt-1 text-sm text-kartex-navy">
+            <div className="mt-3 border-t border-border/50 pt-3">
+              <p className="text-xs font-medium text-muted-foreground">Προμηθευτής</p>
+              <p className="mt-0.5 text-sm text-kartex-navy">
                 {product.supplier?.trim() || supplierName}
               </p>
               {phone ? (
@@ -194,26 +213,18 @@ function ProductExpandedPanel({
               ) : null}
             </div>
           ) : null}
-          {product.description?.trim() ? (
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Περιγραφή
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {product.description.trim()}
-              </p>
-            </div>
-          ) : null}
         </section>
 
-        <section className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <section className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Χρώματα
           </p>
           {activeVariants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Δεν έχουν οριστεί ενεργά χρώματα.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Δεν έχουν οριστεί ενεργά χρώματα.
+            </p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="mt-3 space-y-3">
               {activeVariants.map((variant) => {
                 const color = variant.color!;
                 const status = getStockStatus(variant.stock, product.minStock);
@@ -233,6 +244,7 @@ function ProductExpandedPanel({
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-kartex-navy">
                         {color.name}
                       </span>
+                      <StockStatusBadge stock={variant.stock} minStock={product.minStock} />
                       <span
                         className={cn(
                           "tabular-nums text-sm font-semibold",
@@ -258,11 +270,11 @@ function ProductExpandedPanel({
           )}
         </section>
 
-        <section className="space-y-2.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <section className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Οικονομικά
           </p>
-          <dl className="space-y-2 text-sm">
+          <dl className="mt-3 space-y-2.5 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Κόστος</dt>
               <dd className="tabular-nums font-medium text-kartex-navy">
@@ -276,7 +288,7 @@ function ProductExpandedPanel({
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-muted-foreground">Περιθώριο</dt>
+              <dt className="text-muted-foreground">Περιθώριο %</dt>
               <dd>
                 <span
                   className={cn(
@@ -292,12 +304,6 @@ function ProductExpandedPanel({
               <dt className="text-muted-foreground">Κέρδος/τεμ</dt>
               <dd className="tabular-nums font-medium text-kartex-navy">
                 {formatCurrencyEl(profitPerUnit)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 border-t border-border/60 pt-2">
-              <dt className="font-medium text-kartex-navy">Συνολική Αξία Αποθέματος</dt>
-              <dd className="tabular-nums font-semibold text-kartex-navy">
-                {formatCurrencyEl(inventoryValue)}
               </dd>
             </div>
           </dl>
@@ -381,6 +387,16 @@ export function ProductsList() {
     null,
   );
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
+  const [categories, setCategories] = React.useState<string[]>([]);
+
+  const filterTabs = React.useMemo(() => {
+    const tabs: { id: ProductFilterTab; label: string }[] = [
+      { id: "all", label: "Όλα" },
+      ...categories.map((category) => ({ id: category, label: category })),
+      { id: "low_stock", label: "Χαμηλό Απόθεμα" },
+    ];
+    return tabs;
+  }, [categories]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
   const hasActiveFilters =
@@ -467,6 +483,34 @@ export function ProductsList() {
       }
     })();
   }
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadCategories() {
+      const supabase = createClient();
+      const { data, error: catError } = await supabase
+        .from("products")
+        .select("category")
+        .order("category", { ascending: true });
+
+      if (cancelled || catError) return;
+
+      const unique = [
+        ...new Set(
+          (data ?? [])
+            .map((row) => row.category as string)
+            .filter((category) => category?.trim()),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "el"));
+      setCategories(unique);
+    }
+
+    void loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchKey]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -591,7 +635,7 @@ export function ProductsList() {
           role="tablist"
           aria-label="Φίλτρο κατηγορίας"
         >
-          {PRODUCT_FILTER_TABS.map((tab) => {
+          {filterTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
@@ -601,7 +645,7 @@ export function ProductsList() {
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  isActive ? premiumFilterTabActive : premiumFilterTabInactive,
+                  isActive ? premiumFilterTabActiveCategory : premiumFilterTabInactive,
                 )}
               >
                 {tab.label}
@@ -646,10 +690,10 @@ export function ProductsList() {
 
       {!loading && !error ? (
         <Card className={premiumTableWrap}>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[1040px] text-sm">
-              <thead>
-                <tr className={premiumTableHead}>
+          <CardContent className="max-h-[70vh] overflow-x-auto overflow-y-auto p-0">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className={premiumTableHeadSticky}>
                   <th className="w-10 px-2 py-3">
                     <input
                       ref={headerCheckboxRef}
@@ -666,6 +710,7 @@ export function ProductsList() {
                   <th className="px-4 py-3">Χρώματα</th>
                   <th className="px-4 py-3">Κατηγορία</th>
                   <th className="px-4 py-3">Συνολικό</th>
+                  <th className="px-4 py-3">Κατάσταση</th>
                   <th className="px-4 py-3">Δεσμευμένο</th>
                   <th className="px-4 py-3">Διαθέσιμο</th>
                   <th className="px-4 py-3">Τιμή Αγοράς (€)</th>
@@ -677,7 +722,7 @@ export function ProductsList() {
               <tbody>
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="p-0">
+                    <td colSpan={13} className="p-0">
                       <EmptyState
                         icon={Box}
                         title={
@@ -726,7 +771,7 @@ export function ProductsList() {
                         <tr
                           className={cn(
                             premiumTableRow,
-                            "cursor-pointer",
+                            "cursor-pointer transition-all duration-200 hover:shadow-sm",
                             isInactive && "bg-muted/30 text-muted-foreground",
                           )}
                           onClick={() => router.push(`/products/${product.id}`)}
@@ -774,10 +819,15 @@ export function ProductsList() {
                             ) : null}
                           </td>
                           <td className="px-4 py-3 sm:px-6">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-kartex-navy/5 text-kartex-gold">
-                            <Box className="size-5" aria-hidden />
-                          </span>
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={cn(
+                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-200",
+                                  getCategoryIconClass(product.category),
+                                )}
+                              >
+                                <Box className="size-5" aria-hidden />
+                              </span>
                           <div>
                             <p
                               className={cn(
@@ -799,10 +849,16 @@ export function ProductsList() {
                           <td className="px-4 py-3">
                             <CategoryBadge category={product.category} />
                           </td>
-                          <td className="px-4 py-3 tabular-nums font-medium">
+                          <td className="px-4 py-3 tabular-nums font-semibold">
                             <span className={isInactive ? "text-muted-foreground" : "text-kartex-navy"}>
                               {product.stock}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <StockStatusBadge
+                              stock={product.stock}
+                              minStock={product.minStock}
+                            />
                           </td>
                           <td className="px-4 py-3">
                             <span className="inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
@@ -835,7 +891,7 @@ export function ProductsList() {
                         </tr>
                         {canExpand ? (
                           <tr className="border-b border-border/60">
-                            <td colSpan={12} className="p-0">
+                            <td colSpan={13} className="p-0">
                               <div
                                 className={cn(
                                   "grid transition-[grid-template-rows,opacity] duration-200 ease-in-out",

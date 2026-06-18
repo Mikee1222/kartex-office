@@ -1,12 +1,21 @@
 "use client";
 
-import { ArrowLeft, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Box,
+  Layers,
+  Pencil,
+  Palette,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { CategoryBadge } from "@/components/products/category-badge";
+import { CategoryBadge, getCategoryIconClass } from "@/components/products/category-badge";
 import { ProductColorStockSection } from "@/components/products/product-color-stock-section";
+import { getStockStatus } from "@/components/products/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,14 +26,67 @@ import {
 } from "@/lib/products/color-variants";
 import type { ProductColorVariant } from "@/lib/products/types";
 import { formatDimensionsLabel } from "@/lib/products/form-utils";
-import { premiumCard, premiumGoldButton } from "@/lib/ui/premium-styles";
+import { calcMargin } from "@/lib/reports/compute-analytics";
+import {
+  premiumCard,
+  premiumGoldButton,
+  premiumLabel,
+  premiumStatCard,
+} from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
-import { formatCurrencyEl, mapProductRow, type ProductRow } from "@/types/database";
+import {
+  formatCurrencyEl,
+  formatDateEl,
+  mapProductRow,
+  type ProductRow,
+} from "@/types/database";
 import { cn } from "@/lib/utils";
 
 type ProductDetailViewProps = {
   productId: string;
 };
+
+function marginBadgeClass(marginPct: number): string {
+  if (marginPct > 30) return "bg-emerald-100 text-emerald-800";
+  if (marginPct > 15) return "bg-amber-100 text-amber-900";
+  return "bg-red-100 text-red-800";
+}
+
+function DetailField({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <p className={premiumLabel}>{label}</p>
+      <p className="mt-1 text-sm font-medium text-navy-900">{value}</p>
+    </div>
+  );
+}
+
+function ProductDetailSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-2xl" />
+    </div>
+  );
+}
 
 export function ProductDetailView({ productId }: ProductDetailViewProps) {
   const [loading, setLoading] = React.useState(true);
@@ -132,13 +194,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (error || !product) {
@@ -157,119 +213,265 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   }
 
   const dimensionsLabel = formatDimensionsLabel(product);
+  const marginPct = calcMargin(product.purchasePrice, product.salePrice);
+  const profitPerUnit = product.salePrice - product.purchasePrice;
+  const inventoryValue = product.stock * product.purchasePrice;
+  const unit = product.unit?.trim() || "τεμ";
+  const stockStatus = getStockStatus(product.stock, product.minStock);
+
+  const stockStatusTone: Record<typeof stockStatus, string> = {
+    adequate: "text-emerald-600",
+    low: "text-amber-600",
+    critical: "text-red-600",
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Link
         href="/products"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-navy-900"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 transition-colors hover:text-navy-900"
       >
         <ArrowLeft className="size-4" aria-hidden />
         Προϊόντα
       </Link>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-navy-900">
-            {product.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-gray-100 px-2 py-1 font-mono text-sm font-semibold text-navy-900">
-              {product.sku}
-            </span>
-            <CategoryBadge category={product.category} />
-            <button
-              type="button"
-              disabled={busy === "product-active"}
-              onClick={() => void handleToggleProductActive()}
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 p-6 shadow-card sm:p-8">
+        <div
+          className="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-gold-500/10 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex gap-4">
+            <span
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold",
-                product.isActive !== false
-                  ? "bg-success/10 text-success"
-                  : "bg-gray-100 text-gray-500",
+                "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white backdrop-blur-sm",
+                getCategoryIconClass(product.category),
               )}
             >
-              {product.isActive !== false ? "Ενεργό" : "Ανενεργό"}
-            </button>
+              <Box className="size-7" aria-hidden />
+            </span>
+            <div className="min-w-0 space-y-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {product.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-white/15 px-2.5 py-1 font-mono text-sm font-semibold text-white backdrop-blur-sm">
+                  {product.sku}
+                </span>
+                <CategoryBadge category={product.category} />
+                <button
+                  type="button"
+                  disabled={busy === "product-active"}
+                  onClick={() => void handleToggleProductActive()}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                    product.isActive !== false
+                      ? "bg-success/20 text-emerald-200"
+                      : "bg-white/10 text-white/60",
+                  )}
+                >
+                  {product.isActive !== false ? "Ενεργό" : "Ανενεργό"}
+                </button>
+              </div>
+            </div>
           </div>
+          <Button
+            asChild
+            className={cn(premiumGoldButton, "shrink-0")}
+          >
+            <Link href={`/products/${productId}/edit`}>
+              <Pencil className="size-4" />
+              Επεξεργασία
+            </Link>
+          </Button>
         </div>
-        <Button asChild className={premiumGoldButton}>
-          <Link href={`/products/${productId}/edit`}>
-            <Pencil className="size-4" />
-            Επεξεργασία
-          </Link>
-        </Button>
       </div>
 
+      {/* Stats row */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article className={cn(premiumStatCard, "p-5")}>
+          <div className="flex items-center gap-2 text-gray-400">
+            <Layers className="size-4" aria-hidden />
+            <p className="text-xs font-medium uppercase tracking-wide">Συνολικό Απόθεμα</p>
+          </div>
+          <p className={cn("mt-2 text-[28px] font-semibold leading-none tabular-nums", stockStatusTone[stockStatus])}>
+            {product.stock}
+          </p>
+          <p className="mt-1 text-sm text-gray-400">{unit}</p>
+        </article>
+        <article className={cn(premiumStatCard, "p-5")}>
+          <div className="flex items-center gap-2 text-gray-400">
+            <Wallet className="size-4" aria-hidden />
+            <p className="text-xs font-medium uppercase tracking-wide">Τιμή Αγοράς</p>
+          </div>
+          <p className="mt-2 text-[28px] font-semibold leading-none text-navy-900">
+            {formatCurrencyEl(product.purchasePrice)}
+          </p>
+        </article>
+        <article className={cn(premiumStatCard, "p-5")}>
+          <div className="flex items-center gap-2 text-gray-400">
+            <TrendingUp className="size-4" aria-hidden />
+            <p className="text-xs font-medium uppercase tracking-wide">Τιμή Πώλησης</p>
+          </div>
+          <p className="mt-2 text-[28px] font-semibold leading-none text-navy-900">
+            {formatCurrencyEl(product.salePrice)}
+          </p>
+        </article>
+        <article className={cn(premiumStatCard, "p-5")}>
+          <div className="flex items-center gap-2 text-gray-400">
+            <TrendingUp className="size-4" aria-hidden />
+            <p className="text-xs font-medium uppercase tracking-wide">Περιθώριο %</p>
+          </div>
+          <p className="mt-2">
+            <span
+              className={cn(
+                "inline-flex rounded-full px-3 py-1 text-xl font-semibold tabular-nums",
+                marginBadgeClass(marginPct),
+              )}
+            >
+              {marginPct.toFixed(1)}%
+            </span>
+          </p>
+        </article>
+      </section>
+
+      {/* Info grid */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className={premiumCard}>
           <CardHeader>
-            <CardTitle>Στοιχεία</CardTitle>
+            <CardTitle className="text-lg text-navy-900">Στοιχεία</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2 text-sm">
-            <p>
-              <span className="text-gray-400">Barcode: </span>
-              {product.barcode}
-            </p>
-            <p>
-              <span className="text-gray-400">Τιμή αγοράς: </span>
-              {formatCurrencyEl(product.purchasePrice)}
-            </p>
-            <p>
-              <span className="text-gray-400">Τιμή πώλησης: </span>
-              {formatCurrencyEl(product.salePrice)}
-            </p>
-            <p>
-              <span className="text-gray-400">Ελάχιστο απόθεμα: </span>
-              {product.minStock}
-            </p>
-            <p>
-              <span className="text-gray-400">Προμηθευτής: </span>
-              {product.supplier ?? "—"}
-            </p>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <DetailField label="Barcode" value={product.barcode} />
+            <DetailField label="Προμηθευτής" value={product.supplier?.trim() || "—"} />
+            <DetailField label="Ελάχιστο απόθεμα" value={String(product.minStock)} />
+            <DetailField
+              label="Δημιουργία"
+              value={product.createdAt ? formatDateEl(product.createdAt) : "—"}
+            />
+            {product.material ? (
+              <DetailField label="Υλικό" value={product.material} />
+            ) : null}
+            {product.qualityGrade ? (
+              <DetailField label="Ποιότητα" value={product.qualityGrade} />
+            ) : null}
           </CardContent>
         </Card>
 
         <Card className={premiumCard}>
           <CardHeader>
-            <CardTitle>Διαστάσεις</CardTitle>
+            <CardTitle className="text-lg text-navy-900">Διαστάσεις</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>
-              <span className="text-gray-400">Διαστάσεις: </span>
-              {dimensionsLabel ?? "—"}
-            </p>
-            <p>
-              <span className="text-gray-400">Μονάδα: </span>
-              {product.unit ?? "τεμ"}
-            </p>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <DetailField label="Διαστάσεις" value={dimensionsLabel ?? "—"} />
+            <DetailField label="Μονάδα" value={unit} />
+            {product.widthCm != null ? (
+              <DetailField label="Πλάτος" value={`${product.widthCm} cm`} />
+            ) : null}
+            {product.heightCm != null ? (
+              <DetailField label="Ύψος" value={`${product.heightCm} cm`} />
+            ) : null}
+            {product.weightKg != null ? (
+              <DetailField label="Βάρος" value={`${product.weightKg} kg`} />
+            ) : null}
           </CardContent>
         </Card>
       </div>
 
+      {/* Color variants */}
       <Card className={premiumCard}>
-        <CardHeader>
-          <CardTitle>Απόθεμα ανά χρώμα</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <CardTitle className="flex items-center gap-2 text-lg text-navy-900">
+            <Palette className="size-5 text-gold-500" aria-hidden />
+            Απόθεμα ανά χρώμα
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductColorStockSection
-            totalStock={product.stock}
-            minStock={product.minStock}
-            variants={variants}
-            busyId={busy}
-            onSaveStock={(variant, stock) => void handleSaveVariantStock(variant, stock)}
-            onToggleActive={(variant) => void handleToggleVariant(variant)}
-          />
+          {variants.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-6 py-10 text-center">
+              <Palette className="mx-auto size-10 text-gray-300" aria-hidden />
+              <p className="mt-3 text-sm font-medium text-navy-900">
+                Δεν έχουν οριστεί ενεργά χρώματα
+              </p>
+              <p className="mt-1 text-sm text-gray-400">
+                Προσθέστε χρώματα και απόθεμα από τη φόρμα επεξεργασίας.
+              </p>
+              <Button asChild variant="outline" className="mt-4 border-gold-500/40 text-navy-900 hover:bg-gold-500/10">
+                <Link href={`/products/${productId}/edit`}>
+                  <Pencil className="size-4" />
+                  Επεξεργασία προϊόντος
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <ProductColorStockSection
+              totalStock={product.stock}
+              minStock={product.minStock}
+              variants={variants}
+              busyId={busy}
+              onSaveStock={(variant, stock) => void handleSaveVariantStock(variant, stock)}
+              onToggleActive={(variant) => void handleToggleVariant(variant)}
+            />
+          )}
         </CardContent>
       </Card>
 
-      {product.description ? (
+      {/* Financials */}
+      <Card className={premiumCard}>
+        <CardHeader>
+          <CardTitle className="text-lg text-navy-900">Οικονομικά</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <dt className={premiumLabel}>Κόστος</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
+                {formatCurrencyEl(product.purchasePrice)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <dt className={premiumLabel}>Πώληση</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
+                {formatCurrencyEl(product.salePrice)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <dt className={premiumLabel}>Περιθώριο %</dt>
+              <dd className="mt-1">
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums",
+                    marginBadgeClass(marginPct),
+                  )}
+                >
+                  {marginPct.toFixed(1)}%
+                </span>
+              </dd>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <dt className={premiumLabel}>Κέρδος/τεμ</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
+                {formatCurrencyEl(profitPerUnit)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-gold-500/20 bg-gold-500/5 p-4 sm:col-span-2 lg:col-span-1">
+              <dt className={premiumLabel}>Συνολική Αξία Αποθέματος</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
+                {formatCurrencyEl(inventoryValue)}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {product.description?.trim() ? (
         <Card className={premiumCard}>
           <CardHeader>
-            <CardTitle>Περιγραφή</CardTitle>
+            <CardTitle className="text-lg text-navy-900">Περιγραφή</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">{product.description}</p>
+            <p className="text-sm leading-relaxed text-gray-600">{product.description.trim()}</p>
           </CardContent>
         </Card>
       ) : null}
