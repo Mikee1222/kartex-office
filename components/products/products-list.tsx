@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 
 import { DataError } from "@/components/dashboard/data-error";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -151,7 +152,7 @@ function ProductExpandedPanel({
       barcode: product.barcode,
     });
     if (!result.ok && result.error) {
-      window.alert(result.error);
+      toast.error(result.error);
     }
   }
 
@@ -448,13 +449,13 @@ export function ProductsList() {
     );
 
     if (!result.ok && result.error) {
-      window.alert(result.error);
+      toast.error(result.error);
       return;
     }
 
     if (result.skipped?.length) {
-      window.alert(
-        `Εκτυπώθηκαν ${result.printedCount} barcode(s).\n\nΠαραλείφθηκαν:\n${result.skipped.join("\n")}`,
+      toast.success(
+        `Εκτυπώθηκαν ${result.printedCount} barcode(s). Παραλείφθηκαν: ${result.skipped.join(", ")}`,
       );
     }
   }

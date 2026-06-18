@@ -2,6 +2,7 @@
 
 import { Barcode, Eye, MoreVertical, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { ProductDeleteButton } from "@/components/products/product-delete-button";
 import { type Product } from "@/components/products/types";
@@ -29,7 +30,7 @@ export function ProductRowActions({ product, onChanged }: ProductRowActionsProps
       barcode: product.barcode,
     });
     if (!result.ok && result.error) {
-      window.alert(result.error);
+      toast.error(result.error);
     }
   }
 
