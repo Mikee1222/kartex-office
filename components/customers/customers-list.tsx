@@ -31,7 +31,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   aggregateCustomerOrderStats,
   formatCurrencyEl,
-  formatDateEl,
   type CustomerOrderAggregateRow,
   type CustomerRow,
   mapCustomerRow,
@@ -255,12 +254,12 @@ export function CustomersList() {
                         {customer.city}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {customer.lastOrderDate !== "—"
-                          ? formatDateEl(customer.lastOrderDate)
-                          : "—"}
+                        {customer.lastOrderDate}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground tabular-nums">
-                        {formatCurrencyEl(customer.totalPurchasesEur)}
+                        {customer.totalPurchasesEur > 0
+                          ? formatCurrencyEl(customer.totalPurchasesEur)
+                          : "—"}
                       </td>
                       <td
                         className="px-4 py-3 sm:pr-6"
