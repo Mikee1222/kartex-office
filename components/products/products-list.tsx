@@ -747,7 +747,12 @@ export function ProductsList() {
                             <Box className="size-5" aria-hidden />
                           </span>
                           <div>
-                            <p className="font-medium text-kartex-navy">
+                            <p
+                              className={cn(
+                                "font-medium",
+                                isInactive ? "text-muted-foreground" : "text-kartex-navy",
+                              )}
+                            >
                               {product.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -762,8 +767,10 @@ export function ProductsList() {
                           <td className="px-4 py-3">
                             <CategoryBadge category={product.category} />
                           </td>
-                          <td className="px-4 py-3 tabular-nums font-medium text-kartex-navy">
-                            {product.stock}
+                          <td className="px-4 py-3 tabular-nums font-medium">
+                            <span className={isInactive ? "text-muted-foreground" : "text-kartex-navy"}>
+                              {product.stock}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
                             <span className="inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
