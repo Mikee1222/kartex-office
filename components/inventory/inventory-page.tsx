@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
@@ -33,10 +33,18 @@ import {
   premiumTableWrap,
 } from "@/lib/ui/premium-styles";
 import { PageHeader } from "@/components/ui/page-header";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { premiumSelect } from "@/lib/ui/form-styles";
+import { premiumInputFocus } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
 type InventoryTab = "levels" | "movements" | "adjustments";
+
+const ITEMS_PER_PAGE = 25;
+
+function escapeIlike(value: string) {
+  return value.replace(/[%_\\,]/g, "\\$&");
+}
 
 
 const textareaClassName =
@@ -94,6 +102,11 @@ export function InventoryPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [fetchKey, setFetchKey] = React.useState(0);
+  const [levelsSearch, setLevelsSearch] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [adjustmentProducts, setAdjustmentProducts] = React.useState<Product[]>([]);
+  const [adjustmentProductsLoading, setAdjustmentProductsLoading] = React.useState(false);
   const [movements, setMovements] = React.useState<InventoryMovementRow[]>([]);
   const [movementsLoading, setMovementsLoading] = React.useState(false);
   const [movementsError, setMovementsError] = React.useState<string | null>(null);
@@ -122,17 +135,34 @@ export function InventoryPage() {
   const [variantAdjustQty, setVariantAdjustQty] = React.useState("");
   const [variantSaving, setVariantSaving] = React.useState(false);
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+
   React.useEffect(() => {
+    setCurrentPage(1);
+  }, [levelsSearch]);
+
+  React.useEffect(() => {
+    if (activeTab !== "levels") return;
+
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       setError(null);
       const supabase = createClient();
-      const { data, error: fetchError } = await supabase
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
         .from("products")
-        .select("*")
+        .select("*", { count: "exact" })
         .order("name", { ascending: true });
+      const trimmedLevelsSearch = levelsSearch.trim();
+      if (trimmedLevelsSearch) {
+        const pattern = `%${escapeIlike(trimmedLevelsSearch)}%`;
+        query = query.or(`name.ilike.${pattern},sku.ilike.${pattern}`);
+      }
+      const { data, error: fetchError, count } = await query.range(from, to);
 
       if (cancelled) return;
 
@@ -142,12 +172,14 @@ export function InventoryPage() {
             "Αποτυχία φόρτωσης αποθέματος. Ελέγξτε τη σύνδεση.",
         );
         setProducts([]);
+        setTotalCount(0);
         setLoading(false);
         return;
       }
 
       const mapped = (data as ProductRow[]).map(mapProductRow);
       setProducts(mapped);
+      setTotalCount(count ?? 0);
 
       const variantMap = await fetchVariantsForProducts(
         supabase,
@@ -163,7 +195,43 @@ export function InventoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey]);
+  }, [activeTab, fetchKey, levelsSearch, currentPage]);
+
+  React.useEffect(() => {
+    if (activeTab !== "adjustments") return;
+
+    let cancelled = false;
+
+    async function loadAdjustmentProducts() {
+      setAdjustmentProductsLoading(true);
+      const supabase = createClient();
+      let query = supabase
+        .from("products")
+        .select("*")
+        .order("name", { ascending: true })
+        .limit(100);
+      const trimmedProductSearch = productSearch.trim();
+      if (trimmedProductSearch) {
+        const pattern = `%${escapeIlike(trimmedProductSearch)}%`;
+        query = query.or(`name.ilike.${pattern},sku.ilike.${pattern}`);
+      }
+      const { data, error: fetchError } = await query;
+
+      if (cancelled) return;
+
+      if (fetchError) {
+        setAdjustmentProducts([]);
+      } else {
+        setAdjustmentProducts((data as ProductRow[]).map(mapProductRow));
+      }
+      setAdjustmentProductsLoading(false);
+    }
+
+    void loadAdjustmentProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, productSearch, fetchKey]);
 
   async function handleSaveVariantStock(
     variant: ProductColorVariant,
@@ -172,7 +240,7 @@ export function InventoryPage() {
     const stock = Math.max(0, Math.round(Number.parseInt(variantAdjustQty, 10) || 0));
     setVariantSaving(true);
     const supabase = createClient();
-    const { error: updateError, totalStock } = await updateVariantStock(
+    const { error: updateError } = await updateVariantStock(
       supabase,
       variant.id,
       productId,
@@ -187,19 +255,7 @@ export function InventoryPage() {
 
     setVariantAdjustId(null);
     setVariantAdjustQty("");
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === productId && totalStock != null
-          ? { ...product, stock: totalStock }
-          : product,
-      ),
-    );
-    const variantMap = await fetchVariantsForProducts(supabase, [productId]);
-    setVariantsByProduct((prev) => {
-      const next = new Map(prev);
-      next.set(productId, variantMap.get(productId) ?? []);
-      return next;
-    });
+    setFetchKey((key) => key + 1);
   }
 
   React.useEffect(() => {
@@ -240,15 +296,7 @@ export function InventoryPage() {
     };
   }, [activeTab, movementsFetchKey]);
 
-  const filteredProducts = React.useMemo(() => {
-    const q = productSearch.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q),
-    );
-  }, [productSearch, products]);
+  const filteredProducts = adjustmentProducts;
 
   function openAdjustmentForProduct(productId: string) {
     setAdjustProductId(productId);
@@ -273,7 +321,9 @@ export function InventoryPage() {
       return;
     }
 
-    const product = products.find((p) => p.id === adjustProductId);
+    const product =
+      adjustmentProducts.find((p) => p.id === adjustProductId) ??
+      products.find((p) => p.id === adjustProductId);
     if (!product) {
       setAdjustMessage("Το προϊόν δεν βρέθηκε.");
       return;
@@ -289,7 +339,7 @@ export function InventoryPage() {
     const supabase = createClient();
     const updatePayload = { stock: newStock };
 
-    const { data: updateData, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("products")
       .update(updatePayload)
       .eq("id", adjustProductId)
@@ -318,15 +368,11 @@ export function InventoryPage() {
       console.error("inventory_movement insert failed:", movementError);
     }
 
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === adjustProductId ? { ...p, stock: newStock } : p,
-      ),
-    );
     setAdjustQuantity("");
     setAdjustNotes("");
     setAdjustMessage("Η προσαρμογή αποθηκεύτηκε επιτυχώς.");
     setMovementsFetchKey((k) => k + 1);
+    setFetchKey((k) => k + 1);
     setAdjustSaving(false);
   }
 
@@ -365,12 +411,29 @@ export function InventoryPage() {
       ) : null}
 
       {activeTab === "levels" ? (
-        loading ? (
-          <LevelsTableSkeleton />
-        ) : !error ? (
-          <Card className={premiumTableWrap}>
-            <CardContent className="overflow-x-auto p-0">
-              <table className="w-full min-w-[720px] text-sm">
+        <>
+          <div className="relative max-w-md">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={levelsSearch}
+              onChange={(event) => setLevelsSearch(event.target.value)}
+              placeholder="Αναζήτηση ονόματος ή SKU…"
+              className={cn("pl-9", premiumInputFocus)}
+              aria-label="Αναζήτηση αποθέματος"
+              disabled={loading}
+            />
+          </div>
+
+          {loading ? (
+            <LevelsTableSkeleton />
+          ) : !error ? (
+            <Card className={premiumTableWrap}>
+              <CardContent className="overflow-x-auto p-0">
+                <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className={premiumTableHead}>
                     <th className="w-10 px-2 py-3" aria-label="Λεπτομέρειες" />
@@ -397,7 +460,9 @@ export function InventoryPage() {
                         colSpan={9}
                         className="px-4 py-12 text-center text-muted-foreground sm:px-6"
                       >
-                        Δεν υπάρχουν προϊόντα στην αποθήκη.
+                        {levelsSearch.trim()
+                          ? "Δεν βρέθηκαν προϊόντα με αυτό το κριτήριο."
+                          : "Δεν υπάρχουν προϊόντα στην αποθήκη."}
                       </td>
                     </tr>
                   ) : (
@@ -585,10 +650,21 @@ export function InventoryPage() {
                     })
                   )}
                 </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        ) : null
+                </table>
+                {totalCount > 0 ? (
+                  <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalCount}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    itemLabel="προϊόντα"
+                  />
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+        </>
       ) : null}
 
       {activeTab === "movements" ? (
@@ -699,7 +775,7 @@ export function InventoryPage() {
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Αναζήτηση προϊόντος…"
-                  disabled={loading}
+                  disabled={adjustmentProductsLoading}
                 />
                 <select
                   id="adj-product"
@@ -707,7 +783,7 @@ export function InventoryPage() {
                   onChange={(e) => setAdjustProductId(e.target.value)}
                   className={premiumSelect}
                   required
-                  disabled={loading}
+                  disabled={adjustmentProductsLoading}
                 >
                   <option value="">Επιλέξτε προϊόν…</option>
                   {filteredProducts.map((p) => (
@@ -771,7 +847,7 @@ export function InventoryPage() {
                 <Button
                   type="submit"
                   className={premiumGoldButton}
-                  disabled={adjustSaving || loading}
+                  disabled={adjustSaving || adjustmentProductsLoading}
                 >
                   {adjustSaving ? "Αποθήκευση…" : "Αποθήκευση Προσαρμογής"}
                 </Button>

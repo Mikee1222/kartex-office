@@ -44,6 +44,7 @@ import {
   type ProductRow,
 } from "@/types/database";
 import { PageHeader } from "@/components/ui/page-header";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   premiumFilterTabActive,
   premiumFilterTabInactive,
@@ -55,20 +56,10 @@ import {
 } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
-function matchesSearch(product: Product, query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return true;
-  return (
-    product.name.toLowerCase().includes(normalized) ||
-    product.sku.toLowerCase().includes(normalized) ||
-    product.barcode.toLowerCase().includes(normalized)
-  );
-}
+const ITEMS_PER_PAGE = 25;
 
-function matchesTab(product: Product, tab: ProductFilterTab) {
-  if (tab === "all") return true;
-  if (tab === "low_stock") return product.stock < product.minStock;
-  return product.category === tab;
+function escapeIlike(value: string) {
+  return value.replace(/[%_\\,]/g, "\\$&");
 }
 
 function formatDimensionsOnly(product: Product): string | null {
@@ -374,6 +365,8 @@ export function ProductsList() {
   const [search, setSearch] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<ProductFilterTab>("all");
   const [showInactive, setShowInactive] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [totalCount, setTotalCount] = React.useState(0);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -389,29 +382,31 @@ export function ProductsList() {
   );
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
 
-  const filtered = React.useMemo(() => {
-    return products.filter(
-      (product) => matchesTab(product, activeTab) && matchesSearch(product, search),
-    );
-  }, [products, search, activeTab]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+  const hasActiveFilters =
+    search.trim().length > 0 || activeTab !== "all" || showInactive;
 
-  const selectedInFiltered = React.useMemo(
-    () => filtered.filter((product) => selectedIds.has(product.id)),
-    [filtered, selectedIds],
+  const selectedOnPage = React.useMemo(
+    () => products.filter((product) => selectedIds.has(product.id)),
+    [products, selectedIds],
   );
 
-  const allFilteredSelected =
-    filtered.length > 0 && selectedInFiltered.length === filtered.length;
-  const someFilteredSelected =
-    selectedInFiltered.length > 0 && selectedInFiltered.length < filtered.length;
+  const allPageSelected =
+    products.length > 0 && selectedOnPage.length === products.length;
+  const somePageSelected =
+    selectedOnPage.length > 0 && selectedOnPage.length < products.length;
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeTab, showInactive]);
 
   const headerCheckboxRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (headerCheckboxRef.current) {
-      headerCheckboxRef.current.indeterminate = someFilteredSelected;
+      headerCheckboxRef.current.indeterminate = somePageSelected;
     }
-  }, [someFilteredSelected]);
+  }, [somePageSelected]);
 
   function toggleProductSelection(productId: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -425,10 +420,10 @@ export function ProductsList() {
     });
   }
 
-  function toggleAllFiltered(checked: boolean) {
+  function toggleAllOnPage(checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const product of filtered) {
+      for (const product of products) {
         if (checked) {
           next.add(product.id);
         } else {
@@ -440,24 +435,37 @@ export function ProductsList() {
   }
 
   function handleBulkPrintBarcodes() {
-    const result = printProductBarcodes(
-      selectedInFiltered.map((product) => ({
-        name: product.name,
-        sku: product.sku,
-        barcode: product.barcode,
-      })),
-    );
+    void (async () => {
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from("products")
+        .select("name, sku, barcode")
+        .in("id", Array.from(selectedIds));
 
-    if (!result.ok && result.error) {
-      toast.error(result.error);
-      return;
-    }
+      if (fetchError) {
+        toast.error(fetchError.message || "Αποτυχία φόρτωσης επιλεγμένων προϊόντων.");
+        return;
+      }
 
-    if (result.skipped?.length) {
-      toast.success(
-        `Εκτυπώθηκαν ${result.printedCount} barcode(s). Παραλείφθηκαν: ${result.skipped.join(", ")}`,
+      const result = printProductBarcodes(
+        (data ?? []).map((product) => ({
+          name: product.name,
+          sku: product.sku,
+          barcode: product.barcode,
+        })),
       );
-    }
+
+      if (!result.ok && result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      if (result.skipped?.length) {
+        toast.success(
+          `Εκτυπώθηκαν ${result.printedCount} barcode(s). Παραλείφθηκαν: ${result.skipped.join(", ")}`,
+        );
+      }
+    })();
   }
 
   React.useEffect(() => {
@@ -467,11 +475,30 @@ export function ProductsList() {
       setLoading(true);
       setError(null);
       const supabase = createClient();
-      let query = supabase.from("products").select("*").order("name", { ascending: true });
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .order("name", { ascending: true });
       if (!showInactive) {
         query = query.eq("is_active", true);
       }
-      const { data, error: fetchError } = await query;
+      if (activeTab !== "all" && activeTab !== "low_stock") {
+        query = query.eq("category", activeTab);
+      }
+      if (activeTab === "low_stock") {
+        query = query.filter("stock", "lt", "min_stock");
+      }
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) {
+        const pattern = `%${escapeIlike(trimmedSearch)}%`;
+        query = query.or(
+          `name.ilike.${pattern},sku.ilike.${pattern},barcode.ilike.${pattern}`,
+        );
+      }
+      const { data, error: fetchError, count } = await query.range(from, to);
 
       if (cancelled) return;
 
@@ -481,12 +508,14 @@ export function ProductsList() {
             "Αποτυχία φόρτωσης προϊόντων. Ελέγξτε τη σύνδεση και τα δικαιώματα πρόσβασης.",
         );
         setProducts([]);
+        setTotalCount(0);
         setLoading(false);
         return;
       }
 
       const mapped = (data as ProductRow[]).map(mapProductRow);
       setProducts(mapped);
+      setTotalCount(count ?? 0);
 
       const [variantMap, suppliersResult] = await Promise.all([
         fetchVariantsForProducts(
@@ -510,7 +539,7 @@ export function ProductsList() {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey, showInactive]);
+  }, [fetchKey, showInactive, search, activeTab, currentPage]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -581,10 +610,10 @@ export function ProductsList() {
           })}
         </div>
 
-        {selectedInFiltered.length > 0 ? (
+        {selectedIds.size > 0 ? (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-kartex-gold/30 bg-kartex-gold/5 px-4 py-3">
             <span className="text-sm font-medium text-kartex-navy">
-              {selectedInFiltered.length} επιλεγμένα
+              {selectedIds.size} επιλεγμένα
             </span>
             <Button
               type="button"
@@ -625,11 +654,11 @@ export function ProductsList() {
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
-                      checked={allFilteredSelected}
-                      onChange={(event) => toggleAllFiltered(event.target.checked)}
+                      checked={allPageSelected}
+                      onChange={(event) => toggleAllOnPage(event.target.checked)}
                       className="size-4 rounded border-border text-kartex-gold focus:ring-kartex-gold/40"
-                      aria-label="Επιλογή όλων"
-                      disabled={filtered.length === 0}
+                      aria-label="Επιλογή όλων στη σελίδα"
+                      disabled={products.length === 0 || loading}
                     />
                   </th>
                   <th className="w-10 px-2 py-3" aria-label="Λεπτομέρειες" />
@@ -646,29 +675,31 @@ export function ProductsList() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {products.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="p-0">
                       <EmptyState
                         icon={Box}
                         title={
-                          products.length === 0
+                          totalCount === 0 && !hasActiveFilters
                             ? "Δεν υπάρχουν προϊόντα"
                             : "Δεν βρέθηκαν αποτελέσματα"
                         }
                         description={
-                          products.length === 0
+                          totalCount === 0 && !hasActiveFilters
                             ? "Προσθέστε το πρώτο προϊόν στον κατάλογό σας."
                             : "Δοκιμάστε άλλο φίλτρο ή όρο αναζήτησης."
                         }
-                        actionLabel={products.length === 0 ? "Νέο Προϊόν" : undefined}
+                        actionLabel={
+                          totalCount === 0 && !hasActiveFilters ? "Νέο Προϊόν" : undefined
+                        }
                         actionHref="/products/new"
                         className="py-8"
                       />
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((product) => {
+                  products.map((product) => {
                     const variants = variantsByProduct.get(product.id) ?? [];
                     const colorSummaries = variants
                       .filter((variant) => variant.color)
@@ -833,6 +864,16 @@ export function ProductsList() {
                 )}
               </tbody>
             </table>
+            {!loading && totalCount > 0 ? (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+                itemLabel="προϊόντα"
+              />
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
