@@ -110,20 +110,23 @@ export function WebsiteSettingsPage() {
   async function saveAll() {
     setSaving(true);
     const supabase = createClient();
-    const { error: saveError } = await supabase.from("settings").upsert([
-      { key: "show_prices", value: settings.showPrices },
-      { key: "maintenance_mode", value: settings.maintenanceMode },
-      { key: "contact_email", value: settings.contactEmail },
-      { key: "contact_phone", value: settings.contactPhone },
-      { key: "contact_address", value: settings.contactAddress },
-      {
-        key: "social_links",
-        value: {
-          facebook: settings.facebook,
-          instagram: settings.instagram,
+    const { error: saveError } = await supabase.from("settings").upsert(
+      [
+        { key: "show_prices", value: settings.showPrices },
+        { key: "maintenance_mode", value: settings.maintenanceMode },
+        { key: "contact_email", value: settings.contactEmail },
+        { key: "contact_phone", value: settings.contactPhone },
+        { key: "contact_address", value: settings.contactAddress },
+        {
+          key: "social_links",
+          value: {
+            facebook: settings.facebook,
+            instagram: settings.instagram,
+          },
         },
-      },
-    ]);
+      ],
+      { onConflict: "key" },
+    );
     setSaving(false);
 
     if (saveError) {
