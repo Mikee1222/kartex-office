@@ -47,3 +47,25 @@ export type WebsiteProductRow = {
   image_url: string | null;
   is_active: boolean;
 };
+
+export type WebsiteSubcategory = {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type WebsiteCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  website_subcategories: WebsiteSubcategory[];
+};

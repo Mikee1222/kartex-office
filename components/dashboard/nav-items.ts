@@ -3,8 +3,8 @@ import {
   Bot,
   Calendar,
   FileQuestion,
-  Globe,
   LayoutDashboard,
+  LayoutGrid,
   Package,
   Palette,
   Receipt,
@@ -120,9 +120,9 @@ export const navSections: NavSection[] = [
     label: "WEBSITE",
     items: [
       {
-        label: "Περιεχόμενο",
+        label: "Κατηγορίες",
         href: "/website/content",
-        icon: Globe,
+        icon: LayoutGrid,
         permission: "canManageUsers",
       },
       {
