@@ -32,6 +32,8 @@ export type QuoteListItem = {
   itemCount: number;
   date: string;
   status: QuoteRequestStatus;
+  acceptedAt: string | null;
+  orderId: string | null;
 };
 
 export type QuoteDetailItem = {
@@ -59,6 +61,8 @@ export type QuoteDetail = {
   status: QuoteRequestStatus;
   createdAt: string;
   quotedAt: string | null;
+  acceptedAt: string | null;
+  orderId: string | null;
   items: QuoteDetailItem[];
 };
 

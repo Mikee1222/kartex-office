@@ -1,0 +1,3 @@
+ALTER TABLE quote_requests
+  ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES orders(id);

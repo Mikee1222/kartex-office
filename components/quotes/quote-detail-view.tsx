@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -332,6 +332,18 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
             {saving === "quoted" ? "Αποστολή…" : "Αποστολή Προσφοράς"}
           </Button>
         </div>
+      ) : quote.status === "accepted" && quote.orderId ? (
+        <Button
+          type="button"
+          variant="outline"
+          asChild
+          className="border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+        >
+          <Link href={`/orders/${quote.orderId}`}>
+            <Package className="mr-2 size-4" />
+            Δείτε την Παραγγελία
+          </Link>
+        </Button>
       ) : null}
     </div>
   );

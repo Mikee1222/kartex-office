@@ -355,6 +355,8 @@ export type QuoteRequestRow = {
   customer_id?: string | null;
   locale?: string | null;
   quoted_at?: string | null;
+  accepted_at?: string | null;
+  order_id?: string | null;
   responded_by?: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -404,6 +406,8 @@ export function mapQuoteRequestRow(
     itemCount: count,
     date: formatDateEl(row.created_at),
     status: normalizeQuoteRequestStatus(row.status),
+    acceptedAt: row.accepted_at ?? null,
+    orderId: row.order_id ?? null,
   };
 }
 
@@ -467,6 +471,8 @@ export function mapQuoteRequestToDetail(
     status: normalizeQuoteRequestStatus(row.status),
     createdAt: row.created_at,
     quotedAt: row.quoted_at ?? null,
+    acceptedAt: row.accepted_at ?? null,
+    orderId: row.order_id ?? null,
     items,
   };
 }

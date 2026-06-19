@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FileQuestion } from "lucide-react";
+import { Eye, FileQuestion, Package } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -56,6 +56,26 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
   const [highlightedIds, setHighlightedIds] = React.useState<Set<string>>(
     () => new Set(),
   );
+  const [acceptedHighlightIds, setAcceptedHighlightIds] = React.useState<
+    Set<string>
+  >(() => new Set());
+
+  const addTemporaryHighlight = React.useCallback(
+    (
+      id: string,
+      setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    ) => {
+      setter((current) => new Set(current).add(id));
+      window.setTimeout(() => {
+        setter((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
+        });
+      }, 4000);
+    },
+    [],
+  );
 
   const loadQuotes = React.useCallback(async () => {
     setLoading(true);
@@ -86,7 +106,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
     const supabase = createClient();
 
     const channel = supabase
-      .channel("quote-requests-inserts")
+      .channel("quote-requests-changes")
       .on(
         "postgres_changes",
         {
@@ -104,16 +124,50 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
             if (current.some((quote) => quote.id === mapped.id)) return current;
             return [mapped, ...current];
           });
-          setHighlightedIds((current) => new Set(current).add(mapped.id));
+          addTemporaryHighlight(mapped.id, setHighlightedIds);
           bumpQuotes();
           toast.success("Νέο αίτημα προσφοράς!");
-          window.setTimeout(() => {
-            setHighlightedIds((current) => {
-              const next = new Set(current);
-              next.delete(mapped.id);
-              return next;
-            });
-          }, 4000);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "quote_requests",
+        },
+        (payload) => {
+          const row = payload.new as QuoteRequestRow;
+          const oldRow = payload.old as Partial<QuoteRequestRow>;
+          const wasAccepted = oldRow.status === "accepted";
+          const isAccepted = row.status === "accepted";
+
+          setQuotes((current) => {
+            const existing = current.find((quote) => quote.id === row.id);
+            const mapped = mapQuoteRequestRow(
+              {
+                ...row,
+                quote_request_items: existing
+                  ? [{ count: existing.itemCount }]
+                  : [{ count: 0 }],
+              },
+              existing?.itemCount ?? 0,
+            );
+
+            if (!existing) {
+              return [mapped, ...current];
+            }
+
+            return current.map((quote) =>
+              quote.id === row.id ? mapped : quote,
+            );
+          });
+
+          if (isAccepted && !wasAccepted) {
+            addTemporaryHighlight(row.id, setAcceptedHighlightIds);
+            bumpQuotes();
+            toast.success("✓ Ο πελάτης αποδέχτηκε την προσφορά!");
+          }
         },
       )
       .subscribe();
@@ -121,7 +175,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [bumpQuotes]);
+  }, [addTemporaryHighlight, bumpQuotes]);
 
   const filtered = React.useMemo(
     () => quotes.filter((quote) => matchesQuoteFilterTab(quote.status, activeTab)),
@@ -208,6 +262,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                         premiumTableRow,
                         "cursor-pointer transition-colors",
                         highlightedIds.has(quote.id) && "bg-amber-50/80",
+                        acceptedHighlightIds.has(quote.id) && "bg-emerald-50/80",
                       )}
                       onClick={() => router.push(`/quotes/${quote.id}`)}
                     >
@@ -233,18 +288,34 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                         className="px-4 py-3 text-right sm:pr-6"
                         onClick={(event) => event.stopPropagation()}
                       >
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          asChild
-                          className="border-gray-200"
-                        >
-                          <Link href={`/quotes/${quote.id}`}>
-                            <Eye className="mr-1.5 size-4" />
-                            Προβολή
-                          </Link>
-                        </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {quote.status === "accepted" && quote.orderId ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              asChild
+                              className="border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+                            >
+                              <Link href={`/orders/${quote.orderId}`}>
+                                <Package className="mr-1.5 size-4" />
+                                Δείτε την Παραγγελία
+                              </Link>
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="border-gray-200"
+                          >
+                            <Link href={`/quotes/${quote.id}`}>
+                              <Eye className="mr-1.5 size-4" />
+                              Προβολή
+                            </Link>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
