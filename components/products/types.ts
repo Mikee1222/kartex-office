@@ -40,7 +40,6 @@ export type Product = {
   weightKg?: number | null;
   gsm?: number | null;
   threadCount?: number | null;
-  color?: string | null;
   unit?: string;
   material?: string;
   qualityGrade?: string;

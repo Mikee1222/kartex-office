@@ -23,6 +23,8 @@ import {
   countMasterGroupStats,
   resolveMasterGroupKey,
 } from "@/lib/products/master-groups";
+import { fetchVariantsForProducts } from "@/lib/products/color-variants";
+import type { ProductColorVariant } from "@/lib/products/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   premiumFilterTabActiveCategory,
@@ -44,6 +46,9 @@ export function ProductsList() {
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [fetchKey, setFetchKey] = React.useState(0);
+  const [variantsByProduct, setVariantsByProduct] = React.useState<
+    Map<string, ProductColorVariant[]>
+  >(new Map());
 
   React.useEffect(() => {
     let cancelled = false;
@@ -71,6 +76,16 @@ export function ProductsList() {
       }
 
       setProducts((data ?? []) as ProductRow[]);
+
+      const mapped = (data ?? []).map((row) => mapProductRow(row as ProductRow));
+      const variantMap = await fetchVariantsForProducts(
+        supabase,
+        mapped.map((product) => product.id),
+      );
+      if (!cancelled) {
+        setVariantsByProduct(variantMap);
+      }
+
       setLoading(false);
     }
 
@@ -249,6 +264,7 @@ export function ProductsList() {
                     key={key}
                     group={group}
                     isExpanded={expandedKey === key}
+                    variantsByProduct={variantsByProduct}
                     onToggle={() =>
                       setExpandedKey(expandedKey === key ? null : key)
                     }

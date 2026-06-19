@@ -29,6 +29,10 @@ import {
   sortMasterGroupsCriticalFirst,
   type ProductVariant,
 } from "@/lib/products/master-groups";
+import {
+  fetchVariantsForProducts,
+} from "@/lib/products/color-variants";
+import type { ProductColorVariant } from "@/lib/products/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatDateEl,
@@ -131,6 +135,9 @@ export function InventoryPage() {
   const [productAdjustId, setProductAdjustId] = React.useState<string | null>(null);
   const [productAdjustQty, setProductAdjustQty] = React.useState("");
   const [productAdjustSaving, setProductAdjustSaving] = React.useState(false);
+  const [variantsByProduct, setVariantsByProduct] = React.useState<
+    Map<string, ProductColorVariant[]>
+  >(new Map());
 
   const masterGroups = React.useMemo(() => buildMasterGroups(products), [products]);
 
@@ -221,7 +228,17 @@ export function InventoryPage() {
         return;
       }
 
-      setProducts((data as ProductRow[]).map(mapProductRow));
+      const mapped = (data as ProductRow[]).map(mapProductRow);
+      setProducts(mapped);
+
+      const variantMap = await fetchVariantsForProducts(
+        supabase,
+        mapped.map((product) => product.id),
+      );
+      if (!cancelled) {
+        setVariantsByProduct(variantMap);
+      }
+
       setLoading(false);
     }
 
@@ -565,6 +582,7 @@ export function InventoryPage() {
                         key={key}
                         group={group}
                         isExpanded={expandedKey === key}
+                        variantsByProduct={variantsByProduct}
                         onToggle={() =>
                           setExpandedKey(expandedKey === key ? null : key)
                         }

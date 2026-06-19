@@ -7,7 +7,6 @@ import {
   ChevronUp,
   Layers,
   Package,
-  Palette,
   Pencil,
   Ruler,
   TriangleAlert,
@@ -20,12 +19,14 @@ import { StockBar } from "@/components/products/stock-bar";
 import { StockStatusIcon } from "@/components/products/stock-status-icon";
 import { getStockStatus } from "@/components/products/types";
 import { Button } from "@/components/ui/button";
+import { ColorCircle } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import {
   stockBarColorClass,
   type MasterGroup,
   type ProductVariant,
 } from "@/lib/products/master-groups";
+import type { ProductColorVariant } from "@/lib/products/types";
 import { premiumCard, premiumLabel, premiumStatCard } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +117,24 @@ function groupIconBg(group: MasterGroup) {
   return "bg-gold-500/10 text-gold-500";
 }
 
-function VariantBadges({ variant }: { variant: ProductVariant }) {
+function collectUniqueGroupColors(
+  group: MasterGroup,
+  variantsByProduct: Map<string, ProductColorVariant[]>,
+): { id: string; name: string; hexCode: string }[] {
+  const allColors = group.variants.flatMap((variant) => {
+    const colorVariants = variantsByProduct.get(variant.id) ?? [];
+    return colorVariants
+      .filter((cv) => cv.color)
+      .map((cv) => ({
+        id: cv.colorId,
+        name: cv.color!.name,
+        hexCode: cv.color!.hexCode,
+      }));
+  });
+  return [...new Map(allColors.map((color) => [color.name, color])).values()];
+}
+
+function VariantDimensionBadges({ variant }: { variant: ProductVariant }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {variant.widthCm && variant.heightCm ? (
@@ -136,12 +154,53 @@ function VariantBadges({ variant }: { variant: ProductVariant }) {
           T{variant.threadCount}
         </span>
       ) : null}
-      {variant.color ? (
-        <span className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-500">
-          <Palette size={10} aria-hidden />
-          {variant.color}
-        </span>
-      ) : null}
+    </div>
+  );
+}
+
+function VariantColorStockBars({
+  productId,
+  variantsByProduct,
+  maxStock,
+}: {
+  productId: string;
+  variantsByProduct: Map<string, ProductColorVariant[]>;
+  maxStock: number;
+}) {
+  const colorVariants = (variantsByProduct.get(productId) ?? []).filter(
+    (cv) => cv.color && cv.isActive,
+  );
+  if (colorVariants.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {colorVariants.map((cv) => {
+        const color = cv.color!;
+        const barPct = Math.round((cv.stock / maxStock) * 100);
+        const status = getStockStatus(cv.stock, 0);
+
+        return (
+          <div key={cv.id} className="flex items-center gap-2">
+            <ColorCircle color={color} size={14} title={color.name} />
+            <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className={cn(
+                  "h-full rounded-full",
+                  status === "critical"
+                    ? "bg-red-500"
+                    : status === "low"
+                      ? "bg-amber-500"
+                      : "bg-emerald-500",
+                )}
+                style={{ width: `${Math.min(barPct, 100)}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-[10px] font-semibold tabular-nums text-gray-500">
+              {cv.stock}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -149,6 +208,7 @@ function VariantBadges({ variant }: { variant: ProductVariant }) {
 type ProductMasterGroupCardProps = {
   group: MasterGroup;
   isExpanded: boolean;
+  variantsByProduct: Map<string, ProductColorVariant[]>;
   onToggle: () => void;
   onVariantClick: (variantId: string) => void;
   onVariantEdit: (variantId: string, event: React.MouseEvent) => void;
@@ -157,11 +217,13 @@ type ProductMasterGroupCardProps = {
 export function ProductMasterGroupCard({
   group,
   isExpanded,
+  variantsByProduct,
   onToggle,
   onVariantClick,
   onVariantEdit,
 }: ProductMasterGroupCardProps) {
   const maxStock = Math.max(...group.variants.map((variant) => variant.stock), 1);
+  const uniqueColors = collectUniqueGroupColors(group, variantsByProduct);
   const groupStockBarPct = Math.min(
     Math.round((group.totalStock / (maxStock * group.variants.length || 1)) * 100),
     100,
@@ -254,6 +316,29 @@ export function ProductMasterGroupCard({
               {group.material}
             </p>
           ) : null}
+          {uniqueColors.length > 0 ? (
+            <div
+              className="flex items-center gap-1.5"
+              title={uniqueColors.map((color) => color.name).join(", ")}
+            >
+              {uniqueColors.slice(0, 4).map((color) => (
+                <span
+                  key={color.id}
+                  title={color.name}
+                  className="rounded-full border border-black/10 shadow-sm"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    backgroundColor: color.hexCode,
+                  }}
+                  aria-hidden
+                />
+              ))}
+              {uniqueColors.length > 4 ? (
+                <span className="text-xs text-gray-400">+{uniqueColors.length - 4}</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </button>
 
@@ -281,7 +366,12 @@ export function ProductMasterGroupCard({
                 }}
               >
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <VariantBadges variant={variant} />
+                  <VariantDimensionBadges variant={variant} />
+                  <VariantColorStockBars
+                    productId={variant.id}
+                    variantsByProduct={variantsByProduct}
+                    maxStock={maxStock}
+                  />
                   <div className="flex items-center gap-2">
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
                       <div
@@ -332,6 +422,7 @@ export function ProductMasterGroupCard({
 type InventoryMasterGroupCardProps = {
   group: MasterGroup;
   isExpanded: boolean;
+  variantsByProduct: Map<string, ProductColorVariant[]>;
   onToggle: () => void;
   productAdjustId: string | null;
   productAdjustQty: string;
@@ -345,6 +436,7 @@ type InventoryMasterGroupCardProps = {
 export function InventoryMasterGroupCard({
   group,
   isExpanded,
+  variantsByProduct,
   onToggle,
   productAdjustId,
   productAdjustQty,
@@ -355,6 +447,7 @@ export function InventoryMasterGroupCard({
   onSaveAdjust,
 }: InventoryMasterGroupCardProps) {
   const maxStock = Math.max(...group.variants.map((variant) => variant.stock), 1);
+  const uniqueColors = collectUniqueGroupColors(group, variantsByProduct);
   const groupStockBarPct = Math.min(
     Math.round((group.totalStock / (maxStock * group.variants.length || 1)) * 100),
     100,
@@ -440,6 +533,29 @@ export function InventoryMasterGroupCard({
               style={{ width: `${groupStockBarPct}%` }}
             />
           </div>
+          {uniqueColors.length > 0 ? (
+            <div
+              className="flex items-center gap-1.5"
+              title={uniqueColors.map((color) => color.name).join(", ")}
+            >
+              {uniqueColors.slice(0, 4).map((color) => (
+                <span
+                  key={color.id}
+                  title={color.name}
+                  className="rounded-full border border-black/10 shadow-sm"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    backgroundColor: color.hexCode,
+                  }}
+                  aria-hidden
+                />
+              ))}
+              {uniqueColors.length > 4 ? (
+                <span className="text-xs text-gray-400">+{uniqueColors.length - 4}</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </button>
 
@@ -459,7 +575,12 @@ export function InventoryMasterGroupCard({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <VariantBadges variant={variant} />
+                    <VariantDimensionBadges variant={variant} />
+                    <VariantColorStockBars
+                      productId={variant.id}
+                      variantsByProduct={variantsByProduct}
+                      maxStock={maxStock}
+                    />
                     <StockBar
                       stock={variant.stock}
                       maxStock={maxStock}

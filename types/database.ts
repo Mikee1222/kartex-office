@@ -208,7 +208,6 @@ export function mapProductRow(row: ProductRow): Product {
     weightKg: row.weight_kg != null ? toNumber(row.weight_kg) : null,
     gsm: row.gsm != null ? toNumber(row.gsm) : null,
     threadCount: row.thread_count != null ? toNumber(row.thread_count) : null,
-    color: row.color ?? null,
     unit: row.unit?.trim() || "τεμ",
     material: row.material?.trim() || undefined,
     qualityGrade: row.quality_grade?.trim() || undefined,

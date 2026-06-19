@@ -11,7 +11,6 @@ export type ProductVariant = {
   heightCm?: number | null;
   gsm?: number | null;
   threadCount?: number | null;
-  color?: string | null;
   stock: number;
   reservedStock: number;
   availableStock: number;
@@ -59,7 +58,6 @@ export function productToVariant(product: Product): ProductVariant {
     heightCm: product.heightCm,
     gsm: product.gsm,
     threadCount: product.threadCount,
-    color: product.color,
     stock: product.stock,
     reservedStock: product.reservedStock,
     availableStock: product.availableStock,
@@ -145,7 +143,6 @@ export function variantLabel(variant: ProductVariant): string {
   }
   if (variant.gsm) parts.push(`${variant.gsm}gsm`);
   if (variant.threadCount) parts.push(`T${variant.threadCount}`);
-  if (variant.color) parts.push(variant.color);
   return parts.join(" · ") || variant.cleanName || variant.name;
 }
 
