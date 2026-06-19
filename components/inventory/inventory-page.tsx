@@ -84,7 +84,10 @@ type InventoryMovementRow = {
   reason: string | null;
   created_at: string;
   order_id: string | null;
-  products: { name: string } | { name: string }[] | null;
+  products:
+    | { name: string; clean_name?: string | null }
+    | { name: string; clean_name?: string | null }[]
+    | null;
   orders: { order_number: string } | { order_number: string }[] | null;
 };
 
@@ -103,6 +106,12 @@ function pickJoinName<T extends { name?: string; order_number?: string }>(
   if (!row) return "—";
   const v = row[field];
   return v?.trim() || "—";
+}
+
+function getProductDisplayName(products: InventoryMovementRow["products"]): string {
+  if (!products) return "—";
+  const p = Array.isArray(products) ? products[0] : products;
+  return p?.clean_name || p?.name || "—";
 }
 
 function LevelsSummarySkeleton() {
@@ -417,8 +426,8 @@ export function InventoryPage() {
         .select(
           `
           id, type, quantity, reason, created_at, order_id,
-          products (name),
-          orders (order_number)
+          products!inner(name, clean_name),
+          orders(order_number)
         `,
         )
         .order("created_at", { ascending: false })
@@ -718,7 +727,7 @@ export function InventoryPage() {
                               </td>
                               <td className="px-4 py-3 sm:px-6">
                                 <p className="font-semibold text-kartex-navy">
-                                  {product.name}
+                                  {product.cleanName || product.name}
                                 </p>
                                 <p className="mt-0.5 font-mono text-xs text-muted-foreground">
                                   {product.sku}
@@ -926,7 +935,7 @@ export function InventoryPage() {
                             {formatDateEl(row.created_at)}
                           </td>
                           <td className="px-4 py-3 font-medium text-kartex-navy">
-                            {pickJoinName(row.products, "name")}
+                            {getProductDisplayName(row.products)}
                           </td>
                           <td className="px-4 py-3">
                             {MOVEMENT_TYPE_LABELS[row.type] ?? row.type}
