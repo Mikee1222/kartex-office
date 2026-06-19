@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { CategoryBadge, getCategoryIconClass } from "@/components/products/category-badge";
 import { ProductColorStockSection } from "@/components/products/product-color-stock-section";
+import { StockStatusBadge } from "@/components/products/stock-status-badge";
 import { getStockStatus } from "@/components/products/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -362,9 +363,6 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             {product.threadCount != null ? (
               <DetailField label="Αριθμός νημάτων" value={`T${product.threadCount}`} />
             ) : null}
-            {product.color ? (
-              <DetailField label="Χρώμα" value={product.color} />
-            ) : null}
             {product.subcategory ? (
               <DetailField label="Υποκατηγορία" value={product.subcategory} />
             ) : null}
@@ -401,21 +399,46 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         </CardHeader>
         <CardContent>
           {variants.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-6 py-10 text-center">
-              <Palette className="mx-auto size-10 text-gray-300" aria-hidden />
-              <p className="mt-3 text-sm font-medium text-navy-900">
-                Δεν έχουν οριστεί ενεργά χρώματα
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                Προσθέστε χρώματα και απόθεμα από τη φόρμα επεξεργασίας.
-              </p>
-              <Button asChild variant="outline" className="mt-4 border-gold-500/40 text-navy-900 hover:bg-gold-500/10">
-                <Link href={`/products/${productId}/edit`}>
-                  <Pencil className="size-4" />
-                  Επεξεργασία προϊόντος
-                </Link>
-              </Button>
-            </div>
+            product.color?.trim() ? (
+              <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:max-w-sm">
+                <div className="flex items-start gap-4">
+                  <span
+                    className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-gray-200 bg-gray-100"
+                    aria-hidden
+                  >
+                    <Palette className="size-7 text-gray-400" />
+                  </span>
+                  <div className="min-w-0 flex-1 pt-1">
+                    <p className="text-base font-bold text-navy-900">{product.color.trim()}</p>
+                    <StockStatusBadge
+                      stock={product.stock}
+                      minStock={product.minStock}
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+                <div className="mt-5 text-center">
+                  <p className="text-4xl font-bold tabular-nums text-navy-900">{product.stock}</p>
+                  <p className="text-sm text-gray-400">{unit}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-6 py-10 text-center">
+                <Palette className="mx-auto size-10 text-gray-300" aria-hidden />
+                <p className="mt-3 text-sm font-medium text-navy-900">
+                  Δεν έχουν οριστεί ενεργά χρώματα
+                </p>
+                <p className="mt-1 text-sm text-gray-400">
+                  Προσθέστε χρώματα και απόθεμα από τη φόρμα επεξεργασίας.
+                </p>
+                <Button asChild variant="outline" className="mt-4 border-gold-500/40 text-navy-900 hover:bg-gold-500/10">
+                  <Link href={`/products/${productId}/edit`}>
+                    <Pencil className="size-4" />
+                    Επεξεργασία προϊόντος
+                  </Link>
+                </Button>
+              </div>
+            )
           ) : (
             <ProductColorStockSection
               totalStock={product.stock}
