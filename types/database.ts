@@ -323,9 +323,12 @@ export function mapCustomerRowToEditInitial(row: CustomerRow): CustomerEditIniti
 
 export type ProductEditInitial = {
   name: string;
+  cleanName: string;
+  masterId: string;
   sku: string;
   barcode: string;
   category: string;
+  subcategory: string;
   purchasePrice: string;
   salePrice: string;
   stock: string;
@@ -515,9 +518,12 @@ export function mapProductRowToEditInitial(
 ): ProductEditInitial {
   return {
     name: row.name,
+    cleanName: row.clean_name?.trim() ?? "",
+    masterId: row.master_id ?? "",
     sku: row.sku,
     barcode: row.barcode?.trim() ?? "",
     category: normalizeProductCategory(row.category),
+    subcategory: row.subcategory?.trim() ?? "",
     purchasePrice: String(row.purchase_price ?? 0),
     salePrice: String(row.sale_price ?? 0),
     stock: String(row.stock ?? 0),
