@@ -4,6 +4,7 @@ import { Package } from "lucide-react";
 
 import { FormFieldLabel } from "@/components/ui/form-field-label";
 import { Input } from "@/components/ui/input";
+import { FIELD_TOOLTIPS } from "@/lib/forms/field-tooltips";
 import type { ProductMasterRow } from "@/lib/products/product-masters";
 import {
   productFormField,
@@ -26,6 +27,9 @@ type ProductMasterSectionProps = {
   readOnlyLabel?: string;
 };
 
+const masterSectionClass =
+  "space-y-6 rounded-2xl border-2 border-gold-500/40 bg-gradient-to-br from-white to-gold-500/[0.03] p-8 shadow-card";
+
 export function ProductMasterSection({
   masters,
   selectedMaster,
@@ -40,12 +44,17 @@ export function ProductMasterSection({
 }: ProductMasterSectionProps) {
   if (readOnly) {
     return (
-      <section className="rounded-2xl border border-kartex-gold/20 bg-kartex-gold/5 p-5">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-kartex-navy">
-          <Package size={16} className="text-kartex-gold" aria-hidden />
-          Τύπος Προϊόντος
-        </h3>
-        <p className="text-sm text-muted-foreground">
+      <section className={masterSectionClass}>
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gold-500/15">
+            <Package className="size-5 text-gold-500" aria-hidden />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-navy-900">Master Προϊόν</h2>
+            <p className="text-sm text-gray-500">Συνδεδεμένο master προϊόν</p>
+          </div>
+        </div>
+        <p className="text-base font-medium text-navy-900">
           {readOnlyLabel ?? (cleanName || "—")}
         </p>
       </section>
@@ -55,29 +64,38 @@ export function ProductMasterSection({
   const existingMaster = masters.find((master) => master.id === selectedMaster);
 
   return (
-    <section className="rounded-2xl border border-kartex-gold/20 bg-kartex-gold/5 p-5">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-kartex-navy">
-        <Package size={16} className="text-kartex-gold" aria-hidden />
-        Κατηγορία Προϊόντος
-      </h3>
+    <section className={masterSectionClass}>
+      <div className="flex items-center gap-2.5">
+        <div className="flex size-9 items-center justify-center rounded-xl bg-gold-500/15">
+          <Package className="size-5 text-gold-500" aria-hidden />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-navy-900">Master Προϊόν</h2>
+          <p className="text-sm text-gray-500">
+            Επιλέξτε υπάρχον master ή δημιουργήστε νέο για ομαδοποίηση παραλλαγών
+          </p>
+        </div>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className={productFormField}>
           <FormFieldLabel
             htmlFor="product-master-select"
             required
             labelClassName={productFormLabel}
           >
-            Τύπος προϊόντος
+            Master προϊόν
           </FormFieldLabel>
           <select
             id="product-master-select"
             value={selectedMaster}
             disabled={disabled}
             onChange={(event) => onSelectedMasterChange(event.target.value)}
-            className={cn(productFormSelect, "bg-background")}
+            className={productFormSelect}
           >
-            <option value="">Επιλέξτε ή δημιουργήστε νέο…</option>
+            <option value="">
+              {disabled ? "Φόρτωση masters…" : "Επιλέξτε ή δημιουργήστε νέο…"}
+            </option>
             {masters.length > 0 ? (
               <optgroup label="— Υπάρχοντα —">
                 {masters.map((master) => (
@@ -87,7 +105,7 @@ export function ProductMasterSection({
                 ))}
               </optgroup>
             ) : null}
-            <option value="new">+ Νέος τύπος προϊόντος</option>
+            <option value="new">+ Νέο master προϊόν</option>
           </select>
         </div>
 
@@ -96,9 +114,10 @@ export function ProductMasterSection({
             <FormFieldLabel
               htmlFor="new-master-name"
               required
+              tooltip={FIELD_TOOLTIPS.cleanName}
               labelClassName={productFormLabel}
             >
-              Όνομα νέου τύπου
+              Clean name (master)
             </FormFieldLabel>
             <Input
               id="new-master-name"
