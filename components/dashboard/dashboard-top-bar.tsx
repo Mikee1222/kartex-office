@@ -41,6 +41,8 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   drivers: "Οδηγοί",
   trips: "Δρομολόγια",
   assistant: "Dolphin",
+  website: "Website",
+  content: "Περιεχόμενο",
   new: "Νέο",
   edit: "Επεξεργασία",
 };

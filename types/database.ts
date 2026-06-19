@@ -50,6 +50,7 @@ export type ProductRow = {
   quality_grade?: string | null;
   supplier_id?: string | null;
   is_active?: boolean;
+  image_url?: string | null;
   created_at: string;
   updated_at?: string;
 };
