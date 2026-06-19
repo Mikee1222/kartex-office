@@ -6,6 +6,7 @@ import {
   Layers,
   Pencil,
   Palette,
+  Ruler,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -74,6 +75,11 @@ function ProductDetailSkeleton() {
     <div className="mx-auto max-w-5xl space-y-6">
       <Skeleton className="h-5 w-24" />
       <Skeleton className="h-40 w-full rounded-2xl" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-48 rounded-2xl" />
+        ))}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton key={index} className="h-24 rounded-2xl" />
@@ -287,6 +293,167 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
           </Button>
         </div>
       </div>
+
+      {/* Configuration Overview Panel */}
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className={cn(premiumCard, "p-5")}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-navy-900">
+              <Palette size={16} className="text-gold-500" aria-hidden />
+              Χρώματα
+            </h3>
+            <Link
+              href={`/products/${productId}/edit`}
+              className="text-xs font-medium text-gold-600 transition-colors hover:text-gold-500 hover:underline"
+            >
+              + Προσθήκη
+            </Link>
+          </div>
+          {variants.length === 0 ? (
+            <p className="text-sm text-gray-400">Δεν έχουν οριστεί χρώματα</p>
+          ) : (
+            <div className="space-y-2">
+              {variants.map((variant) => (
+                <div key={variant.id} className="flex items-center gap-3">
+                  <span
+                    className="size-5 shrink-0 rounded-full border border-black/10"
+                    style={{ backgroundColor: variant.color?.hexCode ?? "#ccc" }}
+                    aria-hidden
+                  />
+                  <span className="flex-1 truncate text-sm font-medium text-navy-900">
+                    {variant.color?.name}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm font-bold tabular-nums",
+                      variant.stock <= 0
+                        ? "text-red-600"
+                        : variant.stock <= product.minStock
+                          ? "text-amber-600"
+                          : "text-emerald-700",
+                    )}
+                  >
+                    {variant.stock}
+                  </span>
+                  <span className="text-xs text-gray-400">τεμ.</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={cn(premiumCard, "p-5")}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-navy-900">
+              <Ruler size={16} className="text-gold-500" aria-hidden />
+              Διαστάσεις & Specs
+            </h3>
+            <Link
+              href={`/products/${productId}/edit`}
+              className="text-xs font-medium text-gold-600 transition-colors hover:text-gold-500 hover:underline"
+            >
+              Επεξεργασία
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {product.widthCm != null && product.heightCm != null ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">Διαστάσεις</span>
+                <span className="rounded-lg bg-navy-900/5 px-2.5 py-1 text-sm font-semibold text-navy-900">
+                  {product.widthCm}×{product.heightCm} cm
+                </span>
+              </div>
+            ) : null}
+            {product.widthCm != null && product.heightCm == null ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">Φάρδος</span>
+                <span className="rounded-lg bg-navy-900/5 px-2.5 py-1 text-sm font-semibold text-navy-900">
+                  Φ{product.widthCm} cm
+                </span>
+              </div>
+            ) : null}
+            {product.gsm != null ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">Πυκνότητα</span>
+                <span className="rounded-lg bg-navy-900/5 px-2.5 py-1 text-sm font-semibold text-navy-900">
+                  {product.gsm} gsm
+                </span>
+              </div>
+            ) : null}
+            {product.threadCount != null ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">Νήματα</span>
+                <span className="rounded-lg bg-navy-900/5 px-2.5 py-1 text-sm font-semibold text-navy-900">
+                  T{product.threadCount}
+                </span>
+              </div>
+            ) : null}
+            {product.unit ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">Μονάδα</span>
+                <span className="text-sm font-semibold text-navy-900">{product.unit}</span>
+              </div>
+            ) : null}
+            {product.widthCm == null &&
+            product.gsm == null &&
+            product.threadCount == null ? (
+              <p className="text-sm text-gray-400">Δεν έχουν οριστεί διαστάσεις</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className={cn(premiumCard, "p-5")}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-navy-900">
+              <Layers size={16} className="text-gold-500" aria-hidden />
+              Ποιότητα & Υλικό
+            </h3>
+            <Link
+              href={`/products/${productId}/edit`}
+              className="text-xs font-medium text-gold-600 transition-colors hover:text-gold-500 hover:underline"
+            >
+              Επεξεργασία
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {product.qualityGrade ? (
+              <div>
+                <div className="mb-1.5 text-xs text-gray-400">Σειρά / Ποιότητα</div>
+                <div className="inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-gold-500/10 px-3 py-2">
+                  <span className="text-sm font-bold text-navy-900">
+                    {product.qualityGrade}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            {product.material ? (
+              <div>
+                <div className="mb-1.5 text-xs text-gray-400">Υλικό</div>
+                <div className="rounded-xl bg-navy-900/5 px-3 py-2 text-sm font-medium text-navy-900">
+                  {product.material}
+                </div>
+              </div>
+            ) : null}
+            {product.subcategory ? (
+              <div>
+                <div className="mb-1.5 text-xs text-gray-400">Υποκατηγορία</div>
+                <div className="rounded-xl bg-navy-900/5 px-3 py-2 text-sm font-medium text-navy-900">
+                  {product.subcategory}
+                </div>
+              </div>
+            ) : null}
+            {product.category ? (
+              <div>
+                <div className="mb-1.5 text-xs text-gray-400">Κατηγορία</div>
+                <CategoryBadge category={product.category} />
+              </div>
+            ) : null}
+            {!product.qualityGrade && !product.material && !product.subcategory ? (
+              <p className="text-sm text-gray-400">Δεν έχουν οριστεί στοιχεία ποιότητας</p>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       {/* Stats row */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
