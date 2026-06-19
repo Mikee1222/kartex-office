@@ -83,7 +83,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
     const supabase = createClient();
     const { data, error: fetchError } = await supabase
       .from("quote_requests")
-      .select("*, quote_request_items(count)")
+      .select("*, quote_request_items!quote_request_items_quote_request_id_fkey(count)")
       .order("created_at", { ascending: false });
 
     if (fetchError) {

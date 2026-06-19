@@ -479,11 +479,11 @@ export function mapQuoteRequestToDetail(
 }
 
 export const QUOTE_LIST_SELECT =
-  "*, quote_request_items(id), customers(name)";
+  "*, quote_request_items!quote_request_items_quote_request_id_fkey(id), customers(name)";
 
 export const QUOTE_DETAIL_SELECT = `
   *,
-  quote_request_items(
+  quote_request_items!quote_request_items_quote_request_id_fkey(
     id,
     quote_request_id,
     product_id,
