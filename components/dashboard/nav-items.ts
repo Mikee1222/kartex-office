@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bot,
   Calendar,
+  FileQuestion,
   LayoutDashboard,
   Package,
   Palette,
@@ -27,6 +28,8 @@ export type NavItem = {
   permission?: PermissionKey;
   /** Gold icon accent when inactive (e.g. Dolphin). */
   goldAccent?: boolean;
+  /** Show red badge with pending quote_requests count. */
+  pendingQuotesBadge?: boolean;
 };
 
 export type NavSection = {
@@ -53,6 +56,13 @@ export const navSections: NavSection[] = [
         href: "/orders",
         icon: ShoppingCart,
         permission: "canViewOrders",
+      },
+      {
+        label: "Αιτήματα Προσφοράς",
+        href: "/quotes",
+        icon: FileQuestion,
+        permission: "canViewOrders",
+        pendingQuotesBadge: true,
       },
       {
         label: "Πρόγραμμα",

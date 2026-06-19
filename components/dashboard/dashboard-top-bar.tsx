@@ -31,6 +31,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   customers: "Πελάτες",
   products: "Προϊόντα",
   inventory: "Αποθήκη",
+  quotes: "Αιτήματα Προσφοράς",
   reports: "Αναφορές",
   "z-report": "Ημερήσιο Ζ",
   users: "Χρήστες",

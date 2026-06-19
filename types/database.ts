@@ -334,6 +334,165 @@ export type ProductEditInitial = {
   colorSelections: { colorId: string; stock: number; isPrimary?: boolean }[];
 };
 
+export type QuoteRequestStatus =
+  | "pending"
+  | "reviewing"
+  | "quoted"
+  | "accepted"
+  | "rejected"
+  | "cancelled";
+
+export type QuoteRequestRow = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone?: string | null;
+  notes?: string | null;
+  internal_notes?: string | null;
+  status: string;
+  user_id?: string | null;
+  customer_id?: string | null;
+  locale?: string | null;
+  quoted_at?: string | null;
+  responded_by?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  customers?:
+    | { name: string; email?: string | null; phone?: string | null }
+    | { name: string; email?: string | null; phone?: string | null }[]
+    | null;
+  quote_request_items?: QuoteRequestItemRow[] | { count: number }[] | null;
+};
+
+export type QuoteRequestItemRow = {
+  id: string;
+  quote_request_id: string;
+  product_id?: string | null;
+  product_name: string;
+  quantity: number;
+  color?: string | null;
+  dimensions?: string | null;
+  material?: string | null;
+  notes?: string | null;
+  quoted_price?: number | string | null;
+  quoted_notes?: string | null;
+  products?: { unit?: string | null } | { unit?: string | null }[] | null;
+};
+
+export function quoteShortId(id: string): string {
+  return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+export function mapQuoteRequestRow(
+  row: QuoteRequestRow,
+  itemCount = 0,
+): import("@/components/quotes/types").QuoteListItem {
+  const embedded = row.quote_request_items?.[0];
+  const count =
+    embedded && "count" in embedded
+      ? embedded.count
+      : Array.isArray(row.quote_request_items)
+        ? row.quote_request_items.length
+        : itemCount;
+
+  return {
+    id: row.id,
+    shortId: quoteShortId(row.id),
+    contactName: row.contact_name?.trim() || "—",
+    companyName: row.company_name?.trim() || "—",
+    itemCount: count,
+    date: formatDateEl(row.created_at),
+    status: normalizeQuoteRequestStatus(row.status),
+  };
+}
+
+export function normalizeQuoteRequestStatus(
+  status: string,
+): QuoteRequestStatus {
+  const values: QuoteRequestStatus[] = [
+    "pending",
+    "reviewing",
+    "quoted",
+    "accepted",
+    "rejected",
+    "cancelled",
+  ];
+  if (values.includes(status as QuoteRequestStatus)) {
+    return status as QuoteRequestStatus;
+  }
+  return "pending";
+}
+
+export function mapQuoteItemRow(
+  row: QuoteRequestItemRow,
+): import("@/components/quotes/types").QuoteDetailItem {
+  const productJoin = row.products;
+  const productRecord = Array.isArray(productJoin) ? productJoin[0] : productJoin;
+  const unit = productRecord?.unit?.trim() || "τεμ";
+
+  return {
+    id: row.id,
+    productId: row.product_id ?? null,
+    productName: row.product_name,
+    quantity: row.quantity,
+    unit,
+    notes: row.notes ?? null,
+    color: row.color ?? null,
+    dimensions: row.dimensions ?? null,
+    material: row.material ?? null,
+    quotedPrice:
+      row.quoted_price != null ? toNumber(row.quoted_price) : null,
+  };
+}
+
+export function mapQuoteRequestToDetail(
+  row: QuoteRequestRow,
+): import("@/components/quotes/types").QuoteDetail {
+  const items = Array.isArray(row.quote_request_items)
+    ? row.quote_request_items
+        .filter((item): item is QuoteRequestItemRow => "id" in item)
+        .map(mapQuoteItemRow)
+    : [];
+
+  return {
+    id: row.id,
+    shortId: quoteShortId(row.id),
+    contactName: row.contact_name?.trim() || "—",
+    companyName: row.company_name?.trim() || "—",
+    email: row.email?.trim() || "—",
+    phone: row.phone?.trim() || null,
+    clientNotes: row.notes ?? null,
+    internalNotes: row.internal_notes ?? null,
+    status: normalizeQuoteRequestStatus(row.status),
+    createdAt: row.created_at,
+    quotedAt: row.quoted_at ?? null,
+    items,
+  };
+}
+
+export const QUOTE_LIST_SELECT =
+  "*, quote_request_items(id), customers(name)";
+
+export const QUOTE_DETAIL_SELECT = `
+  *,
+  quote_request_items(
+    id,
+    quote_request_id,
+    product_id,
+    product_name,
+    quantity,
+    color,
+    dimensions,
+    material,
+    notes,
+    quoted_price,
+    quoted_notes,
+    products(unit)
+  ),
+  customers(id, name, email, phone)
+`;
+
 export function mapProductRowToEditInitial(
   row: ProductRow,
   colorSelections: { colorId: string; stock: number; isPrimary?: boolean }[] = [],
