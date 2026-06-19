@@ -166,3 +166,20 @@ export function countMasterGroupStats(groups: MasterGroup[]) {
 
   return { criticalCount, lowCount, okCount };
 }
+
+export type MasterGroupStockLevel = "critical" | "low" | "ok";
+
+export function getMasterGroupStockLevel(group: MasterGroup): MasterGroupStockLevel {
+  if (group.hasCriticalStock) return "critical";
+  if (group.hasLowStock) return "low";
+  return "ok";
+}
+
+export function masterGroupStockBarPercent(group: MasterGroup): number {
+  const threshold = Math.max(group.minStock * group.variants.length * 2, 1);
+  return Math.min(Math.round((group.totalStock / threshold) * 100), 100);
+}
+
+export function variantStockBarPercent(stock: number, minStock: number): number {
+  return Math.min(Math.round((stock / Math.max(minStock * 2, 10)) * 100), 100);
+}

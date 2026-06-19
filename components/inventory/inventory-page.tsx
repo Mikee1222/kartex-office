@@ -1,28 +1,20 @@
 "use client";
 
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-  Layers,
-  Package,
-  Palette,
-  Ruler,
-  Search,
-  TriangleAlert,
-  Wallet,
-  Weight,
-} from "lucide-react";
+import { AlertCircle, Package, Search } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
 import { DataError } from "@/components/dashboard/data-error";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { CategoryBadge } from "@/components/products/category-badge";
-import { StockBar } from "@/components/products/stock-bar";
-import { StockStatusIcon } from "@/components/products/stock-status-icon";
-import { getStockStatus, type Product } from "@/components/products/types";
+import {
+  InventoryMasterGroupCard,
+  MasterGroupGridSkeleton,
+  MasterGroupStatsRow,
+  MasterGroupStatsSkeleton,
+  MASTER_GROUP_PAGE_SIZE,
+  masterGroupGridClass,
+} from "@/components/products/master-group-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,14 +24,13 @@ import { ADJUSTMENT_REASONS } from "@/lib/inventory/adjustment-reasons";
 import { logInventoryMovement } from "@/lib/inventory/log-movement";
 import {
   buildMasterGroups,
+  countMasterGroupStats,
   resolveMasterGroupKey,
   sortMasterGroupsCriticalFirst,
-  type MasterGroup,
   type ProductVariant,
 } from "@/lib/products/master-groups";
 import { createClient } from "@/lib/supabase/client";
 import {
-  formatCurrencyEl,
   formatDateEl,
   mapProductRow,
   type ProductRow,
@@ -51,8 +42,6 @@ import {
   premiumFilterTabInactive,
   premiumGoldButton,
   premiumInputFocus,
-  premiumLabel,
-  premiumStatCard,
   premiumTableHeadSticky,
   premiumTableRow,
   premiumTableWrap,
@@ -60,10 +49,9 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { cn } from "@/lib/utils";
+import type { Product } from "@/components/products/types";
 
 type InventoryTab = "levels" | "movements" | "adjustments";
-
-const LEVELS_ITEMS_PER_PAGE = 20;
 
 const textareaClassName =
   "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -111,26 +99,6 @@ function getProductDisplayName(products: InventoryMovementRow["products"]): stri
   return p?.clean_name || p?.name || "—";
 }
 
-function LevelsSummarySkeleton() {
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <Skeleton key={index} className="h-28 rounded-2xl" />
-      ))}
-    </div>
-  );
-}
-
-function LevelsListSkeleton() {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton key={index} className="h-16 rounded-2xl" />
-      ))}
-    </div>
-  );
-}
-
 export function InventoryPage() {
   const [activeTab, setActiveTab] = React.useState<InventoryTab>("levels");
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -141,9 +109,7 @@ export function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
   const [criticalFirstSort, setCriticalFirstSort] = React.useState(true);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [expandedMasters, setExpandedMasters] = React.useState<Set<string>>(
-    () => new Set(),
-  );
+  const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
   const [adjustmentProducts, setAdjustmentProducts] = React.useState<Product[]>([]);
   const [adjustmentProductsLoading, setAdjustmentProductsLoading] =
     React.useState(false);
@@ -210,43 +176,17 @@ export function InventoryPage() {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredGroups.length / LEVELS_ITEMS_PER_PAGE),
+    Math.ceil(filteredGroups.length / MASTER_GROUP_PAGE_SIZE),
   );
   const paginatedGroups = filteredGroups.slice(
-    (currentPage - 1) * LEVELS_ITEMS_PER_PAGE,
-    currentPage * LEVELS_ITEMS_PER_PAGE,
+    (currentPage - 1) * MASTER_GROUP_PAGE_SIZE,
+    currentPage * MASTER_GROUP_PAGE_SIZE,
   );
 
-  const summary = React.useMemo(() => {
-    const trimmedSearch = levelsSearch.trim().toLowerCase();
-    const filteredProducts = products.filter((product) => {
-      if (categoryFilter !== "all" && product.category !== categoryFilter) {
-        return false;
-      }
-      if (!trimmedSearch) return true;
-      const cleanName = product.cleanName || product.name;
-      return (
-        cleanName.toLowerCase().includes(trimmedSearch) ||
-        product.sku.toLowerCase().includes(trimmedSearch) ||
-        product.name.toLowerCase().includes(trimmedSearch)
-      );
-    });
-
-    let criticalCount = 0;
-    let totalValue = 0;
-    for (const product of filteredProducts) {
-      if (getStockStatus(product.stock, product.minStock) === "critical") {
-        criticalCount += 1;
-      }
-      totalValue += product.stock * product.purchasePrice;
-    }
-
-    return {
-      totalProducts: filteredProducts.length,
-      criticalCount,
-      totalValue,
-    };
-  }, [products, categoryFilter, levelsSearch]);
+  const { criticalCount, lowCount, okCount } = React.useMemo(
+    () => countMasterGroupStats(masterGroups),
+    [masterGroups],
+  );
 
   const hasActiveFilters =
     levelsSearch.trim().length > 0 || categoryFilter !== "all";
@@ -418,18 +358,6 @@ export function InventoryPage() {
 
   const filteredProducts = adjustmentProducts;
 
-  function toggleMaster(key: string) {
-    setExpandedMasters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
-
   async function handleSaveAdjustment(event: React.FormEvent) {
     event.preventDefault();
     setAdjustMessage(null);
@@ -536,44 +464,20 @@ export function InventoryPage() {
       {activeTab === "levels" ? (
         <>
           {loading ? (
-            <LevelsSummarySkeleton />
+            <MasterGroupStatsSkeleton />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className={cn(premiumStatCard, "p-5")}>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Package className="size-4 text-kartex-gold" aria-hidden />
-                  <p className={premiumLabel}>Συνολικά Προϊόντα</p>
-                </div>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-kartex-navy">
-                  {summary.totalProducts}
-                </p>
-              </div>
-              <div className={cn(premiumStatCard, "p-5")}>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <TriangleAlert className="size-4 text-red-500" aria-hidden />
-                  <p className={premiumLabel}>Κρίσιμο Απόθεμα</p>
-                </div>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-red-700">
-                  {summary.criticalCount}
-                </p>
-              </div>
-              <div className={cn(premiumStatCard, "p-5")}>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Wallet className="size-4 text-kartex-gold" aria-hidden />
-                  <p className={premiumLabel}>Συνολική Αξία</p>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-kartex-navy">
-                  {formatCurrencyEl(summary.totalValue)}
-                </p>
-              </div>
-            </div>
+            <MasterGroupStatsRow
+              criticalCount={criticalCount}
+              lowCount={lowCount}
+              okCount={okCount}
+            />
           )}
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative max-w-md flex-1">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400"
                   aria-hidden
                 />
                 <Input
@@ -592,8 +496,8 @@ export function InventoryPage() {
                 size="sm"
                 className={cn(
                   criticalFirstSort
-                    ? "bg-kartex-navy text-white hover:bg-kartex-navy/90"
-                    : "border-kartex-gold/40 text-kartex-navy hover:bg-kartex-gold/10",
+                    ? "bg-navy-900 text-white hover:bg-navy-900/90"
+                    : "border-gold-500/40 text-navy-900 hover:bg-gold-500/10",
                 )}
                 onClick={() => setCriticalFirstSort((value) => !value)}
               >
@@ -632,58 +536,65 @@ export function InventoryPage() {
           </div>
 
           {loading ? (
-            <LevelsListSkeleton />
+            <MasterGroupGridSkeleton />
           ) : !error ? (
             <>
-              <div className="space-y-2">
-                {paginatedGroups.length === 0 ? (
-                  <EmptyState
-                    icon={Package}
-                    title={
-                      hasActiveFilters
-                        ? "Δεν βρέθηκαν αποτελέσματα"
-                        : "Δεν υπάρχουν προϊόντα στην αποθήκη"
-                    }
-                    description={
-                      hasActiveFilters
-                        ? "Δοκιμάστε άλλο φίλτρο ή όρο αναζήτησης."
-                        : "Προσθέστε προϊόντα στον κατάλογο για να εμφανιστούν εδώ."
-                    }
-                    actionLabel={hasActiveFilters ? undefined : "Προϊόντα"}
-                    actionHref="/products"
-                    className="rounded-2xl border border-border bg-card py-12"
-                  />
-                ) : (
-                  paginatedGroups.map((group) => (
-                    <InventoryMasterGroupCard
-                      key={resolveMasterGroupKey(group)}
-                      group={group}
-                      isExpanded={expandedMasters.has(resolveMasterGroupKey(group))}
-                      onToggle={() => toggleMaster(resolveMasterGroupKey(group))}
-                      productAdjustId={productAdjustId}
-                      productAdjustQty={productAdjustQty}
-                      productAdjustSaving={productAdjustSaving}
-                      onStartAdjust={(variant) => {
-                        setProductAdjustId(variant.id);
-                        setProductAdjustQty(String(variant.stock));
-                      }}
-                      onCancelAdjust={() => {
-                        setProductAdjustId(null);
-                        setProductAdjustQty("");
-                      }}
-                      onAdjustQtyChange={setProductAdjustQty}
-                      onSaveAdjust={(variant) => void handleSaveProductStock(variant)}
-                    />
-                  ))
-                )}
-              </div>
+              {paginatedGroups.length === 0 ? (
+                <EmptyState
+                  icon={Package}
+                  title={
+                    hasActiveFilters
+                      ? "Δεν βρέθηκαν αποτελέσματα"
+                      : "Δεν υπάρχουν προϊόντα στην αποθήκη"
+                  }
+                  description={
+                    hasActiveFilters
+                      ? "Δοκιμάστε άλλο φίλτρο ή όρο αναζήτησης."
+                      : "Προσθέστε προϊόντα στον κατάλογο για να εμφανιστούν εδώ."
+                  }
+                  actionLabel={hasActiveFilters ? undefined : "Προϊόντα"}
+                  actionHref="/products"
+                  className="rounded-2xl border border-gray-200 bg-white py-12"
+                />
+              ) : (
+                <div className={masterGroupGridClass}>
+                  {paginatedGroups.map((group) => {
+                    const key = resolveMasterGroupKey(group);
+                    return (
+                      <InventoryMasterGroupCard
+                        key={key}
+                        group={group}
+                        isExpanded={expandedKey === key}
+                        onToggle={() =>
+                          setExpandedKey(expandedKey === key ? null : key)
+                        }
+                        productAdjustId={productAdjustId}
+                        productAdjustQty={productAdjustQty}
+                        productAdjustSaving={productAdjustSaving}
+                        onStartAdjust={(variant) => {
+                          setProductAdjustId(variant.id);
+                          setProductAdjustQty(String(variant.stock));
+                        }}
+                        onCancelAdjust={() => {
+                          setProductAdjustId(null);
+                          setProductAdjustQty("");
+                        }}
+                        onAdjustQtyChange={setProductAdjustQty}
+                        onSaveAdjust={(variant) =>
+                          void handleSaveProductStock(variant)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
 
               {filteredGroups.length > 0 ? (
                 <PaginationControls
                   currentPage={currentPage}
                   totalPages={totalPages}
                   totalItems={filteredGroups.length}
-                  itemsPerPage={LEVELS_ITEMS_PER_PAGE}
+                  itemsPerPage={MASTER_GROUP_PAGE_SIZE}
                   onPageChange={setCurrentPage}
                   itemLabel="ομάδες προϊόντων"
                 />
@@ -743,7 +654,7 @@ export function InventoryPage() {
                           <td className="px-4 py-3 text-muted-foreground sm:px-6">
                             {formatDateEl(row.created_at)}
                           </td>
-                          <td className="px-4 py-3 font-medium text-kartex-navy">
+                          <td className="px-4 py-3 font-medium text-navy-900">
                             {getProductDisplayName(row.products)}
                           </td>
                           <td className="px-4 py-3">
@@ -757,7 +668,7 @@ export function InventoryPage() {
                             {row.order_id ? (
                               <Link
                                 href={`/orders/${row.order_id}`}
-                                className="text-kartex-navy transition-colors hover:text-kartex-gold"
+                                className="text-navy-900 transition-colors hover:text-gold-500"
                               >
                                 {pickJoinName(row.orders, "order_number")}
                               </Link>
@@ -779,7 +690,7 @@ export function InventoryPage() {
       {activeTab === "adjustments" ? (
         <Card className={premiumTableWrap}>
           <CardHeader>
-            <CardTitle className="text-lg text-kartex-navy">
+            <CardTitle className="text-lg text-navy-900">
               Νέα προσαρμογή αποθέματος
             </CardTitle>
           </CardHeader>
@@ -877,261 +788,6 @@ export function InventoryPage() {
             </form>
           </CardContent>
         </Card>
-      ) : null}
-    </div>
-  );
-}
-
-type InventoryMasterGroupCardProps = {
-  group: MasterGroup;
-  isExpanded: boolean;
-  onToggle: () => void;
-  productAdjustId: string | null;
-  productAdjustQty: string;
-  productAdjustSaving: boolean;
-  onStartAdjust: (variant: ProductVariant) => void;
-  onCancelAdjust: () => void;
-  onAdjustQtyChange: (value: string) => void;
-  onSaveAdjust: (variant: ProductVariant) => void;
-};
-
-function InventoryMasterGroupCard({
-  group,
-  isExpanded,
-  onToggle,
-  productAdjustId,
-  productAdjustQty,
-  productAdjustSaving,
-  onStartAdjust,
-  onCancelAdjust,
-  onAdjustQtyChange,
-  onSaveAdjust,
-}: InventoryMasterGroupCardProps) {
-  const maxStock = Math.max(...group.variants.map((variant) => variant.stock), 1);
-
-  return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-2xl border bg-card transition-all duration-200",
-        group.hasCriticalStock
-          ? "border-red-200"
-          : group.hasLowStock
-            ? "border-amber-200"
-            : "border-border",
-      )}
-    >
-      <button
-        type="button"
-        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/30"
-        onClick={onToggle}
-      >
-        {isExpanded ? (
-          <ChevronDown size={18} className="shrink-0 text-muted-foreground" aria-hidden />
-        ) : (
-          <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden />
-        )}
-
-        <div
-          className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            group.hasCriticalStock
-              ? "bg-red-100"
-              : group.hasLowStock
-                ? "bg-amber-100"
-                : "bg-kartex-gold/10",
-          )}
-        >
-          <Package
-            size={20}
-            className={
-              group.hasCriticalStock
-                ? "text-red-500"
-                : group.hasLowStock
-                  ? "text-amber-500"
-                  : "text-kartex-gold"
-            }
-            aria-hidden
-          />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-kartex-navy">{group.cleanName}</span>
-            {group.qualityGrade ? (
-              <span className="rounded-full bg-kartex-gold/15 px-2 py-0.5 text-xs font-medium text-kartex-navy">
-                {group.qualityGrade}
-              </span>
-            ) : null}
-            <CategoryBadge category={group.category} />
-          </div>
-          <div className="mt-1 flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              {group.variants.length}{" "}
-              {group.variants.length === 1 ? "παραλλαγή" : "παραλλαγές"}
-            </span>
-            {group.material ? (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Layers size={11} aria-hidden />
-                {group.material}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <div className="flex items-center justify-end gap-2">
-            <StockStatusIcon
-              stock={group.totalStock}
-              minStock={group.minStock * group.variants.length}
-            />
-            <span
-              className={cn(
-                "text-xl font-bold tabular-nums",
-                group.hasCriticalStock
-                  ? "text-red-600"
-                  : group.hasLowStock
-                    ? "text-amber-600"
-                    : "text-kartex-navy",
-              )}
-            >
-              {group.totalStock}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground">τεμ. συνολικά</div>
-        </div>
-      </button>
-
-      {isExpanded ? (
-        <div className="border-t border-border/50 bg-muted/20">
-          {group.variants.map((variant, index) => {
-            const status = getStockStatus(variant.stock, variant.minStock);
-            const isCrit = status === "critical";
-            const isLow = status === "low";
-            const isAdjusting = productAdjustId === variant.id;
-
-            return (
-              <div
-                key={variant.id}
-                className={cn(
-                  "flex flex-wrap items-center gap-4 px-6 py-3",
-                  index < group.variants.length - 1 && "border-b border-border/30",
-                )}
-              >
-                <div className="flex h-full w-4 shrink-0 items-center justify-center">
-                  <div className="h-4 w-px bg-border" />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {variant.widthCm && variant.heightCm ? (
-                      <span className="flex items-center gap-1 rounded-lg bg-kartex-navy/5 px-2 py-1 text-xs font-semibold text-kartex-navy">
-                        <Ruler size={11} aria-hidden />
-                        {variant.widthCm}×{variant.heightCm}cm
-                      </span>
-                    ) : null}
-                    {variant.gsm ? (
-                      <span className="flex items-center gap-1 rounded-lg bg-kartex-navy/5 px-2 py-1 text-xs font-semibold text-kartex-navy">
-                        <Weight size={11} aria-hidden />
-                        {variant.gsm}gsm
-                      </span>
-                    ) : null}
-                    {variant.threadCount ? (
-                      <span className="rounded-lg bg-kartex-navy/5 px-2 py-1 text-xs font-semibold text-kartex-navy">
-                        T{variant.threadCount}
-                      </span>
-                    ) : null}
-                    {variant.color ? (
-                      <span className="flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-                        <Palette size={11} aria-hidden />
-                        {variant.color}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2">
-                    <StockBar
-                      stock={variant.stock}
-                      maxStock={maxStock}
-                      minStock={variant.minStock}
-                      showLabel={false}
-                      thin
-                      className="max-w-md"
-                    />
-                  </div>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    SKU {variant.sku}
-                  </p>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <StockStatusIcon stock={variant.stock} minStock={variant.minStock} />
-                    <span
-                      className={cn(
-                        "text-lg font-bold tabular-nums",
-                        isCrit
-                          ? "text-red-600"
-                          : isLow
-                            ? "text-amber-600"
-                            : "text-emerald-700",
-                      )}
-                    >
-                      {variant.stock}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap justify-end gap-2 text-xs">
-                    <span className="rounded-full bg-orange-50 px-2 py-0.5 font-semibold text-orange-700">
-                      {variant.reservedStock} δεσμ.
-                    </span>
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
-                      {variant.availableStock} διαθ.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {isAdjusting ? (
-                    <>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={productAdjustQty}
-                        onChange={(event) => onAdjustQtyChange(event.target.value)}
-                        className="w-24"
-                        aria-label="Νέο απόθεμα"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={productAdjustSaving}
-                        onClick={() => onSaveAdjust(variant)}
-                      >
-                        OK
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={onCancelAdjust}
-                      >
-                        Άκυρο
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-kartex-gold/40 font-semibold text-kartex-navy hover:bg-kartex-gold/10"
-                      onClick={() => onStartAdjust(variant)}
-                    >
-                      Προσαρμογή
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       ) : null}
     </div>
   );
