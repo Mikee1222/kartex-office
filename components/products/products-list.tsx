@@ -31,7 +31,7 @@ import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   buildMasterGroups,
   countMasterGroupStats,
-  getMasterGroupKey,
+  resolveMasterGroupKey,
   stockBarColorClass,
   type MasterGroup,
 } from "@/lib/products/master-groups";
@@ -294,14 +294,10 @@ export function ProductsList() {
         {!loading && !error
           ? paginated.map((group) => (
               <MasterGroupCard
-                key={getMasterGroupKey(group.cleanName, group.category)}
+                key={resolveMasterGroupKey(group)}
                 group={group}
-                isExpanded={expandedMasters.has(
-                  getMasterGroupKey(group.cleanName, group.category),
-                )}
-                onToggle={() =>
-                  toggleMaster(getMasterGroupKey(group.cleanName, group.category))
-                }
+                isExpanded={expandedMasters.has(resolveMasterGroupKey(group))}
+                onToggle={() => toggleMaster(resolveMasterGroupKey(group))}
                 onVariantClick={(variantId) => router.push(`/products/${variantId}`)}
                 onVariantEdit={(variantId, event) => {
                   event.stopPropagation();

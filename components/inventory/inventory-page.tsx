@@ -32,7 +32,7 @@ import { ADJUSTMENT_REASONS } from "@/lib/inventory/adjustment-reasons";
 import { logInventoryMovement } from "@/lib/inventory/log-movement";
 import {
   buildMasterGroups,
-  getMasterGroupKey,
+  resolveMasterGroupKey,
   sortMasterGroupsCriticalFirst,
   type MasterGroup,
   type ProductVariant,
@@ -656,14 +656,10 @@ export function InventoryPage() {
                 ) : (
                   paginatedGroups.map((group) => (
                     <InventoryMasterGroupCard
-                      key={getMasterGroupKey(group.cleanName, group.category)}
+                      key={resolveMasterGroupKey(group)}
                       group={group}
-                      isExpanded={expandedMasters.has(
-                        getMasterGroupKey(group.cleanName, group.category),
-                      )}
-                      onToggle={() =>
-                        toggleMaster(getMasterGroupKey(group.cleanName, group.category))
-                      }
+                      isExpanded={expandedMasters.has(resolveMasterGroupKey(group))}
+                      onToggle={() => toggleMaster(resolveMasterGroupKey(group))}
                       productAdjustId={productAdjustId}
                       productAdjustQty={productAdjustQty}
                       productAdjustSaving={productAdjustSaving}

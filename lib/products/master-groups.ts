@@ -41,6 +41,13 @@ export function getMasterGroupKey(cleanName: string, category: string): string {
   return `${cleanName}__${category}`;
 }
 
+export function resolveMasterGroupKey(group: MasterGroup): string {
+  if (group.masterId != null) {
+    return `master:${group.masterId}`;
+  }
+  return getMasterGroupKey(group.cleanName, group.category);
+}
+
 export function productToVariant(product: Product): ProductVariant {
   return {
     id: product.id,
