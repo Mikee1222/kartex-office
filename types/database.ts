@@ -1,10 +1,6 @@
 import { CustomerType, type Customer } from "@/components/customers/types";
 import { OrderStatus, type Order, type OrderStatus as OrderStatusType } from "@/components/orders/types";
-import {
-  ProductCategory,
-  type Product,
-  type ProductCategory as ProductCategoryType,
-} from "@/components/products/types";
+import { ProductCategory, type Product } from "@/components/products/types";
 
 /** All dashboard “today” / calendar filters use Europe/Athens. */
 export const APP_TIMEZONE = "Europe/Athens";
@@ -31,9 +27,12 @@ export type CustomerRow = {
 export type ProductRow = {
   id: string;
   name: string;
+  clean_name?: string | null;
   sku: string;
   barcode: string | null;
   category: string | null;
+  subcategory?: string | null;
+  master_id?: string | null;
   purchase_price: number | string;
   sale_price: number | string;
   stock: number;
@@ -45,6 +44,9 @@ export type ProductRow = {
   width_cm?: number | string | null;
   height_cm?: number | string | null;
   weight_kg?: number | string | null;
+  gsm?: number | string | null;
+  thread_count?: number | string | null;
+  color?: string | null;
   unit?: string | null;
   material?: string | null;
   quality_grade?: string | null;
@@ -173,10 +175,10 @@ function toNumber(value: number | string | null | undefined): number {
 
 export function normalizeProductCategory(
   category: string | null | undefined,
-): ProductCategoryType {
+): string {
   const value = category?.trim();
   if (value) {
-    return value as ProductCategoryType;
+    return value;
   }
   return ProductCategory.Other;
 }
@@ -187,9 +189,12 @@ export function mapProductRow(row: ProductRow): Product {
   return {
     id: row.id,
     name: row.name,
+    cleanName: row.clean_name ?? undefined,
     sku: row.sku,
     barcode: row.barcode?.trim() || "—",
     category: normalizeProductCategory(row.category),
+    subcategory: row.subcategory ?? undefined,
+    masterId: row.master_id ?? undefined,
     stock,
     reservedStock,
     availableStock: Math.max(stock - reservedStock, 0),
@@ -201,9 +206,13 @@ export function mapProductRow(row: ProductRow): Product {
     widthCm: row.width_cm != null ? toNumber(row.width_cm) : null,
     heightCm: row.height_cm != null ? toNumber(row.height_cm) : null,
     weightKg: row.weight_kg != null ? toNumber(row.weight_kg) : null,
+    gsm: row.gsm != null ? toNumber(row.gsm) : null,
+    threadCount: row.thread_count != null ? toNumber(row.thread_count) : null,
+    color: row.color ?? null,
     unit: row.unit?.trim() || "τεμ",
     material: row.material?.trim() || undefined,
     qualityGrade: row.quality_grade?.trim() || undefined,
+    imageUrl: row.image_url ?? null,
     isActive: row.is_active ?? true,
     createdAt: row.created_at,
     supplierId: row.supplier_id ?? undefined,

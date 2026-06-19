@@ -1,7 +1,11 @@
 export const ProductCategory = {
-  Sheets: "Σεντόνια",
   Towels: "Πετσέτες",
-  Gowns: "Στολές",
+  Sheets: "Σεντόνια",
+  Pillowcases: "Μαξιλαροθήκες",
+  DuvetCovers: "Παπλωματοθήκες",
+  Bathmats: "Πατάκια",
+  Tablecloths: "Τραπεζομάντηλα",
+  Fabrics: "Υφάσματα",
   Other: "Άλλο",
 } as const;
 
@@ -17,9 +21,12 @@ export type ProductColorSummary = {
 export type Product = {
   id: string;
   name: string;
+  cleanName?: string;
   sku: string;
   barcode: string;
-  category: ProductCategory;
+  category: string;
+  subcategory?: string;
+  masterId?: string;
   stock: number;
   reservedStock: number;
   availableStock: number;
@@ -31,9 +38,13 @@ export type Product = {
   widthCm?: number | null;
   heightCm?: number | null;
   weightKg?: number | null;
+  gsm?: number | null;
+  threadCount?: number | null;
+  color?: string | null;
   unit?: string;
   material?: string;
   qualityGrade?: string;
+  imageUrl?: string | null;
   isActive?: boolean;
   createdAt?: string;
   supplierId?: string;

@@ -253,7 +253,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             </span>
             <div className="min-w-0 space-y-3">
               <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {product.name}
+                {product.cleanName || product.name}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-md bg-white/15 px-2.5 py-1 font-mono text-sm font-semibold text-white backdrop-blur-sm">
@@ -355,6 +355,18 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             ) : null}
             {product.qualityGrade ? (
               <DetailField label="Ποιότητα" value={product.qualityGrade} />
+            ) : null}
+            {product.gsm != null ? (
+              <DetailField label="GSM" value={String(product.gsm)} />
+            ) : null}
+            {product.threadCount != null ? (
+              <DetailField label="Αριθμός νημάτων" value={`T${product.threadCount}`} />
+            ) : null}
+            {product.color ? (
+              <DetailField label="Χρώμα" value={product.color} />
+            ) : null}
+            {product.subcategory ? (
+              <DetailField label="Υποκατηγορία" value={product.subcategory} />
             ) : null}
           </CardContent>
         </Card>

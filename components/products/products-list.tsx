@@ -161,7 +161,7 @@ function ProductExpandedPanel({
           <Box className="size-5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="font-semibold text-kartex-navy">{product.name}</p>
+          <p className="font-semibold text-kartex-navy">{product.cleanName || product.name}</p>
           <CategoryBadge category={product.category} className="mt-1" />
         </div>
       </div>
@@ -183,6 +183,28 @@ function ProductExpandedPanel({
               {dimensionsLabel}
             </p>
           ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {product.gsm ? (
+              <span className="inline-flex rounded-full bg-kartex-gold/10 px-2.5 py-1 text-xs font-semibold text-kartex-navy">
+                {product.gsm} gsm
+              </span>
+            ) : null}
+            {product.threadCount ? (
+              <span className="inline-flex rounded-full bg-kartex-gold/10 px-2.5 py-1 text-xs font-semibold text-kartex-navy">
+                T{product.threadCount}
+              </span>
+            ) : null}
+            {product.color ? (
+              <span className="inline-flex rounded-full bg-kartex-navy/5 px-2.5 py-1 text-xs font-medium text-kartex-navy">
+                {product.color}
+              </span>
+            ) : null}
+            {product.subcategory ? (
+              <span className="inline-flex rounded-full border border-kartex-gold/30 px-2.5 py-1 text-xs font-medium text-kartex-gold">
+                {product.subcategory}
+              </span>
+            ) : null}
+          </div>
           {(product.material || product.qualityGrade) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {product.material ? (
@@ -835,7 +857,7 @@ export function ProductsList() {
                                 isInactive ? "text-muted-foreground" : "text-kartex-navy",
                               )}
                             >
-                              {product.name}
+                              {product.cleanName || product.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {product.sku}
