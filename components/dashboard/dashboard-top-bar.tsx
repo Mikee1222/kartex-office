@@ -42,7 +42,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   trips: "Δρομολόγια",
   assistant: "Dolphin",
   website: "Website",
-  content: "Περιεχόμενο",
+  content: "Κατηγορίες",
   new: "Νέο",
   edit: "Επεξεργασία",
 };
