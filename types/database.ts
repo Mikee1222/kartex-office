@@ -1,5 +1,10 @@
 import { CustomerType, type Customer } from "@/components/customers/types";
-import { OrderStatus, type Order, type OrderStatus as OrderStatusType } from "@/components/orders/types";
+import {
+  OrderStatus,
+  type Order,
+  type OrderStatus as OrderStatusType,
+  type PaymentStatus,
+} from "@/components/orders/types";
 import { ProductCategory, type Product } from "@/components/products/types";
 
 /** All dashboard “today” / calendar filters use Europe/Athens. */
@@ -67,6 +72,11 @@ export type OrderRow = {
   picking_date: string | null;
   reminder_days: number | null;
   payment_terms: string | null;
+  payment_status?: string | null;
+  payment_proof_url?: string | null;
+  payment_amount?: number | string | null;
+  payment_submitted_at?: string | null;
+  payment_confirmed_at?: string | null;
   priority: string | null;
   notes: string | null;
   internal_notes: string | null;
@@ -264,6 +274,12 @@ export function mapOrderRow(
   const count =
     typeof embeddedCount === "number" ? embeddedCount : itemCount;
 
+  const paymentAmountRaw = row.payment_amount;
+  const paymentAmount =
+    paymentAmountRaw === null || paymentAmountRaw === undefined
+      ? null
+      : toNumber(paymentAmountRaw);
+
   return {
     id: row.id,
     orderNumber: row.order_number,
@@ -272,6 +288,11 @@ export function mapOrderRow(
     status: normalizeOrderStatus(row.status),
     itemCount: count,
     totalEur: toNumber(row.total),
+    paymentStatus: (row.payment_status ?? "pending") as PaymentStatus,
+    paymentProofUrl: row.payment_proof_url ?? null,
+    paymentAmount,
+    paymentSubmittedAt: row.payment_submitted_at ?? null,
+    paymentConfirmedAt: row.payment_confirmed_at ?? null,
   };
 }
 

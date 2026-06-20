@@ -1,6 +1,18 @@
 "use client";
 
-import { Download, Circle, Package, Pencil, Printer, Truck, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  Clock,
+  CreditCard,
+  Download,
+  Package,
+  Pencil,
+  Printer,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -22,7 +34,7 @@ import { DriverAssignmentSection } from "@/components/orders/driver-assignment-s
 import { updateOrderStatus } from "@/lib/orders/update-order-status";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { premiumGoldButton, premiumLabel } from "@/lib/ui/premium-styles";
+import { premiumCard, premiumGoldButton, premiumLabel } from "@/lib/ui/premium-styles";
 import { premiumSelect } from "@/lib/ui/form-styles";
 import {
   Card,
@@ -61,6 +73,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
   const [clientNotes, setClientNotes] = React.useState(order.notes.client);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = React.useState(false);
   const [isLive, setIsLive] = React.useState(false);
 
   const showWarehouseStatus =
@@ -150,6 +163,28 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
   function handleOrderUpdated() {
     void refreshOrder();
     router.refresh();
+  }
+
+  async function handleConfirmPayment() {
+    setConfirmingPayment(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        payment_status: "confirmed",
+        payment_confirmed_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    setConfirmingPayment(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Η πληρωμή επιβεβαιώθηκε!");
+    handleOrderUpdated();
   }
 
   const subtotal = order.items.reduce((sum, item) => sum + item.total, 0);
@@ -318,6 +353,13 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
 
         <div className="space-y-6 lg:col-span-2">
           <InfoCard order={order} />
+          {(order.paymentStatus || order.paymentProofUrl) ? (
+            <PaymentCard
+              order={order}
+              confirming={confirmingPayment}
+              onConfirmPayment={() => void handleConfirmPayment()}
+            />
+          ) : null}
           {order.trip ? <TripCard trip={order.trip} /> : null}
           <DriverAssignmentSection
             order={order}
@@ -510,6 +552,106 @@ function InfoCard({ order }: { order: OrderDetail }) {
             label="Δέσμευση έως"
             value={order.reservedUntil ?? "—"}
           />
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentCard({
+  order,
+  confirming,
+  onConfirmPayment,
+}: {
+  order: OrderDetail;
+  confirming: boolean;
+  onConfirmPayment: () => void;
+}) {
+  return (
+    <Card className={cn(premiumCard, "print:hidden")}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg text-navy-900">
+          <CreditCard className="size-5 text-kartex-gold" />
+          Πληρωμή
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <div className="mb-1 text-sm text-muted-foreground">Κατάσταση</div>
+            {order.paymentStatus === "pending" ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-600">
+                <Clock size={13} />
+                Αναμονή Πληρωμής
+              </span>
+            ) : null}
+            {order.paymentStatus === "submitted" ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600">
+                <AlertCircle size={13} />
+                Απόδειξη Υποβλήθηκε
+              </span>
+            ) : null}
+            {order.paymentStatus === "confirmed" ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                <CheckCircle2 size={13} />
+                Πληρώθηκε
+              </span>
+            ) : null}
+          </div>
+          {order.paymentStatus === "submitted" ? (
+            <Button
+              type="button"
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              disabled={confirming}
+              onClick={onConfirmPayment}
+            >
+              <CheckCircle2 className="size-4" />
+              {confirming ? "Επιβεβαίωση…" : "Επιβεβαίωση Πληρωμής"}
+            </Button>
+          ) : null}
+        </div>
+
+        {order.paymentAmount != null ? (
+          <InfoRow
+            label="Ποσό πληρωμής"
+            value={formatEur(order.paymentAmount)}
+            className="mb-4"
+          />
+        ) : null}
+
+        {order.paymentSubmittedAt ? (
+          <InfoRow
+            label="Υποβλήθηκε"
+            value={formatDateEl(order.paymentSubmittedAt)}
+            className="mb-4"
+          />
+        ) : null}
+
+        {order.paymentConfirmedAt ? (
+          <InfoRow
+            label="Επιβεβαιώθηκε"
+            value={formatDateEl(order.paymentConfirmedAt)}
+            className="mb-4"
+          />
+        ) : null}
+
+        {order.paymentProofUrl ? (
+          <div>
+            <div className="mb-2 text-sm font-medium text-muted-foreground">
+              Απόδειξη Πληρωμής
+            </div>
+            <a href={order.paymentProofUrl} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={order.paymentProofUrl}
+                alt="Payment proof"
+                className="max-h-64 cursor-pointer rounded-xl border border-border object-contain transition-opacity hover:opacity-90"
+              />
+            </a>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Κάντε κλικ για μεγέθυνση
+            </div>
+          </div>
         ) : null}
       </CardContent>
     </Card>
