@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Calendar, Check, Plus, Search, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -46,6 +55,7 @@ const PRIORITIES = [
 type LineItem = {
   id: string;
   name: string;
+  cleanName?: string;
   quantity: number;
   price: number;
 };
@@ -53,7 +63,13 @@ type LineItem = {
 type WizardProduct = {
   id: string;
   name: string;
+  cleanName?: string;
+  sku?: string;
+  gsm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
   price: number;
+  category?: string;
 };
 
 
@@ -182,8 +198,11 @@ export function NewOrderWizard() {
       const supabase = createClient();
       const { data, error: fetchError } = await supabase
         .from("products")
-        .select("*")
-        .order("name");
+        .select(
+          "id, name, clean_name, sku, gsm, width_cm, height_cm, sale_price, category",
+        )
+        .eq("is_active", true)
+        .order("clean_name");
 
       if (fetchError) {
         console.error(fetchError);
@@ -198,7 +217,13 @@ export function NewOrderWizard() {
           return {
             id: mapped.id,
             name: mapped.name,
+            cleanName: mapped.cleanName,
+            sku: mapped.sku,
+            gsm: mapped.gsm,
+            widthCm: mapped.widthCm,
+            heightCm: mapped.heightCm,
             price: mapped.salePrice,
+            category: mapped.category,
           };
         }),
       );
@@ -214,6 +239,8 @@ export function NewOrderWizard() {
     return productsCatalog.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
+        (p.cleanName?.toLowerCase().includes(q) ?? false) ||
+        (p.sku?.toLowerCase().includes(q) ?? false) ||
         p.id.toLowerCase().includes(q),
     );
   }, [productQuery, productsCatalog]);
@@ -233,6 +260,7 @@ export function NewOrderWizard() {
         {
           id: product.id,
           name: product.name,
+          cleanName: product.cleanName,
           quantity: 1,
           price: product.price,
         },
@@ -389,7 +417,7 @@ export function NewOrderWizard() {
         if (reserveError) {
           const message =
             reserveError.message.includes("insufficient")
-              ? `Ανεπαρκές διαθέσιμο απόθεμα για «${item.name}».`
+              ? `Ανεπαρκές διαθέσιμο απόθεμα για «${item.cleanName || item.name}».`
               : reserveError.message;
           toast.error(`Σφάλμα δέσμευσης: ${message}`);
           setError(message);
@@ -430,29 +458,33 @@ export function NewOrderWizard() {
       </div>
 
       <nav aria-label="Πρόοδος οδηγού">
-        <ol className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-0">
+        <div className="flex items-center gap-0">
           {STEPS.map((s, index) => {
             const isActive = step === s.id;
             const isComplete = step > s.id;
             return (
-              <li key={s.id} className="flex flex-1 items-center">
-                <div className="flex w-full items-center gap-2">
-                  <span
+              <React.Fragment key={s.id}>
+                <div className="flex items-center gap-2">
+                  <div
                     className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all",
                       isComplete
-                        ? "bg-kartex-gold text-kartex-navy"
+                        ? "bg-kartex-gold text-white"
                         : isActive
-                          ? "bg-kartex-navy text-white"
+                          ? "bg-kartex-navy text-white ring-4 ring-kartex-navy/20"
                           : "bg-muted text-muted-foreground",
                     )}
                   >
                     {isComplete ? <Check className="size-4" /> : s.id}
-                  </span>
+                  </div>
                   <span
                     className={cn(
-                      "text-sm font-medium",
-                      isActive ? "text-kartex-navy" : "text-muted-foreground",
+                      "hidden text-sm font-semibold sm:block",
+                      isActive
+                        ? "text-kartex-navy"
+                        : isComplete
+                          ? "text-kartex-gold"
+                          : "text-muted-foreground",
                     )}
                   >
                     {s.label}
@@ -460,18 +492,20 @@ export function NewOrderWizard() {
                 </div>
                 {index < STEPS.length - 1 ? (
                   <div
-                    className="mx-2 hidden h-0.5 flex-1 bg-border sm:block"
-                    aria-hidden
+                    className={cn(
+                      "mx-3 h-0.5 flex-1 transition-all",
+                      isComplete ? "bg-kartex-gold" : "bg-border",
+                    )}
                   />
                 ) : null}
-              </li>
+              </React.Fragment>
             );
           })}
-        </ol>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        </div>
+        <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full bg-kartex-gold transition-all duration-300"
-            style={{ width: `${(step / STEPS.length) * 100}%` }}
+            className="h-full bg-kartex-gold transition-all duration-500 ease-out"
+            style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }}
           />
         </div>
       </nav>
@@ -534,40 +568,51 @@ export function NewOrderWizard() {
                 </div>
 
                 {selectedCustomer ? (
-                  <Card className="border-kartex-gold/30 bg-kartex-gold/5">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base text-kartex-navy">
-                        Επιλεγμένος πελάτης
-                      </CardTitle>
-                      <CardDescription>{selectedCustomer.type}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-                      <p>
-                        <span className="text-muted-foreground">Όνομα: </span>
-                        <span className="font-medium">{selectedCustomer.name}</span>
-                      </p>
-                      <p>
-                        <span className="text-muted-foreground">Τηλέφωνο: </span>
-                        {selectedCustomer.phone?.trim() || "—"}
-                      </p>
-                      <p className="sm:col-span-2">
-                        <span className="text-muted-foreground">Email: </span>
-                        {selectedCustomer.email?.trim() || "—"}
-                      </p>
-                      <p className="sm:col-span-2">
-                        <span className="text-muted-foreground">Διεύθυνση: </span>
-                        {buildDeliveryAddress(selectedCustomer) || "—"}
-                      </p>
-                      {selectedCustomer.payment_terms ? (
-                        <p className="sm:col-span-2">
-                          <span className="text-muted-foreground">
-                            Όροι πληρωμής:{" "}
-                          </span>
-                          {selectedCustomer.payment_terms}
-                        </p>
-                      ) : null}
-                    </CardContent>
-                  </Card>
+                  <div className="rounded-2xl border border-kartex-gold/20 bg-gradient-to-br from-kartex-gold/5 to-kartex-navy/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-kartex-gold/25 bg-kartex-gold/15 text-base font-bold text-kartex-gold">
+                        {selectedCustomer.name[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-kartex-navy">
+                          {selectedCustomer.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {selectedCustomer.type}
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          {selectedCustomer.phone ? (
+                            <div>
+                              <span className="text-xs text-muted-foreground">
+                                Τηλ.
+                              </span>
+                              <div className="font-medium">
+                                {selectedCustomer.phone}
+                              </div>
+                            </div>
+                          ) : null}
+                          {selectedCustomer.email ? (
+                            <div>
+                              <span className="text-xs text-muted-foreground">
+                                Email
+                              </span>
+                              <div className="truncate font-medium">
+                                {selectedCustomer.email}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCustomerId(null)}
+                        className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-kartex-navy"
+                        aria-label="Αποεπιλογή πελάτη"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  </div>
                 ) : null}
 
                 <div className="space-y-2">
@@ -625,16 +670,38 @@ export function NewOrderWizard() {
                     {filteredProducts.map((product) => (
                       <li
                         key={product.id}
-                        className="flex items-center justify-between border-b border-border/60 px-3 py-2 last:border-0"
+                        className="flex items-center justify-between border-b border-border/60 px-4 py-3 transition-colors last:border-0 hover:bg-muted/30"
                       >
-                        <span className="text-sm">{product.name}</span>
+                        <div>
+                          <div className="text-sm font-semibold text-kartex-navy">
+                            {product.cleanName || product.name}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            {product.widthCm && product.heightCm ? (
+                              <span className="text-xs text-muted-foreground">
+                                {product.widthCm}×{product.heightCm}cm
+                              </span>
+                            ) : null}
+                            {product.gsm ? (
+                              <span className="text-xs text-muted-foreground">
+                                {product.gsm}gsm
+                              </span>
+                            ) : null}
+                            {product.sku ? (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {product.sku}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="shrink-0 border-kartex-gold/30 text-kartex-gold hover:bg-kartex-gold/10"
                           onClick={() => addProduct(product)}
                         >
-                          <Plus className="size-4" />
+                          <Plus className="size-3.5" />
                           Προσθήκη
                         </Button>
                       </li>
@@ -648,7 +715,9 @@ export function NewOrderWizard() {
                         key={item.id}
                         className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_5rem_5rem_auto]"
                       >
-                        <span className="text-sm font-medium">{item.name}</span>
+                        <span className="text-sm font-medium">
+                          {item.cleanName || item.name}
+                        </span>
                         <Input
                           type="number"
                           min={1}
@@ -847,7 +916,7 @@ export function NewOrderWizard() {
                     {lineItems.map((item) => (
                       <li key={item.id} className="flex justify-between">
                         <span>
-                          {item.name} × {item.quantity}
+                          {item.cleanName || item.name} × {item.quantity}
                         </span>
                         <span className="tabular-nums">{formatEur(lineTotal(item))}</span>
                       </li>
@@ -916,17 +985,37 @@ export function NewOrderWizard() {
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="premiumFormCard lg:sticky lg:top-20">
+          <Card className="border-kartex-gold/20 bg-gradient-to-br from-kartex-navy via-kartex-navy/95 to-navy-900 text-white lg:sticky lg:top-20">
             <CardHeader>
-              <CardTitle className="text-lg text-kartex-navy">Σύνολο</CardTitle>
+              <CardTitle className="text-sm font-semibold uppercase tracking-widest text-white/60">
+                Σύνολο Παραγγελίας
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold tabular-nums text-kartex-navy">
+            <CardContent className="space-y-4">
+              <div className="text-4xl font-black tabular-nums text-kartex-gold">
                 {formatEur(orderTotal)}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {lineItems.length} γραμμές · ΦΠΑ υπολογίζεται στην τιμολόγηση
-              </p>
+              </div>
+              <div className="text-sm text-white/50">
+                {lineItems.length}{" "}
+                {lineItems.length === 1 ? "προϊόν" : "προϊόντα"}
+              </div>
+              {lineItems.length > 0 ? (
+                <div className="space-y-2 border-t border-white/10 pt-4">
+                  {lineItems.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="mr-2 truncate text-white/70">
+                        {item.cleanName || item.name} ×{item.quantity}
+                      </span>
+                      <span className="shrink-0 font-medium tabular-nums text-white">
+                        {formatEur(lineTotal(item))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="border-t border-white/10 pt-2 text-xs text-white/30">
+                ΦΠΑ υπολογίζεται στην τιμολόγηση
+              </div>
             </CardContent>
           </Card>
         </div>
