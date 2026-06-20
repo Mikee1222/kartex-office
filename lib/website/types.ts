@@ -42,8 +42,10 @@ export type SiteSettingsState = {
 export type WebsiteProductRow = {
   id: string;
   name: string;
+  clean_name?: string | null;
   sku: string;
   category: string | null;
+  subcategory?: string | null;
   image_url: string | null;
   is_active: boolean;
 };

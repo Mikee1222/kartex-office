@@ -15,8 +15,11 @@ import { setProductActive } from "@/lib/products/set-product-active";
 import type { WebsiteProductRow } from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
+  premiumFilterTabActiveCategory,
+  premiumFilterTabInactive,
   premiumGoldButton,
   premiumSecondaryButton,
+  premiumStatCard,
   premiumTableHead,
   premiumTableRow,
   premiumTableWrap,
@@ -25,12 +28,13 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const PRODUCT_SELECT =
-  "id, name, sku, category, image_url, is_active";
+  "id, name, clean_name, sku, category, subcategory, image_url, is_active";
 
 export function WebsiteProductsPage() {
   const [products, setProducts] = React.useState<WebsiteProductRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = React.useState("all");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = React.useState(false);
@@ -60,15 +64,44 @@ export function WebsiteProductsPage() {
     void load();
   }, [load, fetchKey]);
 
+  const categories = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          products
+            .map((product) => product.category)
+            .filter((category): category is string => Boolean(category)),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "el")),
+    [products],
+  );
+
+  const filtered = React.useMemo(() => {
+    if (activeCategory === "all") {
+      return products;
+    }
+    return products.filter((product) => product.category === activeCategory);
+  }, [products, activeCategory]);
+
+  const activeCount = React.useMemo(
+    () => products.filter((product) => product.is_active).length,
+    [products],
+  );
+
+  const withImageCount = React.useMemo(
+    () => products.filter((product) => product.image_url).length,
+    [products],
+  );
+
   const selectedOnPage = React.useMemo(
-    () => products.filter((product) => selectedIds.has(product.id)),
-    [products, selectedIds],
+    () => filtered.filter((product) => selectedIds.has(product.id)),
+    [filtered, selectedIds],
   );
 
   const allSelected =
-    products.length > 0 && selectedOnPage.length === products.length;
+    filtered.length > 0 && selectedOnPage.length === filtered.length;
   const someSelected =
-    selectedOnPage.length > 0 && selectedOnPage.length < products.length;
+    selectedOnPage.length > 0 && selectedOnPage.length < filtered.length;
 
   React.useEffect(() => {
     if (headerCheckboxRef.current) {
@@ -91,7 +124,7 @@ export function WebsiteProductsPage() {
   function toggleAll(checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const product of products) {
+      for (const product of filtered) {
         if (checked) {
           next.add(product.id);
         } else {
@@ -100,6 +133,10 @@ export function WebsiteProductsPage() {
       }
       return next;
     });
+  }
+
+  function productDisplayName(product: WebsiteProductRow) {
+    return product.clean_name || product.name;
   }
 
   async function handleToggleActive(product: WebsiteProductRow) {
@@ -224,6 +261,65 @@ export function WebsiteProductsPage() {
         }
       />
 
+      {!loading && !error ? (
+        <section className="grid gap-4 sm:grid-cols-3">
+          <article className={cn(premiumStatCard, "p-5")}>
+            <p className="text-[28px] font-semibold leading-none text-navy-900">
+              {products.length}
+            </p>
+            <p className="mt-1 text-sm text-gray-400">Συνολικά</p>
+          </article>
+          <article className={cn(premiumStatCard, "p-5")}>
+            <p className="text-[28px] font-semibold leading-none text-navy-900">
+              {activeCount}
+            </p>
+            <p className="mt-1 text-sm text-gray-400">Ενεργά στο website</p>
+          </article>
+          <article className={cn(premiumStatCard, "p-5")}>
+            <p className="text-[28px] font-semibold leading-none text-navy-900">
+              {withImageCount}
+            </p>
+            <p className="mt-1 text-sm text-gray-400">Με εικόνα</p>
+          </article>
+        </section>
+      ) : null}
+
+      {!loading && products.length > 0 ? (
+        <div
+          className="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Φίλτρο κατηγορίας"
+        >
+          {["all", ...categories].map((category) => {
+            const isActive = activeCategory === category;
+            const count =
+              category === "all"
+                ? products.length
+                : products.filter((product) => product.category === category)
+                    .length;
+
+            return (
+              <button
+                key={category}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveCategory(category)}
+                className={cn(
+                  isActive
+                    ? premiumFilterTabActiveCategory
+                    : premiumFilterTabInactive,
+                )}
+              >
+                {category === "all"
+                  ? `Όλα (${count})`
+                  : `${category} (${count})`}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {selectedIds.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-gray-500">
@@ -263,6 +359,10 @@ export function WebsiteProductsPage() {
             <p className="p-8 text-center text-sm text-gray-500">
               Δεν βρέθηκαν προϊόντα.
             </p>
+          ) : filtered.length === 0 ? (
+            <p className="p-8 text-center text-sm text-gray-500">
+              Δεν βρέθηκαν προϊόντα σε αυτή την κατηγορία.
+            </p>
           ) : (
             <div className={premiumTableWrap}>
               <table className="w-full min-w-[720px]">
@@ -281,13 +381,15 @@ export function WebsiteProductsPage() {
                     <th className="w-20 px-4 py-3">Εικόνα</th>
                     <th className="px-4 py-3">Προϊόν</th>
                     <th className="px-4 py-3">Κατηγορία</th>
+                    <th className="px-4 py-3">Υποκατηγορία</th>
                     <th className="px-4 py-3">Ενεργό</th>
                     <th className="px-4 py-3">Ανέβασμα</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => {
+                  {filtered.map((product) => {
                     const isBusy = busyId === product.id;
+                    const displayName = productDisplayName(product);
                     return (
                       <tr key={product.id} className={premiumTableRow}>
                         <td className="px-4 py-3">
@@ -298,7 +400,7 @@ export function WebsiteProductsPage() {
                               toggleSelection(product.id, event.target.checked)
                             }
                             className="size-4 rounded border-gray-300"
-                            aria-label={`Επιλογή ${product.name}`}
+                            aria-label={`Επιλογή ${displayName}`}
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -306,7 +408,7 @@ export function WebsiteProductsPage() {
                             <div className="relative size-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                               <Image
                                 src={product.image_url}
-                                alt={product.name}
+                                alt={displayName}
                                 fill
                                 className="object-cover"
                                 sizes="48px"
@@ -320,18 +422,21 @@ export function WebsiteProductsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-navy-900">{product.name}</p>
+                          <p className="font-medium text-navy-900">{displayName}</p>
                           <p className="text-xs text-gray-400">{product.sku}</p>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {product.category || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {product.subcategory || "—"}
                         </td>
                         <td className="px-4 py-3">
                           <ActiveToggle
                             active={product.is_active}
                             disabled={isBusy}
                             onClick={() => void handleToggleActive(product)}
-                            label={`Ενεργό ${product.name}`}
+                            label={`Ενεργό ${displayName}`}
                           />
                         </td>
                         <td className="px-4 py-3">
