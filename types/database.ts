@@ -373,8 +373,18 @@ export type QuoteRequestRow = {
   created_at: string;
   updated_at?: string | null;
   customers?:
-    | { name: string; email?: string | null; phone?: string | null }
-    | { name: string; email?: string | null; phone?: string | null }[]
+    | {
+        id: string;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+      }
+    | {
+        id: string;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+      }[]
     | null;
   quote_request_items?: QuoteRequestItemRow[] | { count: number }[] | null;
 };
@@ -471,9 +481,22 @@ export function mapQuoteRequestToDetail(
         .map(mapQuoteItemRow)
     : [];
 
+  const customerJoin = row.customers;
+  const customerRecord = Array.isArray(customerJoin)
+    ? customerJoin[0]
+    : customerJoin;
+
   return {
     id: row.id,
     shortId: quoteShortId(row.id),
+    customer: customerRecord
+      ? {
+          id: customerRecord.id,
+          name: customerRecord.name?.trim() || "—",
+          email: customerRecord.email?.trim() || null,
+          phone: customerRecord.phone?.trim() || null,
+        }
+      : null,
     contactName: row.contact_name?.trim() || "—",
     companyName: row.company_name?.trim() || "—",
     email: row.email?.trim() || "—",
@@ -490,7 +513,7 @@ export function mapQuoteRequestToDetail(
 }
 
 export const QUOTE_LIST_SELECT =
-  "*, quote_request_items!quote_request_items_quote_request_id_fkey(id), customers(name)";
+  "*, quote_request_items!quote_request_items_quote_request_id_fkey(id), customers:customer_id(name)";
 
 export const QUOTE_DETAIL_SELECT = `
   *,
@@ -508,7 +531,7 @@ export const QUOTE_DETAIL_SELECT = `
     quoted_notes,
     products(unit)
   ),
-  customers(id, name, email, phone)
+  customers:customer_id(id, name, email, phone)
 `;
 
 export function mapProductRowToEditInitial(

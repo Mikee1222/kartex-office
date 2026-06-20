@@ -176,9 +176,9 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
               Αίτημα #{quote.shortId}
             </p>
             <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
-              {quote.companyName}
+              {quote.customer?.name ?? quote.companyName ?? "—"}
             </h1>
-            <p className="mt-1 text-white/70">{quote.contactName}</p>
+            <p className="mt-1 text-white/70">{quote.contactName ?? "—"}</p>
           </div>
           <QuoteStatusBadge
             status={quote.status}
@@ -188,11 +188,15 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-white/50">Email</p>
-            <p className="mt-1 text-sm">{quote.email}</p>
+            <p className="mt-1 text-sm">
+              {quote.customer?.email ?? quote.email ?? "—"}
+            </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-white/50">Τηλέφωνο</p>
-            <p className="mt-1 text-sm">{quote.phone ?? "—"}</p>
+            <p className="mt-1 text-sm">
+              {quote.customer?.phone ?? quote.phone ?? "—"}
+            </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-white/50">Ημερομηνία</p>
