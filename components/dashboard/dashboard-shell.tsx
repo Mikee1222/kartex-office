@@ -82,7 +82,7 @@ export function DashboardShell({
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-border bg-white px-3 py-2 lg:hidden">
           <Button
             type="button"
@@ -104,7 +104,9 @@ export function DashboardShell({
         <main
           className={cn(
             "page-transition flex-1 p-4 sm:p-6 lg:p-8",
-            isAssistantPage ? "overflow-hidden" : "overflow-auto",
+            isAssistantPage
+              ? "flex min-h-0 flex-col overflow-hidden"
+              : "overflow-auto",
           )}
         >
           {children}
