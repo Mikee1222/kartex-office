@@ -176,6 +176,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
       .update({
         payment_status: "confirmed",
         payment_confirmed_at: new Date().toISOString(),
+        status: OrderStatus.Confirmed,
       })
       .eq("id", orderId);
 
@@ -192,6 +193,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
             ...prev,
             paymentStatus: "confirmed",
             paymentConfirmedAt: new Date().toISOString(),
+            status: OrderStatus.Confirmed,
           }
         : prev,
     );
@@ -503,7 +505,12 @@ function ItemsCard({ order }: { order: OrderDetail }) {
                   key={item.id}
                   className="border-b border-border/60 last:border-0"
                 >
-                  <td className="px-4 py-3 sm:px-6">{item.product}</td>
+                  <td className="px-4 py-3 sm:px-6">
+                    {item.products?.clean_name ||
+                      item.products?.name ||
+                      item.productName ||
+                      "—"}
+                  </td>
                   <td className="px-4 py-3 tabular-nums">{item.quantity}</td>
                   <td className="px-4 py-3 tabular-nums text-emerald-700">
                     {item.quantityDelivered}

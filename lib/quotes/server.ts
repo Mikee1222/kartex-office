@@ -28,6 +28,8 @@ export async function updateOrderFromQuoteAcceptance(
       customer_email: quote.email?.trim() || null,
       company_name: quote.company_name?.trim() || null,
       notes: `Παραγγελία από website portal · ${label}`,
+      status: "Αναμονή πληρωμής",
+      payment_status: "pending",
     })
     .eq("id", order.id);
 

@@ -30,7 +30,9 @@ type QuoteRequestJoin = {
 type ProductJoin = {
   id: string;
   name: string;
-  sku: string;
+  clean_name?: string | null;
+  unit?: string | null;
+  sku?: string | null;
 };
 
 type OrderItemJoin = {
@@ -39,7 +41,6 @@ type OrderItemJoin = {
   quantity: number;
   quantity_delivered?: number | null;
   unit_price: number | string;
-  total: number | string;
   products: ProductJoin | ProductJoin[] | null;
 };
 
@@ -52,8 +53,8 @@ export const ORDER_DETAIL_SELECT = `
     payment_terms, type
   ),
   order_items (
-    id, product_id, quantity, quantity_delivered, unit_price, total,
-    products (id, name, sku)
+    id, product_id, quantity, quantity_delivered, unit_price,
+    products (id, name, clean_name, unit)
   ),
   delivery_trips (
     id,
@@ -206,6 +207,8 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
 
   const items = (row.order_items ?? []).map((line) => {
     const product = pickOne(line.products);
+    const productName =
+      product?.clean_name?.trim() || product?.name?.trim() || null;
     const unitPrice = toNumber(line.unit_price);
     const quantity = line.quantity ?? 0;
     const quantityDelivered = line.quantity_delivered ?? 0;
@@ -214,7 +217,16 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     return {
       id: line.id,
       productId: line.product_id,
-      product: product?.name?.trim() || "—",
+      product: productName || "—",
+      productName,
+      products: product
+        ? {
+            id: product.id,
+            name: product.name,
+            clean_name: product.clean_name ?? null,
+            unit: product.unit ?? null,
+          }
+        : null,
       quantity,
       quantityDelivered,
       quantityPending,
@@ -355,9 +367,11 @@ export function mapSupabaseOrderToPdf(row: OrderDetailQueryRow): OrderPdfData {
     const unitPrice = toNumber(line.unit_price);
     const quantity = line.quantity ?? 0;
     const lineTotal = Math.round(unitPrice * quantity * 100) / 100;
+    const productLabel =
+      product?.clean_name?.trim() || product?.name?.trim() || "—";
     return {
       sku: product?.sku?.trim() || "—",
-      product: product?.name?.trim() || "—",
+      product: productLabel,
       quantity,
       unitPrice,
       lineTotal,

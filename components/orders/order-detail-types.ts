@@ -1,10 +1,19 @@
 import { type StatusHistoryEntry } from "@/lib/orders/status-timeline";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
 
+export type OrderLineProduct = {
+  id: string;
+  name: string;
+  clean_name?: string | null;
+  unit?: string | null;
+};
+
 export type OrderLineItem = {
   id: string;
   productId: string | null;
   product: string;
+  productName?: string | null;
+  products?: OrderLineProduct | null;
   quantity: number;
   quantityDelivered: number;
   quantityPending: number;
