@@ -9,6 +9,7 @@ import {
   FileQuestion,
   MessageSquare,
   Package,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -230,6 +231,22 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
     (quote) => quote.status === "accepted",
   ).length;
 
+  async function handleDelete(quoteId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Διαγραφή αυτού του αιτήματος;")) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("quote_requests")
+      .delete()
+      .eq("id", quoteId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setQuotes((c) => c.filter((q) => q.id !== quoteId));
+    toast.success("Αίτημα διαγράφηκε");
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader
@@ -422,6 +439,15 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                             ? "Προσθήκη Τιμών"
                             : "Προβολή"}
                         </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => void handleDelete(quote.id, e)}
+                        className="h-8 w-8 shrink-0 border-red-200 p-0 text-red-500 hover:bg-red-50"
+                      >
+                        <Trash2 size={13} />
                       </Button>
                     </div>
                   </div>

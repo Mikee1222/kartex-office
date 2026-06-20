@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -154,6 +154,21 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
     router.refresh();
   }
 
+  async function handleDelete() {
+    if (!confirm("Διαγραφή αυτού του αιτήματος προσφοράς;")) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("quote_requests")
+      .delete()
+      .eq("id", quote.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Αίτημα διαγράφηκε");
+    router.push("/quotes");
+  }
+
   const isFinal =
     quote.status === "accepted" ||
     quote.status === "rejected" ||
@@ -180,10 +195,21 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
             </h1>
             <p className="mt-1 text-white/70">{quote.contactName}</p>
           </div>
-          <QuoteStatusBadge
-            status={quote.status}
-            className="bg-white/10 text-white ring-white/20"
-          />
+          <div className="flex items-center gap-2">
+            <QuoteStatusBadge
+              status={quote.status}
+              className="bg-white/10 text-white ring-white/20"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void handleDelete()}
+              className="h-8 w-8 border-red-200/50 bg-white/5 p-0 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+            >
+              <Trash2 size={14} />
+            </Button>
+          </div>
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
