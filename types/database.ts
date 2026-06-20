@@ -3,6 +3,7 @@ import {
   OrderStatus,
   type Order,
   type OrderStatus as OrderStatusType,
+  type PaymentStatus,
 } from "@/components/orders/types";
 import { ProductCategory, type Product } from "@/components/products/types";
 
@@ -290,7 +291,7 @@ export function mapOrderRow(
     status: normalizeOrderStatus(row.status),
     itemCount: count,
     totalEur: toNumber(row.total),
-    paymentStatus: row.payment_status ?? "pending",
+    paymentStatus: (row.payment_status ?? "pending") as PaymentStatus,
     paymentProofUrl: row.payment_proof_url ?? null,
     paymentAmount,
     paymentSubmittedAt: row.payment_submitted_at ?? null,
