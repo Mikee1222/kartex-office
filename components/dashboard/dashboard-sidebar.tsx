@@ -5,7 +5,7 @@ import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { KartexLogo } from "@/components/dashboard/kartex-logo";
+import { DolphinSidebarBrand } from "@/components/dashboard/dolphin-sidebar-brand";
 import { navSections, type NavItem } from "@/components/dashboard/nav-items";
 import { usePermissionsOptional } from "@/lib/auth/permissions-context";
 import { useNotificationsStore } from "@/lib/notifications-store";
@@ -86,17 +86,16 @@ export function DashboardSidebar({
     >
       <div
         className={cn(
-          "border-b border-white/10 px-4 py-5",
-          collapsed && "flex justify-center px-2",
+          "flex items-center gap-2 border-b border-white/10 px-4 py-4",
+          collapsed && "justify-center px-2",
         )}
       >
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          className={cn("flex items-center gap-3", collapsed && "justify-center")}
-          title="Kartex Office"
+          title="Dolphin's Office"
         >
-          <KartexLogo compact={collapsed} />
+          <DolphinSidebarBrand collapsed={collapsed} />
         </Link>
       </div>
 
