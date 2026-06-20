@@ -36,13 +36,6 @@ export type QuoteListItem = {
   orderId: string | null;
 };
 
-export type QuoteDetailCustomer = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-};
-
 export type QuoteDetailItem = {
   id: string;
   productId: string | null;
@@ -59,7 +52,6 @@ export type QuoteDetailItem = {
 export type QuoteDetail = {
   id: string;
   shortId: string;
-  customer: QuoteDetailCustomer | null;
   contactName: string;
   companyName: string;
   email: string;

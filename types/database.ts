@@ -372,20 +372,6 @@ export type QuoteRequestRow = {
   responded_by?: string | null;
   created_at: string;
   updated_at?: string | null;
-  customers?:
-    | {
-        id: string;
-        name: string;
-        email?: string | null;
-        phone?: string | null;
-      }
-    | {
-        id: string;
-        name: string;
-        email?: string | null;
-        phone?: string | null;
-      }[]
-    | null;
   quote_request_items?: QuoteRequestItemRow[] | { count: number }[] | null;
 };
 
@@ -481,22 +467,9 @@ export function mapQuoteRequestToDetail(
         .map(mapQuoteItemRow)
     : [];
 
-  const customerJoin = row.customers;
-  const customerRecord = Array.isArray(customerJoin)
-    ? customerJoin[0]
-    : customerJoin;
-
   return {
     id: row.id,
     shortId: quoteShortId(row.id),
-    customer: customerRecord
-      ? {
-          id: customerRecord.id,
-          name: customerRecord.name?.trim() || "—",
-          email: customerRecord.email?.trim() || null,
-          phone: customerRecord.phone?.trim() || null,
-        }
-      : null,
     contactName: row.contact_name?.trim() || "—",
     companyName: row.company_name?.trim() || "—",
     email: row.email?.trim() || "—",
@@ -518,20 +491,10 @@ export const QUOTE_LIST_SELECT =
 export const QUOTE_DETAIL_SELECT = `
   *,
   quote_request_items!quote_request_items_quote_request_id_fkey(
-    id,
-    quote_request_id,
-    product_id,
-    product_name,
-    quantity,
-    color,
-    dimensions,
-    material,
-    notes,
-    quoted_price,
-    quoted_notes,
+    id, quote_request_id, product_id, product_name, quantity,
+    color, dimensions, material, notes, quoted_price, quoted_notes,
     products(unit)
-  ),
-  customers:customer_id(id, name, email, phone)
+  )
 `;
 
 export function mapProductRowToEditInitial(
