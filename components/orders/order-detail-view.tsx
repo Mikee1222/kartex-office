@@ -333,7 +333,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
-          <CustomerCard customer={order.customer} />
+          <CustomerCard order={order} />
           <ItemsCard order={order} />
           {showWarehouseStatus ? (
             <WarehouseStatusCard
@@ -424,17 +424,29 @@ function TripCard({ trip }: { trip: OrderTripInfo }) {
   );
 }
 
-function CustomerCard({ customer }: { customer: OrderDetail["customer"] }) {
+function CustomerCard({ order }: { order: OrderDetail }) {
+  const customerName =
+    order.customerName || order.quoteRequest?.contactName || "—";
+  const customerPhone =
+    order.customerPhone || order.quoteRequest?.phone || "—";
+  const customerEmail =
+    order.customerEmail || order.quoteRequest?.email || "—";
+  const customerAddress =
+    order.customerAddress || order.customer.address || "—";
+  const companyName =
+    order.companyName || order.quoteRequest?.companyName || "—";
+
   return (
     <Card className="border-border/80 shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg text-kartex-navy">Πελάτης</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
-        <InfoRow label="Όνομα" value={customer.name} />
-        <InfoRow label="Τηλέφωνο" value={customer.phone} />
-        <InfoRow label="Email" value={customer.email} className="sm:col-span-2" />
-        <InfoRow label="Διεύθυνση" value={customer.address} className="sm:col-span-2" />
+        <InfoRow label="Εταιρεία" value={companyName} className="sm:col-span-2" />
+        <InfoRow label="Όνομα" value={customerName} />
+        <InfoRow label="Τηλέφωνο" value={customerPhone} />
+        <InfoRow label="Email" value={customerEmail} className="sm:col-span-2" />
+        <InfoRow label="Διεύθυνση" value={customerAddress} className="sm:col-span-2" />
       </CardContent>
     </Card>
   );

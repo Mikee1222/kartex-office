@@ -19,6 +19,22 @@ export type OrderCustomerInfo = {
   address: string;
 };
 
+export type OrderQuoteRequestInfo = {
+  id: string;
+  contactName: string;
+  companyName: string;
+  email: string;
+  phone: string | null;
+};
+
+export type OrderQuoteRequestInfo = {
+  id: string;
+  contactName: string;
+  companyName: string;
+  email: string;
+  phone: string | null;
+};
+
 export type OrderDeliveryHistoryEntry = {
   id: string;
   createdAt: string;
@@ -41,6 +57,12 @@ export type OrderDetail = {
   status: OrderStatus;
   statusHistory: StatusHistoryEntry[];
   customer: OrderCustomerInfo;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  companyName: string | null;
+  quoteRequest: OrderQuoteRequestInfo | null;
   items: OrderLineItem[];
   subtotal: number;
   vatRate: number;

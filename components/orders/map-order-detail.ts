@@ -1,4 +1,7 @@
-import { type OrderDetail } from "@/components/orders/order-detail-types";
+import {
+  type OrderDetail,
+  type OrderQuoteRequestInfo,
+} from "@/components/orders/order-detail-types";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
 import { parseStatusHistory } from "@/lib/orders/status-timeline";
 import { formatDateEl, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
@@ -51,6 +54,13 @@ export const ORDER_DETAIL_SELECT = `
     driver_id,
     driver_name,
     vehicles ( plate, model )
+  ),
+  quote_request:quote_request_id (
+    id,
+    contact_name,
+    company_name,
+    email,
+    phone
   )
 `;
 
@@ -61,6 +71,14 @@ type TripJoin = {
   driver_id: string;
   driver_name: string;
   vehicles?: { plate: string; model: string | null } | { plate: string; model: string | null }[] | null;
+};
+
+type QuoteRequestJoin = {
+  id: string;
+  contact_name: string;
+  company_name: string;
+  email: string;
+  phone?: string | null;
 };
 
 export type OrderEditFormData = {
@@ -101,9 +119,16 @@ export type OrderDetailQueryRow = {
   boxes_notes?: string | null;
   status_history?: unknown;
   created_at: string;
+  quote_request_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+  customer_address?: string | null;
+  company_name?: string | null;
   customers: CustomerJoin | CustomerJoin[] | null;
   order_items: OrderItemJoin[] | null;
   delivery_trips?: TripJoin | TripJoin[] | null;
+  quote_request?: QuoteRequestJoin | QuoteRequestJoin[] | null;
 };
 
 function mapTripJoin(
@@ -142,9 +167,42 @@ function formatCustomerAddress(customer: CustomerJoin): string {
   return parts.length > 0 ? parts.join(", ") : "—";
 }
 
+function mapQuoteRequestJoin(
+  quoteRequest: OrderDetailQueryRow["quote_request"],
+): OrderQuoteRequestInfo | null {
+  const row = pickOne(quoteRequest);
+  if (!row) return null;
+  return {
+    id: row.id,
+    contactName: row.contact_name?.trim() || "—",
+    companyName: row.company_name?.trim() || "—",
+    email: row.email?.trim() || "—",
+    phone: row.phone?.trim() || null,
+  };
+}
+
 export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail {
   const customer = pickOne(row.customers);
+  const quoteRequest = mapQuoteRequestJoin(row.quote_request);
   const status = normalizeOrderStatus(row.status);
+
+  const customerName =
+    row.customer_name?.trim() || customer?.name?.trim() || null;
+  const customerPhone =
+    row.customer_phone?.trim() || customer?.phone?.trim() || null;
+  const customerEmail =
+    row.customer_email?.trim() || customer?.email?.trim() || null;
+  const customerAddress =
+    row.customer_address?.trim() ||
+    (customer ? formatCustomerAddress(customer) : null) ||
+    null;
+  const companyName = row.company_name?.trim() || null;
+
+  const resolvedCustomerName =
+    customerName || quoteRequest?.contactName || quoteRequest?.companyName || "—";
+  const resolvedCustomerPhone = customerPhone || quoteRequest?.phone || "—";
+  const resolvedCustomerEmail = customerEmail || quoteRequest?.email || "—";
+  const resolvedCustomerAddress = customerAddress || "—";
 
   const items = (row.order_items ?? []).map((line) => {
     const product = pickOne(line.products);
@@ -182,11 +240,17 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     orderNumber: row.order_number,
     status,
     customer: {
-      name: customer?.name?.trim() || "—",
-      phone: customer?.phone?.trim() || "—",
-      email: customer?.email?.trim() || "—",
-      address: customer ? formatCustomerAddress(customer) : "—",
+      name: resolvedCustomerName,
+      phone: resolvedCustomerPhone,
+      email: resolvedCustomerEmail,
+      address: resolvedCustomerAddress,
     },
+    customerName,
+    customerPhone,
+    customerEmail,
+    customerAddress,
+    companyName,
+    quoteRequest,
     items,
     subtotal,
     vatRate,
