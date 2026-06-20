@@ -72,7 +72,8 @@ export function ProductMasterSection({
         <div>
           <h2 className="text-lg font-semibold text-navy-900">Master Προϊόν</h2>
           <p className="text-sm text-gray-500">
-            Επιλέξτε υπάρχον master ή δημιουργήστε νέο για ομαδοποίηση παραλλαγών
+            Σε ποιο προϊόν ανήκει αυτή η παραλλαγή; π.χ. όλες οι πετσέτες GIZA
+            ανήκουν στο master &apos;Πετσέτα Giza&apos;
           </p>
         </div>
       </div>

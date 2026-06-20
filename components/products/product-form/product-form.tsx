@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -192,6 +192,35 @@ export function ProductForm({
 
   const isVariantContext =
     mode === "new" && Boolean(selectedMaster && selectedMaster !== "new");
+
+  const PRODUCT_FORM_STEPS = [
+    { num: "1", label: "Τύπος Προϊόντος" },
+    { num: "2", label: "Βασικά Στοιχεία" },
+    { num: "3", label: "Διαστάσεις & Specs" },
+    { num: "4", label: "Χρώματα & Απόθεμα" },
+  ] as const;
+
+  function handleAutoVariantName() {
+    const master = masters.find((item) => item.id === selectedMaster);
+    const masterName =
+      master?.clean_name ??
+      ((selectedMaster === "new" ? newMasterName.trim() : cleanName.trim()) || null);
+    const parts: string[] = [];
+    const { widthCm, heightCm } = dimensions;
+    if (widthCm.trim() && heightCm.trim()) {
+      parts.push(`${widthCm.trim()}×${heightCm.trim()}cm`);
+    }
+    const gsmValue = /^\d+$/.test(qualityGrade.trim()) ? qualityGrade.trim() : "";
+    if (gsmValue) {
+      parts.push(`${gsmValue}gsm`);
+    }
+    const suggestion = masterName
+      ? `${masterName} ${parts.join(" ")}`.trim()
+      : parts.join(" ");
+    if (suggestion) {
+      setName(suggestion);
+    }
+  }
 
   const pageTitle =
     title ??
@@ -411,6 +440,26 @@ export function ProductForm({
 
           <fieldset disabled={pending} className="space-y-8">
             {mode === "new" ? (
+              <div className="mb-6 flex items-center gap-2">
+                {PRODUCT_FORM_STEPS.map((step, index) => (
+                  <React.Fragment key={step.num}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-6 items-center justify-center rounded-full border border-kartex-gold/30 bg-kartex-gold/10 text-xs font-bold text-kartex-gold">
+                        {step.num}
+                      </div>
+                      <span className="hidden text-xs font-medium text-muted-foreground sm:block">
+                        {step.label}
+                      </span>
+                    </div>
+                    {index < PRODUCT_FORM_STEPS.length - 1 ? (
+                      <div className="h-px flex-1 bg-border" aria-hidden />
+                    ) : null}
+                  </React.Fragment>
+                ))}
+              </div>
+            ) : null}
+
+            {mode === "new" ? (
               <ProductMasterSection
                 masters={masters}
                 selectedMaster={selectedMaster}
@@ -443,14 +492,25 @@ export function ProductForm({
               <h2 className={productFormSectionTitle}>Βασικές Πληροφορίες</h2>
               <div className={productFormGrid}>
                 <div className={cn(productFormField, "sm:col-span-2")}>
-                  <FormFieldLabel
-                    htmlFor="product-name"
-                    required
-                    tooltip={FIELD_TOOLTIPS.productName}
-                    labelClassName={productFormLabel}
-                  >
-                    Όνομα Προϊόντος (παραλλαγή)
-                  </FormFieldLabel>
+                  <div className="flex items-center justify-between gap-2">
+                    <FormFieldLabel
+                      htmlFor="product-name"
+                      required
+                      tooltip={FIELD_TOOLTIPS.productName}
+                      labelClassName={productFormLabel}
+                    >
+                      Περιγραφή Παραλλαγής
+                    </FormFieldLabel>
+                    <button
+                      type="button"
+                      onClick={handleAutoVariantName}
+                      disabled={pending}
+                      className="flex items-center gap-1 text-xs text-kartex-gold hover:underline disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      <Wand2 size={12} aria-hidden />
+                      Αυτόματη ονομασία
+                    </button>
+                  </div>
                   <Input
                     id="product-name"
                     value={name}
@@ -458,6 +518,10 @@ export function ProductForm({
                     className={productFormInput}
                     required
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    π.χ. &quot;80×150 cm Λευκό&quot; ή &quot;55×75 Oxford 3 Side&quot; —
+                    αυτό που ξεχωρίζει αυτή την παραλλαγή
+                  </p>
                 </div>
                 <ProductSkuField
                   value={sku}
