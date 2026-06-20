@@ -611,50 +611,8 @@ function PaymentCard({
           ) : null}
         </div>
 
-        {order.documentType ? (
-          <div className="flex items-center justify-between border-b border-border/50 py-2">
-            <span className="text-sm text-muted-foreground">Παραστατικό</span>
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold",
-                order.documentType === "invoice"
-                  ? "border-blue-200 bg-blue-50 text-blue-700"
-                  : "border-gray-200 bg-gray-50 text-gray-700",
-              )}
-            >
-              {order.documentType === "invoice" ? "📄 Τιμολόγιο" : "🧾 Απόδειξη"}
-            </span>
-          </div>
-        ) : null}
-
-        {order.vatNumber ? (
-          <div className="flex items-center justify-between border-b border-border/50 py-2">
-            <span className="text-sm text-muted-foreground">ΑΦΜ</span>
-            <span className="font-mono text-sm font-semibold text-navy-900">
-              {order.vatNumber}
-            </span>
-          </div>
-        ) : null}
-
-        {order.billingAddress ? (
-          <div className="flex items-center justify-between border-b border-border/50 py-2">
-            <span className="text-sm text-muted-foreground">Διεύθυνση Έδρας</span>
-            <span className="text-sm font-medium text-navy-900">
-              {order.billingAddress}
-            </span>
-          </div>
-        ) : null}
-
-        {order.paymentAmount != null && order.documentType !== "invoice" ? (
-          <InfoRow
-            label="Ποσό πληρωμής"
-            value={formatEur(order.paymentAmount)}
-            className="mb-4"
-          />
-        ) : null}
-
-        {order.paymentAmount != null && order.documentType === "invoice" ? (
-          <div className="mt-3 space-y-1.5 rounded-xl border border-blue-100 bg-blue-50 p-3">
+        {order.paymentAmount ? (
+          <div className="mt-3 space-y-1.5 rounded-xl border border-border bg-muted/50 p-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Καθαρή αξία</span>
               <span className="font-medium">
@@ -667,12 +625,46 @@ function PaymentCard({
                 {(order.paymentAmount - order.paymentAmount / 1.24).toFixed(2)}€
               </span>
             </div>
-            <div className="mt-1 flex justify-between border-t border-blue-200 pt-1.5 text-sm font-bold">
+            <div className="mt-1 flex justify-between border-t border-border pt-1.5 text-sm font-bold">
               <span className="text-navy-900">Σύνολο</span>
               <span className="text-kartex-gold">
                 {order.paymentAmount.toFixed(2)}€
               </span>
             </div>
+          </div>
+        ) : null}
+
+        {order.documentType ? (
+          <div className="flex items-center justify-between border-b border-border/50 py-2">
+            <span className="text-sm text-muted-foreground">Παραστατικό</span>
+            <span
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold",
+                order.documentType === "invoice"
+                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                  : "border-gray-200 bg-gray-50 text-gray-700",
+              )}
+            >
+              {order.documentType === "invoice" ? "Τιμολόγιο" : "Απόδειξη"}
+            </span>
+          </div>
+        ) : null}
+
+        {order.documentType === "invoice" && order.vatNumber ? (
+          <div className="flex items-center justify-between border-b border-border/50 py-2">
+            <span className="text-sm text-muted-foreground">ΑΦΜ</span>
+            <span className="font-mono text-sm font-semibold text-navy-900">
+              {order.vatNumber}
+            </span>
+          </div>
+        ) : null}
+
+        {order.documentType === "invoice" && order.billingAddress ? (
+          <div className="flex items-center justify-between border-b border-border/50 py-2">
+            <span className="text-sm text-muted-foreground">Διεύθυνση Έδρας</span>
+            <span className="text-sm font-medium text-navy-900">
+              {order.billingAddress}
+            </span>
           </div>
         ) : null}
 
