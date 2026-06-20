@@ -184,18 +184,26 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
     setConfirmingPayment(false);
 
     if (error) {
+      console.log("[handleConfirmPayment] update failed", { orderId, error });
       toast.error(error.message);
       return;
     }
 
     if (!data) {
+      console.log("[handleConfirmPayment] update returned no row", { orderId });
       toast.error("Η ενημέρωση πληρωμής απέτυχε.");
       return;
     }
 
+    console.log("[handleConfirmPayment] payment confirmed", {
+      orderId,
+      payment_status: data.payment_status,
+      payment_confirmed_at: data.payment_confirmed_at,
+    });
+
     setOrder((prev) => ({
       ...prev,
-      paymentStatus: "confirmed",
+      paymentStatus: (data.payment_status ?? "confirmed") as OrderDetail["paymentStatus"],
       paymentConfirmedAt: data.payment_confirmed_at ?? confirmedAt,
     }));
     toast.success("Η πληρωμή επιβεβαιώθηκε!");
