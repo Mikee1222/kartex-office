@@ -1,11 +1,9 @@
 import type { ProductDimensionsFormState } from "@/components/products/product-form/product-form-dimensions-section";
-import { ProductCategory } from "@/components/products/types";
 import { DEFAULT_MEASUREMENT_UNIT } from "@/lib/products/constants";
 
 /**
  * Product category is plain text on `products.category`.
- * Lookup rows live in `product_categories` for the dropdown only — never insert
- * that table during product save (use ProductCategorySelect "+" for new names).
+ * The form dropdown reads from `website_categories` — never insert that table on save.
  */
 export function productCategoryToPayload(category: string): string | null {
   const trimmed = category.trim();
@@ -44,19 +42,13 @@ export function formatDimensionsLabel(product: {
   widthCm?: number | null;
   heightCm?: number | null;
   weightKg?: number | null;
-  category?: string;
+  unit?: string;
 }): string | null {
   const parts: string[] = [];
-  const isFabric = product.category === ProductCategory.Fabrics;
-
   if (product.widthCm != null && product.heightCm != null) {
     parts.push(`${product.widthCm}×${product.heightCm} cm`);
   } else if (product.widthCm != null) {
-    parts.push(
-      isFabric
-        ? `Φ${product.widthCm} cm`
-        : `Πλ. ${product.widthCm} cm`,
-    );
+    parts.push(`Φ${product.widthCm} cm`);
   } else if (product.heightCm != null) {
     parts.push(`Υψ. ${product.heightCm} cm`);
   }
@@ -64,5 +56,6 @@ export function formatDimensionsLabel(product: {
     parts.push(`${product.weightKg} kg`);
   }
   if (parts.length === 0) return null;
-  return parts.join(" | ");
+  const unit = product.unit?.trim();
+  return unit ? `${parts.join(" | ")} · ${unit}` : parts.join(" | ");
 }

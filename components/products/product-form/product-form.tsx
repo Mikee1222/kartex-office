@@ -1,18 +1,21 @@
 "use client";
 
-import { ArrowLeft, Wand2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { ProductCategorySelect } from "@/components/products/product-category-select";
+import {
+  ProductCategorySelect,
+  ProductSubcategorySelect,
+  type WebsiteCategoryOption,
+} from "@/components/products/product-category-select";
 import { ProductColorsStockSection } from "@/components/products/product-form/product-colors-stock-section";
 import {
   ProductFormDimensionsSection,
   type ProductDimensionsFormState,
 } from "@/components/products/product-form/product-form-dimensions-section";
 import { ProductFormPreview } from "@/components/products/product-form/product-form-preview";
-import { ProductMasterSection } from "@/components/products/product-form/product-master-section";
 import {
   ProductBarcodeField,
   ProductSkuField,
@@ -33,12 +36,8 @@ import {
   productCategoryToPayload,
 } from "@/lib/products/form-utils";
 import { checkProductFieldUnique } from "@/lib/products/identifiers";
-import {
-  ensureProductMaster,
-  fetchProductMastersAsRows,
-  resolveProductCleanName,
-  type ProductMasterRow,
-} from "@/lib/products/product-masters";
+import { generateCleanName } from "@/lib/products/clean-name";
+import { findOrCreateProductMaster } from "@/lib/products/product-masters";
 import { FIELD_TOOLTIPS } from "@/lib/forms/field-tooltips";
 import { Button } from "@/components/ui/button";
 import { FormFieldLabel } from "@/components/ui/form-field-label";
@@ -72,7 +71,6 @@ type ProductFormProps = {
   successHref: string;
   productId?: string;
   initial?: ProductEditInitial;
-  presetMasterId?: string | null;
 };
 
 function emptyDimensions(): ProductDimensionsFormState {
@@ -87,24 +85,17 @@ export function ProductForm({
   successHref,
   productId,
   initial,
-  presetMasterId,
 }: ProductFormProps) {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   const [palette, setPalette] = React.useState<ProductColor[]>([]);
-  const [mastersLoading, setMastersLoading] = React.useState(mode === "new");
 
   const [name, setName] = React.useState(initial?.name ?? "");
-  const [cleanName, setCleanName] = React.useState(initial?.cleanName ?? "");
-  const [masters, setMasters] = React.useState<ProductMasterRow[]>([]);
-  const [selectedMaster, setSelectedMaster] = React.useState(
-    presetMasterId ?? "",
-  );
-  const [newMasterName, setNewMasterName] = React.useState("");
   const [sku, setSku] = React.useState(initial?.sku ?? "");
   const [barcode, setBarcode] = React.useState(initial?.barcode ?? "");
   const [category, setCategory] = React.useState(initial?.category ?? "");
+  const [categoryId, setCategoryId] = React.useState("");
   const [subcategory, setSubcategory] = React.useState(initial?.subcategory ?? "");
   const [purchasePrice, setPurchasePrice] = React.useState(
     initial?.purchasePrice ?? "",
@@ -133,112 +124,29 @@ export function ProductForm({
   const totalStock = totalStockFromFormState(colorForm);
   const previewColors = previewColorsFromFormState(colorForm, palette);
 
-  const selectedMasterRow = React.useMemo(
-    () => masters.find((item) => item.id === selectedMaster) ?? null,
-    [masters, selectedMaster],
+  const handleCategoriesLoaded = React.useCallback(
+    (categories: WebsiteCategoryOption[]) => {
+      if (!category) return;
+      const match = categories.find((item) => item.name === category);
+      if (match) {
+        setCategoryId(match.id);
+      }
+    },
+    [category],
   );
 
-  React.useEffect(() => {
-    if (mode !== "new") return;
-
-    let cancelled = false;
-
-    async function loadMasters() {
-      setMastersLoading(true);
-      const supabase = createClient();
-      const { data, error: fetchError } = await fetchProductMastersAsRows(supabase);
-      if (cancelled) return;
-      if (fetchError) {
-        setError(fetchError);
-      } else {
-        setMasters(data);
-      }
-      setMastersLoading(false);
-    }
-
-    void loadMasters();
-    return () => {
-      cancelled = true;
-    };
-  }, [mode]);
-
-  React.useEffect(() => {
-    if (mode !== "new" || !selectedMaster || selectedMaster === "new") {
-      return;
-    }
-
-    const master = masters.find((item) => item.id === selectedMaster);
-    if (!master) return;
-
-    setCategory(master.category);
-    setCleanName(master.clean_name);
-    if (master.subcategory) {
-      setSubcategory(master.subcategory);
-    }
-    if (master.material) {
-      setMaterial(master.material);
-    }
-    if (master.quality_grade) {
-      setQualityGrade(master.quality_grade);
-    }
-  }, [mode, selectedMaster, masters]);
-
-  React.useEffect(() => {
-    if (mode !== "new" || selectedMaster !== "new") {
-      return;
-    }
-    setCleanName(newMasterName);
-  }, [mode, selectedMaster, newMasterName]);
-
-  const isVariantContext =
-    mode === "new" && Boolean(selectedMaster && selectedMaster !== "new");
-
-  const PRODUCT_FORM_STEPS = [
-    { num: "1", label: "Τύπος Προϊόντος" },
-    { num: "2", label: "Βασικά Στοιχεία" },
-    { num: "3", label: "Διαστάσεις & Specs" },
-    { num: "4", label: "Χρώματα & Απόθεμα" },
-  ] as const;
-
-  function handleAutoVariantName() {
-    const master = masters.find((item) => item.id === selectedMaster);
-    const masterName =
-      master?.clean_name ??
-      ((selectedMaster === "new" ? newMasterName.trim() : cleanName.trim()) || null);
-    const parts: string[] = [];
-    const { widthCm, heightCm } = dimensions;
-    if (widthCm.trim() && heightCm.trim()) {
-      parts.push(`${widthCm.trim()}×${heightCm.trim()}cm`);
-    }
-    const gsmValue = /^\d+$/.test(qualityGrade.trim()) ? qualityGrade.trim() : "";
-    if (gsmValue) {
-      parts.push(`${gsmValue}gsm`);
-    }
-    const suggestion = masterName
-      ? `${masterName} ${parts.join(" ")}`.trim()
-      : parts.join(" ");
-    if (suggestion) {
-      setName(suggestion);
-    }
+  function handleCategoryChange(name: string, id: string) {
+    setCategory(name);
+    setCategoryId(id);
+    setSubcategory("");
   }
 
   const pageTitle =
-    title ??
-    (mode === "new"
-      ? isVariantContext && selectedMasterRow
-        ? `Νέα Παραλλαγή — ${selectedMasterRow.clean_name}`
-        : isVariantContext
-          ? "Νέα Παραλλαγή"
-          : "Νέο Προϊόν"
-      : "Επεξεργασία προϊόντος");
+    title ?? (mode === "new" ? "Νέο Προϊόν" : "Επεξεργασία προϊόντος");
 
   const pageSubtitle =
     subtitle ??
-    (mode === "new"
-      ? isVariantContext
-        ? "Προσθήκη νέου μεγέθους, χρώματος ή ποιότητας"
-        : "Συμπληρώστε τα στοιχεία του νέου προϊόντος"
-      : undefined);
+    (mode === "new" ? "Συμπληρώστε τα στοιχεία του νέου προϊόντος" : undefined);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -252,14 +160,6 @@ export function ProductForm({
     }
     if (!category.trim()) {
       setError("Η κατηγορία είναι υποχρεωτική.");
-      return;
-    }
-    if (mode === "new" && !selectedMaster) {
-      setError("Επιλέξτε ή δημιουργήστε master προϊόν.");
-      return;
-    }
-    if (mode === "new" && selectedMaster === "new" && !newMasterName.trim()) {
-      setError("Το clean name του νέου master είναι υποχρεωτικό.");
       return;
     }
     if (colorSelections.length === 0) {
@@ -301,36 +201,10 @@ export function ProductForm({
       return;
     }
 
-    let masterId: string | null = initial?.masterId || null;
-    let resolvedCleanName =
-      resolveProductCleanName(selectedMaster, newMasterName, cleanName, masters) ??
-      (cleanName.trim() || null);
-
-    if (mode === "new") {
-      const masterResult = await ensureProductMaster(supabase, {
-        selectedMaster,
-        newMasterName,
-        category,
-        subcategory,
-        qualityGrade,
-        material,
-        masters,
-      });
-
-      if (masterResult.error) {
-        setError(masterResult.error);
-        setPending(false);
-        return;
-      }
-
-      masterId = masterResult.masterId;
-      resolvedCleanName = masterResult.cleanName ?? resolvedCleanName;
-    }
-
     const payload = {
       name: name.trim(),
-      clean_name: resolvedCleanName,
-      master_id: masterId,
+      clean_name: mode === "edit" ? (initial?.cleanName?.trim() || null) : null,
+      master_id: mode === "edit" ? (initial?.masterId || null) : null,
       subcategory: subcategory.trim() || null,
       sku: sku.trim(),
       barcode: barcode.trim() || null,
@@ -367,6 +241,35 @@ export function ProductForm({
       );
       if (variantError) {
         setError(variantError);
+        setPending(false);
+        return;
+      }
+
+      const generatedCleanName = generateCleanName(category, qualityGrade);
+      const masterResult = await findOrCreateProductMaster(supabase, {
+        cleanName: generatedCleanName,
+        category,
+        subcategory,
+        qualityGrade,
+        material,
+      });
+
+      if (masterResult.error) {
+        setError(masterResult.error);
+        setPending(false);
+        return;
+      }
+
+      const { error: masterLinkError } = await supabase
+        .from("products")
+        .update({
+          master_id: masterResult.masterId,
+          clean_name: masterResult.cleanName,
+        })
+        .eq("id", data.id);
+
+      if (masterLinkError) {
+        setError(masterLinkError.message || "Αποτυχία σύνδεσης master προϊόντος.");
         setPending(false);
         return;
       }
@@ -439,78 +342,18 @@ export function ProductForm({
           ) : null}
 
           <fieldset disabled={pending} className="space-y-8">
-            {mode === "new" ? (
-              <div className="mb-6 flex items-center gap-2">
-                {PRODUCT_FORM_STEPS.map((step, index) => (
-                  <React.Fragment key={step.num}>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-6 items-center justify-center rounded-full border border-kartex-gold/30 bg-kartex-gold/10 text-xs font-bold text-kartex-gold">
-                        {step.num}
-                      </div>
-                      <span className="hidden text-xs font-medium text-muted-foreground sm:block">
-                        {step.label}
-                      </span>
-                    </div>
-                    {index < PRODUCT_FORM_STEPS.length - 1 ? (
-                      <div className="h-px flex-1 bg-border" aria-hidden />
-                    ) : null}
-                  </React.Fragment>
-                ))}
-              </div>
-            ) : null}
-
-            {mode === "new" ? (
-              <ProductMasterSection
-                masters={masters}
-                selectedMaster={selectedMaster}
-                newMasterName={newMasterName}
-                cleanName={cleanName}
-                onSelectedMasterChange={setSelectedMaster}
-                onNewMasterNameChange={setNewMasterName}
-                onCleanNameChange={setCleanName}
-                disabled={pending || mastersLoading}
-              />
-            ) : initial?.masterId || initial?.cleanName ? (
-              <ProductMasterSection
-                masters={[]}
-                selectedMaster=""
-                newMasterName=""
-                cleanName={initial.cleanName || name}
-                onSelectedMasterChange={() => undefined}
-                onNewMasterNameChange={() => undefined}
-                onCleanNameChange={() => undefined}
-                readOnly
-                readOnlyLabel={
-                  initial.cleanName
-                    ? `${initial.cleanName}${initial.category ? ` (${initial.category})` : ""}`
-                    : undefined
-                }
-              />
-            ) : null}
-
             <section className={productFormSection}>
               <h2 className={productFormSectionTitle}>Βασικές Πληροφορίες</h2>
               <div className={productFormGrid}>
                 <div className={cn(productFormField, "sm:col-span-2")}>
-                  <div className="flex items-center justify-between gap-2">
-                    <FormFieldLabel
-                      htmlFor="product-name"
-                      required
-                      tooltip={FIELD_TOOLTIPS.productName}
-                      labelClassName={productFormLabel}
-                    >
-                      Περιγραφή Παραλλαγής
-                    </FormFieldLabel>
-                    <button
-                      type="button"
-                      onClick={handleAutoVariantName}
-                      disabled={pending}
-                      className="flex items-center gap-1 text-xs text-kartex-gold hover:underline disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      <Wand2 size={12} aria-hidden />
-                      Αυτόματη ονομασία
-                    </button>
-                  </div>
+                  <FormFieldLabel
+                    htmlFor="product-name"
+                    required
+                    tooltip={FIELD_TOOLTIPS.productName}
+                    labelClassName={productFormLabel}
+                  >
+                    Όνομα Προϊόντος
+                  </FormFieldLabel>
                   <Input
                     id="product-name"
                     value={name}
@@ -518,10 +361,6 @@ export function ProductForm({
                     className={productFormInput}
                     required
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    π.χ. &quot;80×150 cm Λευκό&quot; ή &quot;55×75 Oxford 3 Side&quot; —
-                    αυτό που ξεχωρίζει αυτή την παραλλαγή
-                  </p>
                 </div>
                 <ProductSkuField
                   value={sku}
@@ -542,33 +381,24 @@ export function ProductForm({
                 <div className={productFormField}>
                   <ProductCategorySelect
                     value={category}
-                    onChange={setCategory}
-                    disabled={pending || isVariantContext}
+                    onChange={handleCategoryChange}
+                    disabled={pending}
                     required
                     fieldClassName={productFormField}
                     labelClassName={productFormLabel}
                     selectClassName={productFormSelect}
-                    inputClassName={productFormInput}
+                    onCategoriesLoaded={handleCategoriesLoaded}
                   />
                 </div>
-                {selectedMaster === "new" || mode === "edit" ? (
-                  <div className={productFormField}>
-                    <FormFieldLabel
-                      htmlFor="product-subcategory"
-                      tooltip={FIELD_TOOLTIPS.subcategory}
-                      labelClassName={productFormLabel}
-                    >
-                      Υποκατηγορία
-                    </FormFieldLabel>
-                    <Input
-                      id="product-subcategory"
-                      value={subcategory}
-                      disabled={pending}
-                      onChange={(event) => setSubcategory(event.target.value)}
-                      className={productFormInput}
-                    />
-                  </div>
-                ) : null}
+                <ProductSubcategorySelect
+                  categoryId={categoryId}
+                  value={subcategory}
+                  onChange={setSubcategory}
+                  disabled={pending}
+                  fieldClassName={productFormField}
+                  labelClassName={productFormLabel}
+                  selectClassName={productFormSelect}
+                />
                 <div className={productFormField}>
                   <SupplierSelect
                     value={supplierId}
