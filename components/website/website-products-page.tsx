@@ -30,8 +30,17 @@ import { cn } from "@/lib/utils";
 const PRODUCT_SELECT =
   "id, name, clean_name, sku, category, subcategory, image_url, is_active";
 
+type WebsiteCategoryWithSubs = {
+  id: string;
+  name: string;
+  website_subcategories: { id: string; name: string }[];
+};
+
 export function WebsiteProductsPage() {
   const [products, setProducts] = React.useState<WebsiteProductRow[]>([]);
+  const [websiteCategories, setWebsiteCategories] = React.useState<
+    WebsiteCategoryWithSubs[]
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [activeCategory, setActiveCategory] = React.useState("all");
@@ -63,6 +72,19 @@ export function WebsiteProductsPage() {
   React.useEffect(() => {
     void load();
   }, [load, fetchKey]);
+
+  React.useEffect(() => {
+    async function loadCategories() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("website_categories")
+        .select("id, name, website_subcategories(id, name)")
+        .eq("is_active", true)
+        .order("sort_order");
+      setWebsiteCategories((data as WebsiteCategoryWithSubs[] | null) ?? []);
+    }
+    void loadCategories();
+  }, []);
 
   const categories = React.useMemo(
     () =>
@@ -197,6 +219,59 @@ export function WebsiteProductsPage() {
         ? `Ενεργοποιήθηκαν ${ids.length} προϊόντα στο website.`
         : `Απενεργοποιήθηκαν ${ids.length} προϊόντα στο website.`,
     );
+  }
+
+  async function handleCategoryChange(productId: string, categoryName: string) {
+    setBusyId(productId);
+    const supabase = createClient();
+    const category = categoryName || null;
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ category, subcategory: null })
+      .eq("id", productId);
+
+    setBusyId(null);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    setProducts((current) =>
+      current.map((row) =>
+        row.id === productId
+          ? { ...row, category, subcategory: null }
+          : row,
+      ),
+    );
+    toast.success("Κατηγορία αποθηκεύτηκε");
+  }
+
+  async function handleSubcategoryChange(
+    productId: string,
+    subcategoryName: string,
+  ) {
+    setBusyId(productId);
+    const supabase = createClient();
+    const subcategory = subcategoryName || null;
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ subcategory })
+      .eq("id", productId);
+
+    setBusyId(null);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    setProducts((current) =>
+      current.map((row) =>
+        row.id === productId ? { ...row, subcategory } : row,
+      ),
+    );
+    toast.success("Υποκατηγορία αποθηκεύτηκε");
   }
 
   async function handleImageUpload(productId: string, file: File) {
@@ -390,6 +465,11 @@ export function WebsiteProductsPage() {
                   {filtered.map((product) => {
                     const isBusy = busyId === product.id;
                     const displayName = productDisplayName(product);
+                    const matchedCategory = websiteCategories.find(
+                      (category) => category.name === product.category,
+                    );
+                    const subcategoryOptions =
+                      matchedCategory?.website_subcategories ?? [];
                     return (
                       <tr key={product.id} className={premiumTableRow}>
                         <td className="px-4 py-3">
@@ -425,11 +505,60 @@ export function WebsiteProductsPage() {
                           <p className="font-medium text-navy-900">{displayName}</p>
                           <p className="text-xs text-gray-400">{product.sku}</p>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {product.category || "—"}
+                        <td className="px-4 py-3">
+                          <select
+                            value={product.category ?? ""}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              void handleCategoryChange(
+                                product.id,
+                                event.target.value,
+                              )
+                            }
+                            className={cn(
+                              "w-full min-w-[140px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-600",
+                              isBusy && "opacity-50",
+                            )}
+                            aria-label={`Κατηγορία ${displayName}`}
+                          >
+                            <option value="">—</option>
+                            {websiteCategories.map((category) => (
+                              <option key={category.id} value={category.name}>
+                                {category.name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {product.subcategory || "—"}
+                        <td className="px-4 py-3">
+                          {product.category ? (
+                            <select
+                              value={product.subcategory ?? ""}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                void handleSubcategoryChange(
+                                  product.id,
+                                  event.target.value,
+                                )
+                              }
+                              className={cn(
+                                "w-full min-w-[140px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-600",
+                                isBusy && "opacity-50",
+                              )}
+                              aria-label={`Υποκατηγορία ${displayName}`}
+                            >
+                              <option value="">—</option>
+                              {subcategoryOptions.map((subcategory) => (
+                                <option
+                                  key={subcategory.id}
+                                  value={subcategory.name}
+                                >
+                                  {subcategory.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <ActiveToggle
