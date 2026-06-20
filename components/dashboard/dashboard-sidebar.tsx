@@ -133,13 +133,25 @@ export function DashboardSidebar({
                         collapsed && "justify-center px-2",
                       )}
                     >
-                      <Icon
-                        className={cn(
-                          "size-5 shrink-0",
-                          item.goldAccent && !isActive && "text-gold-400",
-                        )}
-                        aria-hidden
-                      />
+                      {item.href === "/assistant" ? (
+                        <img
+                          src="/logo-gold.png"
+                          alt="Dolphin"
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            objectFit: "contain",
+                          }}
+                        />
+                      ) : (
+                        <Icon
+                          className={cn(
+                            "size-5 shrink-0",
+                            item.goldAccent && !isActive && "text-gold-400",
+                          )}
+                          aria-hidden
+                        />
+                      )}
                       {!collapsed ? (
                         <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                           <span className="truncate">{item.label}</span>

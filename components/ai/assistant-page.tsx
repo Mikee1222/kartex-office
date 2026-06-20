@@ -105,9 +105,43 @@ export function AssistantPage() {
   };
 
   return (
-    <div className="-m-4 flex min-h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card sm:-m-6 lg:-m-8">
-      <aside className="flex w-[280px] shrink-0 flex-col border-r border-gray-200/80 bg-gray-50/80">
+    <div className="-m-4 flex h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card sm:-m-6 lg:-m-8">
+      <aside className="flex w-[260px] shrink-0 flex-col border-r border-gray-200/80 bg-gray-50/60">
         <div className="space-y-3 border-b border-gray-200/80 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <img
+              src="/logo-gold.png"
+              alt="Dolphin"
+              style={{
+                width: "28px",
+                height: "28px",
+                objectFit: "contain",
+              }}
+            />
+            <div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  color: "#C9A84C",
+                  letterSpacing: "1px",
+                }}
+              >
+                DOLPHIN
+              </div>
+              <div
+                style={{
+                  fontSize: "9px",
+                  color: "#94A3B8",
+                  letterSpacing: "2px",
+                  fontWeight: "600",
+                }}
+              >
+                OFFICE
+              </div>
+            </div>
+          </div>
+
           <Button
             type="button"
             className={cn(premiumGoldButton, "w-full")}
@@ -116,13 +150,14 @@ export function AssistantPage() {
             <MessageSquarePlus className="size-4" />
             Νέα Συνομιλία
           </Button>
+
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Αναζήτηση συνομιλιών…"
-              className={cn("h-10 pl-9", premiumInputFocus)}
+              placeholder="Αναζήτηση..."
+              className={cn("h-9 pl-9", premiumInputFocus)}
             />
           </div>
         </div>
@@ -172,63 +207,77 @@ export function AssistantPage() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-gray-200/80 px-4 py-3">
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0" }}>
+        <header className="flex items-center gap-3 border-b border-gray-200/80 bg-white px-5 py-3">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
             <img
               src="/logo-gold.png"
               alt="Dolphin"
               style={{
-                width: "36px",
-                height: "36px",
+                width: "32px",
+                height: "32px",
                 objectFit: "contain",
-                display: "block",
                 animation: "dolphin-bounce 3s ease-in-out infinite",
               }}
             />
-            <svg width="48" height="12" viewBox="0 0 48 12" fill="none" style={{ marginTop: "-3px", display: "block" }}>
+            <svg
+              width="44"
+              height="10"
+              viewBox="0 0 44 10"
+              fill="none"
+              style={{ marginTop: "-2px" }}
+            >
               <path
-                d="M0,6 C6,2 12,10 18,6 C24,2 30,10 36,6 C40,4 44,6 48,6"
+                d="M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5"
                 stroke="#C9A84C"
-                strokeWidth="1.5"
+                strokeWidth="1.3"
                 strokeLinecap="round"
                 fill="none"
-                opacity="0.8"
+                opacity="0.7"
               >
                 <animate
                   attributeName="d"
                   dur="1.8s"
                   repeatCount="indefinite"
-                  values="M0,6 C6,2 12,10 18,6 C24,2 30,10 36,6 C40,4 44,6 48,6;M0,6 C6,10 12,2 18,6 C24,10 30,2 36,6 C40,8 44,6 48,6;M0,6 C6,2 12,10 18,6 C24,2 30,10 36,6 C40,4 44,6 48,6"
-                />
-              </path>
-              <path
-                d="M0,9 C6,6 12,12 18,9 C24,6 30,12 36,9 C40,7 44,9 48,9"
-                stroke="#C9A84C"
-                strokeWidth="1"
-                strokeLinecap="round"
-                fill="none"
-                opacity="0.4"
-              >
-                <animate
-                  attributeName="d"
-                  dur="2.2s"
-                  repeatCount="indefinite"
-                  values="M0,9 C6,6 12,12 18,9 C24,6 30,12 36,9 C40,7 44,9 48,9;M0,9 C6,12 12,6 18,9 C24,12 30,6 36,9 C40,11 44,9 48,9;M0,9 C6,6 12,12 18,9 C24,6 30,12 36,9 C40,7 44,9 48,9"
+                  values="M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5;M0,5 C5,8 10,2 16,5 C22,8 28,2 34,5 C38,7 41,5 44,5;M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5"
                 />
               </path>
             </svg>
           </div>
 
           <div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#C9A84C", letterSpacing: "1px", lineHeight: 1 }}>
+            <div
+              style={{
+                fontSize: "15px",
+                fontWeight: "700",
+                color: "#C9A84C",
+                letterSpacing: "1px",
+                lineHeight: 1,
+              }}
+            >
               DOLPHIN
             </div>
-            <div style={{ fontSize: "10px", fontWeight: "600", color: "#94A3B8", letterSpacing: "2px", lineHeight: 1, marginTop: "2px" }}>
+            <div
+              style={{
+                fontSize: "9px",
+                fontWeight: "600",
+                color: "#94A3B8",
+                letterSpacing: "2px",
+                lineHeight: 1,
+                marginTop: "2px",
+              }}
+            >
               OFFICE
             </div>
           </div>
 
-          {activeChatId ? <div className="mx-3 h-5 w-px bg-gray-200" /> : null}
+          {activeChatId ? <div className="mx-2 h-5 w-px bg-gray-200" /> : null}
+
           {editingTitle ? (
             <input
               value={title}
@@ -243,19 +292,19 @@ export function AssistantPage() {
                 }
               }}
               autoFocus
-              className="h-9 max-w-md rounded-lg border border-border bg-background px-3 text-sm font-semibold text-navy-900 focus:outline-none focus:ring-2 focus:ring-kartex-gold/40"
+              className="h-8 max-w-xs rounded-lg border border-border bg-background px-3 text-sm font-medium text-navy-900 focus:outline-none focus:ring-1 focus:ring-kartex-gold/40"
             />
           ) : activeChatId ? (
             <button
               type="button"
               onClick={() => setEditingTitle(true)}
-              className="truncate text-left text-sm font-medium text-navy-900 hover:text-gold-500"
+              className="truncate text-sm font-medium text-gray-600 transition-colors hover:text-kartex-gold"
             >
               {title}
             </button>
           ) : null}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
@@ -263,7 +312,7 @@ export function AssistantPage() {
               onClick={startNewChat}
               aria-label="Νέα συνομιλία"
             >
-              <MessageSquarePlus className="size-5 text-navy-900" />
+              <MessageSquarePlus className="size-4 text-gray-500" />
             </Button>
             {activeChatId ? (
               <Button
@@ -273,7 +322,7 @@ export function AssistantPage() {
                 onClick={() => void removeChat(activeChatId)}
                 aria-label="Διαγραφή"
               >
-                <Trash2 className="size-5 text-danger" />
+                <Trash2 className="size-4 text-danger" />
               </Button>
             ) : null}
           </div>
@@ -281,21 +330,51 @@ export function AssistantPage() {
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 && !loading ? (
-            <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 py-8 text-center">
-              <div className="flex flex-col items-center gap-2">
+            <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 py-12 text-center">
+              <div className="flex flex-col items-center gap-1">
                 <img
                   src="/logo-gold.png"
                   alt="Dolphin"
                   style={{
-                    width: "56px",
-                    height: "56px",
+                    width: "64px",
+                    height: "64px",
                     objectFit: "contain",
                     animation: "dolphin-bounce 3s ease-in-out infinite",
                   }}
                 />
-                <h2 className="text-xl font-semibold text-navy-900">Dolphin&apos;s Office</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Ρωτήστε για παραγγελίες, απόθεμα, πελάτες ή ζητήστε βοήθεια με email.
+                <svg
+                  width="80"
+                  height="14"
+                  viewBox="0 0 80 14"
+                  fill="none"
+                  style={{ marginTop: "-4px" }}
+                >
+                  <path
+                    d="M0,7 C8,3 16,11 24,7 C32,3 40,11 48,7 C56,3 64,11 72,7 C75,5 78,7 80,7"
+                    stroke="#C9A84C"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    fill="none"
+                    opacity="0.6"
+                  >
+                    <animate
+                      attributeName="d"
+                      dur="2s"
+                      repeatCount="indefinite"
+                      values="M0,7 C8,3 16,11 24,7 C32,3 40,11 48,7 C56,3 64,11 72,7 C75,5 78,7 80,7;M0,7 C8,11 16,3 24,7 C32,11 40,3 48,7 C56,11 64,3 72,7 C75,9 78,7 80,7;M0,7 C8,3 16,11 24,7 C32,3 40,11 48,7 C56,3 64,11 72,7 C75,5 78,7 80,7"
+                    />
+                  </path>
+                </svg>
+              </div>
+              <div>
+                <h2
+                  className="text-2xl font-bold"
+                  style={{ color: "#C9A84C", letterSpacing: "2px" }}
+                >
+                  DOLPHIN&apos;S OFFICE
+                </h2>
+                <p className="mt-2 max-w-sm text-sm text-gray-500">
+                  Ο AI βοηθός σας για παραγγελίες, απόθεμα, πελάτες και αναλύσεις.
                 </p>
               </div>
               <div className="grid w-full gap-2 sm:grid-cols-2">
@@ -344,6 +423,7 @@ export function AssistantPage() {
           onChange={setInput}
           onSend={() => void handleSend()}
           disabled={loading || confirming}
+          className="shrink-0"
         />
       </section>
     </div>
