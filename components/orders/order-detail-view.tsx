@@ -611,28 +611,44 @@ function PaymentCard({
           ) : null}
         </div>
 
-        {order.paymentAmount ? (
-          <div className="mt-3 space-y-1.5 rounded-xl border border-border bg-muted/50 p-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Καθαρή αξία</span>
-              <span className="font-medium">
-                {(order.paymentAmount / 1.24).toFixed(2)}€
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">ΦΠΑ 24%</span>
-              <span className="font-medium">
-                {(order.paymentAmount - order.paymentAmount / 1.24).toFixed(2)}€
-              </span>
-            </div>
-            <div className="mt-1 flex justify-between border-t border-border pt-1.5 text-sm font-bold">
-              <span className="text-navy-900">Σύνολο</span>
-              <span className="text-kartex-gold">
-                {order.paymentAmount.toFixed(2)}€
-              </span>
-            </div>
+        {order.paymentAmount && (
+          <div className="mt-3 rounded-xl bg-muted/50 border border-border p-3 space-y-1.5">
+            {order.documentType === "receipt" ? (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Καθαρή αξία</span>
+                  <span className="font-medium">
+                    {(order.paymentAmount / 1.24).toFixed(2)}€
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">ΦΠΑ 24%</span>
+                  <span className="font-medium">
+                    {(order.paymentAmount - order.paymentAmount / 1.24).toFixed(2)}€
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm font-bold border-t border-border pt-1.5">
+                  <span className="text-navy-900">Σύνολο</span>
+                  <span className="text-kartex-gold">
+                    {order.paymentAmount.toFixed(2)}€
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Αξία (χωρίς ΦΠΑ)</span>
+                  <span className="font-bold text-kartex-gold">
+                    {order.paymentAmount.toFixed(2)}€
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Τιμολόγιο B2B — απαλλαγή ΦΠΑ
+                </div>
+              </>
+            )}
           </div>
-        ) : null}
+        )}
 
         {order.documentType ? (
           <div className="flex items-center justify-between border-b border-border/50 py-2">
