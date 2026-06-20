@@ -93,6 +93,7 @@ export function DashboardSidebar({
         <Link
           href="/dashboard"
           onClick={onNavigate}
+          className={cn("flex items-center gap-2", collapsed && "justify-center")}
           title="Dolphin's Office"
         >
           <DolphinSidebarBrand collapsed={collapsed} />
