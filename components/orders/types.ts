@@ -24,7 +24,7 @@ export type Order = {
   status: OrderStatus;
   itemCount: number;
   totalEur: number;
-  paymentStatus: PaymentStatus;
+  paymentStatus: string;
   paymentProofUrl: string | null;
   paymentAmount: number | null;
   paymentSubmittedAt: string | null;

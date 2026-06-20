@@ -82,11 +82,13 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
     Boolean(order.boxesNotes?.trim()) ||
     boxPhotos.length > 0;
 
+  // Reset local state only when navigating to a different order — not on every
+  // router.refresh(), which can race with client-side reloads after payment confirm.
   React.useEffect(() => {
     setOrder(initialOrder);
     setInternalNotes(initialOrder.notes.internal);
     setClientNotes(initialOrder.notes.client);
-  }, [initialOrder]);
+  }, [orderId]); // eslint-disable-line react-hooks/exhaustive-deps -- initialOrder matches orderId
 
   const refreshOrder = React.useCallback(async () => {
     const next = await fetchOrderDetailById(orderId);
@@ -168,11 +170,12 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
   async function handleConfirmPayment() {
     setConfirmingPayment(true);
     const supabase = createClient();
+    const confirmedAt = new Date().toISOString();
     const { error } = await supabase
       .from("orders")
       .update({
         payment_status: "confirmed",
-        payment_confirmed_at: new Date().toISOString(),
+        payment_confirmed_at: confirmedAt,
       })
       .eq("id", orderId);
 
@@ -183,8 +186,13 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
       return;
     }
 
+    setOrder((prev) => ({
+      ...prev,
+      paymentStatus: "confirmed",
+      paymentConfirmedAt: confirmedAt,
+    }));
     toast.success("Η πληρωμή επιβεβαιώθηκε!");
-    handleOrderUpdated();
+    void refreshOrder();
   }
 
   const subtotal = order.items.reduce((sum, item) => sum + item.total, 0);
