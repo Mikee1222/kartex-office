@@ -169,15 +169,17 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
 
   async function handleConfirmPayment() {
     setConfirmingPayment(true);
-    const supabase = createClient();
     const confirmedAt = new Date().toISOString();
-    const { error } = await supabase
+    const supabase = createClient();
+    const { data, error } = await supabase
       .from("orders")
       .update({
         payment_status: "confirmed",
         payment_confirmed_at: confirmedAt,
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("payment_status, payment_confirmed_at")
+      .single();
 
     setConfirmingPayment(false);
 
@@ -186,10 +188,15 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
       return;
     }
 
+    if (!data) {
+      toast.error("Η ενημέρωση πληρωμής απέτυχε.");
+      return;
+    }
+
     setOrder((prev) => ({
       ...prev,
       paymentStatus: "confirmed",
-      paymentConfirmedAt: confirmedAt,
+      paymentConfirmedAt: data.payment_confirmed_at ?? confirmedAt,
     }));
     toast.success("Η πληρωμή επιβεβαιώθηκε!");
     void refreshOrder();
