@@ -37,6 +37,9 @@ export type SiteSettingsState = {
   contactAddress: string;
   facebook: string;
   instagram: string;
+  bankIban: string;
+  bankName: string;
+  bankBeneficiary: string;
 };
 
 export type WebsiteProductRow = {
