@@ -106,33 +106,37 @@ export function AssistantPage() {
 
   return (
     <div className="-m-4 flex h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card sm:-m-6 lg:-m-8">
-      <aside className="flex w-[260px] shrink-0 flex-col border-r border-gray-200/80 bg-gray-50/60">
-        <div className="space-y-3 border-b border-gray-200/80 p-4">
+      <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-gray-200/80 bg-gray-50/60">
+        <div className="space-y-2.5 border-b border-gray-200/80 p-3">
           <Button
             type="button"
-            className={cn(premiumGoldButton, "w-full")}
+            className={cn(premiumGoldButton, "h-9 w-full text-xs")}
             onClick={startNewChat}
           >
-            <MessageSquarePlus className="size-4" />
+            <MessageSquarePlus className="size-3.5" />
             Νέα Συνομιλία
           </Button>
 
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-400" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Αναζήτηση..."
-              className={cn("h-9 pl-9", premiumInputFocus)}
+              className={cn("h-8 pl-8 text-xs", premiumInputFocus)}
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
           {bootstrapping ? (
-            <p className="px-3 py-4 text-sm text-gray-400">Φόρτωση…</p>
+            <p className="px-3 py-6 text-center text-xs text-gray-400">Φόρτωση…</p>
           ) : chats.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-gray-400">Δεν υπάρχουν συνομιλίες ακόμα.</p>
+            <p className="px-3 py-6 text-center text-xs leading-relaxed text-gray-400">
+              Δεν υπάρχουν συνομιλίες ακόμα.
+              <br />
+              Ξεκινήστε μια νέα για να ρωτήσετε το Dolphin.
+            </p>
           ) : (
             <ul className="space-y-1">
               {chats.map((chat) => {
@@ -143,13 +147,18 @@ export function AssistantPage() {
                       type="button"
                       onClick={() => void loadChat(chat.id)}
                       className={cn(
-                        "w-full rounded-lg px-3 py-2.5 text-left transition-colors",
+                        "w-full rounded-xl px-3 py-2.5 text-left transition-all",
                         active
-                          ? "border-l-[3px] border-l-gold-500 bg-white pl-[9px] shadow-sm"
-                          : "border-l-[3px] border-l-transparent hover:bg-white/80",
+                          ? "bg-gold-500/12 shadow-sm ring-1 ring-gold-500/25"
+                          : "hover:bg-white/90",
                       )}
                     >
-                      <span className="block truncate text-sm font-medium text-navy-900">
+                      <span
+                        className={cn(
+                          "block truncate text-sm font-medium",
+                          active ? "text-navy-900" : "text-gray-700",
+                        )}
+                      >
                         {chat.title}
                       </span>
                       <span className="mt-0.5 block text-[10px] text-gray-400">
@@ -158,11 +167,18 @@ export function AssistantPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void removeChat(chat.id)}
-                      className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-md p-1.5 text-gray-400 opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void removeChat(chat.id);
+                      }}
+                      className={cn(
+                        "absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition-all",
+                        "opacity-0 hover:bg-danger/10 hover:text-danger group-hover:opacity-100",
+                        active && "opacity-100",
+                      )}
                       aria-label="Διαγραφή συνομιλίας"
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-3.5" />
                     </button>
                   </li>
                 );
@@ -172,8 +188,8 @@ export function AssistantPage() {
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 border-b border-gray-200/80 px-5 py-3 bg-white min-h-[52px]">
+      <section className="flex h-full min-w-0 flex-1 flex-col">
+        <header className="flex min-h-[52px] shrink-0 items-center gap-2 border-b border-gray-200/80 bg-white px-5 py-3">
           {editingTitle ? (
             <input
               value={title}
@@ -192,7 +208,7 @@ export function AssistantPage() {
             <button
               type="button"
               onClick={() => setEditingTitle(true)}
-              className="truncate text-sm font-medium text-gray-600 hover:text-kartex-gold transition-colors"
+              className="truncate text-sm font-medium text-gray-600 transition-colors hover:text-kartex-gold"
             >
               {title}
             </button>
@@ -311,7 +327,7 @@ export function AssistantPage() {
           onChange={setInput}
           onSend={() => void handleSend()}
           disabled={loading || confirming}
-          className="shrink-0"
+          className="flex-shrink-0"
         />
       </section>
     </div>
