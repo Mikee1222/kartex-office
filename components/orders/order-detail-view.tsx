@@ -73,7 +73,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
   const [clientNotes, setClientNotes] = React.useState(order.notes.client);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
-  const [confirmingPayment, setConfirmingPayment] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
   const [isLive, setIsLive] = React.useState(false);
 
   const showWarehouseStatus =
@@ -168,46 +168,35 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
   }
 
   async function handleConfirmPayment() {
-    setConfirmingPayment(true);
-    const confirmedAt = new Date().toISOString();
+    setConfirming(true);
     const supabase = createClient();
-    const { data, error } = await supabase
+
+    const { error } = await supabase
       .from("orders")
       .update({
         payment_status: "confirmed",
-        payment_confirmed_at: confirmedAt,
+        payment_confirmed_at: new Date().toISOString(),
       })
-      .eq("id", orderId)
-      .select("payment_status, payment_confirmed_at")
-      .single();
+      .eq("id", orderId);
 
-    setConfirmingPayment(false);
+    setConfirming(false);
 
     if (error) {
-      console.log("[handleConfirmPayment] update failed", { orderId, error });
       toast.error(error.message);
       return;
     }
 
-    if (!data) {
-      console.log("[handleConfirmPayment] update returned no row", { orderId });
-      toast.error("Η ενημέρωση πληρωμής απέτυχε.");
-      return;
-    }
+    setOrder((prev) =>
+      prev
+        ? {
+            ...prev,
+            paymentStatus: "confirmed",
+            paymentConfirmedAt: new Date().toISOString(),
+          }
+        : prev,
+    );
 
-    console.log("[handleConfirmPayment] payment confirmed", {
-      orderId,
-      payment_status: data.payment_status,
-      payment_confirmed_at: data.payment_confirmed_at,
-    });
-
-    setOrder((prev) => ({
-      ...prev,
-      paymentStatus: (data.payment_status ?? "confirmed") as OrderDetail["paymentStatus"],
-      paymentConfirmedAt: data.payment_confirmed_at ?? confirmedAt,
-    }));
     toast.success("Η πληρωμή επιβεβαιώθηκε!");
-    void refreshOrder();
   }
 
   const subtotal = order.items.reduce((sum, item) => sum + item.total, 0);
@@ -379,7 +368,7 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
           {(order.paymentStatus || order.paymentProofUrl) ? (
             <PaymentCard
               order={order}
-              confirming={confirmingPayment}
+              confirming={confirming}
               onConfirmPayment={() => void handleConfirmPayment()}
             />
           ) : null}
