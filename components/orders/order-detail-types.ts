@@ -27,14 +27,6 @@ export type OrderQuoteRequestInfo = {
   phone: string | null;
 };
 
-export type OrderQuoteRequestInfo = {
-  id: string;
-  contactName: string;
-  companyName: string;
-  email: string;
-  phone: string | null;
-};
-
 export type OrderDeliveryHistoryEntry = {
   id: string;
   createdAt: string;

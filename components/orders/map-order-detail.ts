@@ -19,6 +19,14 @@ type CustomerJoin = {
   type: string;
 };
 
+type QuoteRequestJoin = {
+  id: string;
+  contact_name: string;
+  company_name: string;
+  email: string;
+  phone?: string | null;
+};
+
 type ProductJoin = {
   id: string;
   name: string;
@@ -71,14 +79,6 @@ type TripJoin = {
   driver_id: string;
   driver_name: string;
   vehicles?: { plate: string; model: string | null } | { plate: string; model: string | null }[] | null;
-};
-
-type QuoteRequestJoin = {
-  id: string;
-  contact_name: string;
-  company_name: string;
-  email: string;
-  phone?: string | null;
 };
 
 export type OrderEditFormData = {
