@@ -389,7 +389,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                   <div className="px-5 py-4">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-base font-bold leading-tight text-kartex-navy">
+                        <div className="text-base font-bold leading-tight text-foreground">
                           {quote.companyName || "—"}
                         </div>
                         <div className="mt-0.5 text-sm text-muted-foreground">
