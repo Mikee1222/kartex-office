@@ -13,6 +13,7 @@ export type OrderLineItem = {
   productId: string | null;
   product: string;
   productName?: string | null;
+  product_name?: string | null;
   products?: OrderLineProduct | null;
   quantity: number;
   quantityDelivered: number;

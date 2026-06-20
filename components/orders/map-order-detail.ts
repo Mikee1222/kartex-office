@@ -38,6 +38,7 @@ type ProductJoin = {
 type OrderItemJoin = {
   id: string;
   product_id: string | null;
+  product_name?: string | null;
   quantity: number;
   quantity_delivered?: number | null;
   unit_price: number | string;
@@ -53,7 +54,7 @@ export const ORDER_DETAIL_SELECT = `
     payment_terms, type
   ),
   order_items (
-    id, product_id, quantity, quantity_delivered, unit_price,
+    id, product_id, product_name, quantity, quantity_delivered, unit_price,
     products (id, name, clean_name, unit)
   ),
   delivery_trips (
@@ -208,7 +209,10 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
   const items = (row.order_items ?? []).map((line) => {
     const product = pickOne(line.products);
     const productName =
-      product?.clean_name?.trim() || product?.name?.trim() || null;
+      product?.clean_name?.trim() ||
+      product?.name?.trim() ||
+      line.product_name?.trim() ||
+      null;
     const unitPrice = toNumber(line.unit_price);
     const quantity = line.quantity ?? 0;
     const quantityDelivered = line.quantity_delivered ?? 0;
@@ -219,6 +223,7 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
       productId: line.product_id,
       product: productName || "—",
       productName,
+      product_name: line.product_name?.trim() || null,
       products: product
         ? {
             id: product.id,
@@ -368,7 +373,10 @@ export function mapSupabaseOrderToPdf(row: OrderDetailQueryRow): OrderPdfData {
     const quantity = line.quantity ?? 0;
     const lineTotal = Math.round(unitPrice * quantity * 100) / 100;
     const productLabel =
-      product?.clean_name?.trim() || product?.name?.trim() || "—";
+      product?.clean_name?.trim() ||
+      product?.name?.trim() ||
+      line.product_name?.trim() ||
+      "—";
     return {
       sku: product?.sku?.trim() || "—",
       product: productLabel,

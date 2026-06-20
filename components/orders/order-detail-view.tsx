@@ -509,6 +509,7 @@ function ItemsCard({ order }: { order: OrderDetail }) {
                     {item.products?.clean_name ||
                       item.products?.name ||
                       item.productName ||
+                      item.product_name ||
                       "—"}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{item.quantity}</td>
