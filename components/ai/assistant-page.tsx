@@ -147,7 +147,7 @@ export function AssistantPage() {
                       type="button"
                       onClick={() => void loadChat(chat.id)}
                       className={cn(
-                        "w-full rounded-xl px-3 py-2.5 text-left transition-all",
+                        "w-full rounded-xl px-3 py-2.5 pr-9 text-left transition-all",
                         active
                           ? "bg-gold-500/12 shadow-sm ring-1 ring-gold-500/25"
                           : "hover:bg-white/90",
@@ -156,7 +156,7 @@ export function AssistantPage() {
                       <span
                         className={cn(
                           "block truncate text-sm font-medium",
-                          active ? "text-navy-900" : "text-gray-700",
+                          active ? "text-gold-700" : "text-gray-700",
                         )}
                       >
                         {chat.title}
