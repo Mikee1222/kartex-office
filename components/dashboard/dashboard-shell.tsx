@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { AiFloatingButton } from "@/components/ai/ai-floating-button";
@@ -11,6 +12,7 @@ import { GlobalOrdersRealtime } from "@/components/dashboard/global-orders-realt
 import { PendingQuotesSync } from "@/components/dashboard/pending-quotes-sync";
 import { ScheduleNotificationProvider } from "@/components/schedule/schedule-notification-context";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { UserRoleKey } from "@/lib/users/roles";
 
 type DashboardShellProps = {
@@ -24,6 +26,8 @@ export function DashboardShell({
   userRole,
   children,
 }: DashboardShellProps) {
+  const pathname = usePathname();
+  const isAssistantPage = pathname === "/assistant";
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -97,7 +101,12 @@ export function DashboardShell({
 
         <DashboardTopBar userEmail={userEmail} userRole={userRole} />
 
-        <main className="page-transition flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <main
+          className={cn(
+            "page-transition flex-1 p-4 sm:p-6 lg:p-8",
+            isAssistantPage ? "overflow-hidden" : "overflow-auto",
+          )}
+        >
           {children}
         </main>
       </div>

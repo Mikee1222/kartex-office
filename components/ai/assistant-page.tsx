@@ -188,8 +188,11 @@ export function AssistantPage() {
         </div>
       </aside>
 
-      <section className="flex h-full min-w-0 flex-1 flex-col">
-        <header className="flex min-h-[52px] shrink-0 items-center gap-2 border-b border-gray-200/80 bg-white px-5 py-3">
+      <section
+        className="flex min-w-0 flex-1 flex-col"
+        style={{ height: "100%", overflow: "hidden" }}
+      >
+        <header className="flex shrink-0 min-h-[52px] items-center gap-2 border-b border-gray-200/80 bg-white px-5 py-3">
           {editingTitle ? (
             <input
               value={title}
@@ -232,7 +235,7 @@ export function AssistantPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-6" style={{ minHeight: 0 }}>
           {messages.length === 0 && !loading ? (
             <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 py-12 text-center">
               <div className="flex flex-col items-center gap-1">
@@ -322,13 +325,14 @@ export function AssistantPage() {
           )}
         </div>
 
-        <ChatInput
-          value={input}
-          onChange={setInput}
-          onSend={() => void handleSend()}
-          disabled={loading || confirming}
-          className="flex-shrink-0"
-        />
+        <div className="shrink-0">
+          <ChatInput
+            value={input}
+            onChange={setInput}
+            onSend={() => void handleSend()}
+            disabled={loading || confirming}
+          />
+        </div>
       </section>
     </div>
   );
