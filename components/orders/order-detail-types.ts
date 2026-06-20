@@ -53,6 +53,9 @@ export type OrderDetail = {
   paymentAmount: number | null;
   paymentSubmittedAt: string | null;
   paymentConfirmedAt: string | null;
+  documentType?: string;
+  vatNumber?: string | null;
+  billingAddress?: string | null;
   deliveryDate: string;
   deliveryDateRaw: string | null;
   vehicleId: string | null;

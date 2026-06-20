@@ -29,6 +29,9 @@ export type Order = {
   paymentAmount: number | null;
   paymentSubmittedAt: string | null;
   paymentConfirmedAt: string | null;
+  documentType?: string;
+  vatNumber?: string | null;
+  billingAddress?: string | null;
 };
 
 export type OrderFilterTab = "all" | OrderStatus;

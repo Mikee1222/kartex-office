@@ -85,6 +85,9 @@ export type OrderDetailQueryRow = {
   payment_amount?: number | string | null;
   payment_submitted_at?: string | null;
   payment_confirmed_at?: string | null;
+  document_type?: string | null;
+  vat_number?: string | null;
+  billing_address?: string | null;
   priority: string | null;
   notes: string | null;
   internal_notes: string | null;
@@ -199,6 +202,9 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
         : toNumber(row.payment_amount),
     paymentSubmittedAt: row.payment_submitted_at ?? null,
     paymentConfirmedAt: row.payment_confirmed_at ?? null,
+    documentType: row.document_type ?? "receipt",
+    vatNumber: row.vat_number ?? null,
+    billingAddress: row.billing_address ?? null,
     deliveryDate: row.delivery_date
       ? formatDateEl(`${row.delivery_date}T12:00:00Z`)
       : "—",
