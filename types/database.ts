@@ -62,10 +62,17 @@ export type ProductRow = {
   updated_at?: string;
 };
 
+export type OrderQuoteRequestJoin = {
+  contact_name: string;
+  company_name: string;
+  email: string;
+};
+
 export type OrderRow = {
   id: string;
   order_number: string;
   customer_id: string;
+  quote_request_id?: string | null;
   status: string;
   total: number | string;
   delivery_date: string | null;
@@ -91,6 +98,10 @@ export type OrderRow = {
     | { name: string; city?: string | null }[]
     | null;
   order_items?: { count: number }[] | null;
+  quote_request?:
+    | OrderQuoteRequestJoin
+    | OrderQuoteRequestJoin[]
+    | null;
 };
 
 export type OrderItemCountRow = {
@@ -258,15 +269,22 @@ export function formatCurrencyEl(value: number): string {
   }).format(value);
 }
 
+function pickOne<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
 export function mapOrderRow(
   row: OrderRow,
   itemCount = 0,
 ): Order {
-  const customerJoin = row.customers;
-  const customerRecord = Array.isArray(customerJoin)
-    ? customerJoin[0]
-    : customerJoin;
-  const customerName = customerRecord?.name?.trim();
+  const customerRecord = pickOne(row.customers);
+  const quoteRequest = pickOne(row.quote_request);
+  const customerName =
+    customerRecord?.name?.trim() ||
+    quoteRequest?.company_name?.trim() ||
+    quoteRequest?.contact_name?.trim() ||
+    null;
   const customerCity = customerRecord?.city?.trim();
   const customerLabel =
     customerName && customerCity
