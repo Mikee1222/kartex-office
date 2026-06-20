@@ -108,40 +108,6 @@ export function AssistantPage() {
     <div className="-m-4 flex h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card sm:-m-6 lg:-m-8">
       <aside className="flex w-[260px] shrink-0 flex-col border-r border-gray-200/80 bg-gray-50/60">
         <div className="space-y-3 border-b border-gray-200/80 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <img
-              src="/logo-gold.png"
-              alt="Dolphin"
-              style={{
-                width: "28px",
-                height: "28px",
-                objectFit: "contain",
-              }}
-            />
-            <div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  color: "#C9A84C",
-                  letterSpacing: "1px",
-                }}
-              >
-                DOLPHIN
-              </div>
-              <div
-                style={{
-                  fontSize: "9px",
-                  color: "#94A3B8",
-                  letterSpacing: "2px",
-                  fontWeight: "600",
-                }}
-              >
-                OFFICE
-              </div>
-            </div>
-          </div>
-
           <Button
             type="button"
             className={cn(premiumGoldButton, "w-full")}
@@ -207,124 +173,46 @@ export function AssistantPage() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-gray-200/80 bg-white px-5 py-3">
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <img
-              src="/logo-gold.png"
-              alt="Dolphin"
-              style={{
-                width: "32px",
-                height: "32px",
-                objectFit: "contain",
-                animation: "dolphin-bounce 3s ease-in-out infinite",
-              }}
-            />
-            <svg
-              width="44"
-              height="10"
-              viewBox="0 0 44 10"
-              fill="none"
-              style={{ marginTop: "-2px" }}
-            >
-              <path
-                d="M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5"
-                stroke="#C9A84C"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-                fill="none"
-                opacity="0.7"
-              >
-                <animate
-                  attributeName="d"
-                  dur="1.8s"
-                  repeatCount="indefinite"
-                  values="M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5;M0,5 C5,8 10,2 16,5 C22,8 28,2 34,5 C38,7 41,5 44,5;M0,5 C5,2 10,8 16,5 C22,2 28,8 34,5 C38,3 41,5 44,5"
-                />
-              </path>
-            </svg>
-          </div>
-
-          <div>
-            <div
-              style={{
-                fontSize: "15px",
-                fontWeight: "700",
-                color: "#C9A84C",
-                letterSpacing: "1px",
-                lineHeight: 1,
-              }}
-            >
-              DOLPHIN
-            </div>
-            <div
-              style={{
-                fontSize: "9px",
-                fontWeight: "600",
-                color: "#94A3B8",
-                letterSpacing: "2px",
-                lineHeight: 1,
-                marginTop: "2px",
-              }}
-            >
-              OFFICE
-            </div>
-          </div>
-
-          {activeChatId ? <div className="mx-2 h-5 w-px bg-gray-200" /> : null}
-
+        <header className="flex items-center gap-2 border-b border-gray-200/80 px-5 py-3 bg-white min-h-[52px]">
           {editingTitle ? (
             <input
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               onBlur={() => {
                 setEditingTitle(false);
                 void saveTitle(title);
               }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.currentTarget.blur();
-                }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
               autoFocus
-              className="h-8 max-w-xs rounded-lg border border-border bg-background px-3 text-sm font-medium text-navy-900 focus:outline-none focus:ring-1 focus:ring-kartex-gold/40"
+              className="h-8 max-w-xs rounded-lg border border-border bg-background px-3 text-sm font-medium text-navy-900 focus:outline-none"
             />
           ) : activeChatId ? (
             <button
               type="button"
               onClick={() => setEditingTitle(true)}
-              className="truncate text-sm font-medium text-gray-600 transition-colors hover:text-kartex-gold"
+              className="truncate text-sm font-medium text-gray-600 hover:text-kartex-gold transition-colors"
             >
               {title}
             </button>
-          ) : null}
-
+          ) : (
+            <span className="text-sm text-gray-400">Dolphin&apos;s Office</span>
+          )}
           <div className="ml-auto flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={startNewChat}
-              aria-label="Νέα συνομιλία"
-            >
+            <Button type="button" variant="ghost" size="icon" onClick={startNewChat}>
               <MessageSquarePlus className="size-4 text-gray-500" />
             </Button>
-            {activeChatId ? (
+            {activeChatId && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => void removeChat(activeChatId)}
-                aria-label="Διαγραφή"
               >
                 <Trash2 className="size-4 text-danger" />
               </Button>
-            ) : null}
+            )}
           </div>
         </header>
 
