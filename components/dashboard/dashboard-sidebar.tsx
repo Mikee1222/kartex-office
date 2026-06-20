@@ -5,6 +5,7 @@ import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { KartexLogo } from "@/components/dashboard/kartex-logo";
 import { navSections, type NavItem } from "@/components/dashboard/nav-items";
 import { usePermissionsOptional } from "@/lib/auth/permissions-context";
 import { useNotificationsStore } from "@/lib/notifications-store";
@@ -95,19 +96,7 @@ export function DashboardSidebar({
           className={cn("flex items-center gap-3", collapsed && "justify-center")}
           title="Kartex Office"
         >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/40 bg-gold-500/10 text-lg font-bold text-gold-400 shadow-gold">
-            K
-          </span>
-          {!collapsed ? (
-            <span>
-              <span className="block text-sm font-semibold tracking-[0.2em] text-white">
-                KARTEX
-              </span>
-              <span className="mt-0.5 inline-block rounded bg-gold-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-gold-400">
-                OFFICE
-              </span>
-            </span>
-          ) : null}
+          <KartexLogo compact={collapsed} />
         </Link>
       </div>
 
