@@ -9,7 +9,14 @@ import { LiveDriversMap } from "@/components/drivers/live-drivers-map";
 import { LiveDriversSidebar } from "@/components/drivers/live-drivers-sidebar";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { TripEta } from "@/lib/drivers/eta";
 import type { LiveDriverRow } from "@/lib/drivers/live-map-types";
+import { appendLocationTrail } from "@/lib/drivers/location-trail";
+import {
+  buildEtaRequests,
+  ETA_REFRESH_MS,
+  fetchTripEtas,
+} from "@/lib/drivers/use-live-etas";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -22,18 +29,22 @@ function mergeLocationUpdate(
     lng: number;
     recorded_at: string;
   },
+  now: number,
 ): LiveDriverRow[] {
   if (!payload.trip_id) return drivers;
+
+  const point = {
+    lat: payload.lat,
+    lng: payload.lng,
+    recordedAt: payload.recorded_at,
+  };
 
   return drivers.map((driver) => {
     if (driver.tripId !== payload.trip_id) return driver;
     return {
       ...driver,
-      location: {
-        lat: payload.lat,
-        lng: payload.lng,
-        recordedAt: payload.recorded_at,
-      },
+      location: point,
+      locationTrail: appendLocationTrail(driver.locationTrail, point, now),
     };
   });
 }
@@ -47,6 +58,36 @@ export function LiveDriversView() {
   const [selectedTripId, setSelectedTripId] = React.useState<string | null>(null);
   const [isLive, setIsLive] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
+  const [etas, setEtas] = React.useState<Record<string, TripEta>>({});
+  const etaLastFetchRef = React.useRef<Map<string, number>>(new Map());
+  const etaInFlightRef = React.useRef(false);
+
+  const refreshEtas = React.useCallback(
+    async (driverRows: LiveDriverRow[], forceTripIds?: Set<string>) => {
+      const requests = buildEtaRequests(driverRows).filter((req) => {
+        if (forceTripIds?.has(req.tripId)) return true;
+        const last = etaLastFetchRef.current.get(req.tripId) ?? 0;
+        return Date.now() - last >= ETA_REFRESH_MS;
+      });
+
+      if (requests.length === 0 || etaInFlightRef.current) return;
+
+      etaInFlightRef.current = true;
+      try {
+        const next = await fetchTripEtas(requests);
+        const fetchedAt = Date.now();
+        for (const req of requests) {
+          etaLastFetchRef.current.set(req.tripId, fetchedAt);
+        }
+        if (Object.keys(next).length > 0) {
+          setEtas((current) => ({ ...current, ...next }));
+        }
+      } finally {
+        etaInFlightRef.current = false;
+      }
+    },
+    [],
+  );
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -64,13 +105,15 @@ export function LiveDriversView() {
       setError(json.error ?? "Αποτυχία φόρτωσης.");
       setDrivers([]);
     } else {
-      setDrivers(json.drivers ?? []);
+      const rows = json.drivers ?? [];
+      setDrivers(rows);
       setToday(json.today ?? "");
       setMapsApiKey(json.mapsApiKey ?? null);
+      void refreshEtas(rows);
     }
 
     setLoading(false);
-  }, []);
+  }, [refreshEtas]);
 
   React.useEffect(() => {
     void load();
@@ -105,8 +148,15 @@ export function LiveDriversView() {
             recorded_at: string;
           };
 
-          setDrivers((current) => mergeLocationUpdate(current, row));
-          setNow(Date.now());
+          const ts = Date.now();
+          setDrivers((current) => {
+            const next = mergeLocationUpdate(current, row, ts);
+            if (row.trip_id) {
+              void refreshEtas(next, new Set([row.trip_id]));
+            }
+            return next;
+          });
+          setNow(ts);
         },
       )
       .subscribe((status) => {
@@ -118,7 +168,7 @@ export function LiveDriversView() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [refreshEtas]);
 
   const subtitle = today
     ? `Ενεργά δρομολόγια σήμερα (${today}) — ${drivers.length} ${drivers.length === 1 ? "οδηγός" : "οδηγοί"}`
@@ -179,6 +229,7 @@ export function LiveDriversView() {
               selectedTripId={selectedTripId}
               onSelect={setSelectedTripId}
               now={now}
+              etas={etas}
             />
           </aside>
 
@@ -189,6 +240,7 @@ export function LiveDriversView() {
               onSelectTrip={setSelectedTripId}
               mapsApiKey={mapsApiKey}
               now={now}
+              etas={etas}
             />
           </div>
         </div>

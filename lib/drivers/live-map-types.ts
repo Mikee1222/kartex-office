@@ -4,6 +4,11 @@ export type LiveDriverLocation = {
   recordedAt: string;
 };
 
+export type LiveStopCoords = {
+  lat: number;
+  lng: number;
+};
+
 export type LiveDriverRow = {
   tripId: string;
   tripNumber: number;
@@ -12,6 +17,8 @@ export type LiveDriverRow = {
   stopsRemaining: number;
   totalStops: number;
   location: LiveDriverLocation | null;
+  locationTrail: LiveDriverLocation[];
+  nextStop: LiveStopCoords | null;
 };
 
 export type LiveDriversPayload = {

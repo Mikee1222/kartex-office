@@ -7,6 +7,7 @@ import {
   formatLocationAgeGreek,
   isLocationStale,
 } from "@/lib/drivers/format-location-age";
+import { formatEtaGreek, type TripEta } from "@/lib/drivers/eta";
 import type { LiveDriverRow } from "@/lib/drivers/live-map-types";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ type LiveDriversSidebarProps = {
   selectedTripId: string | null;
   onSelect: (tripId: string) => void;
   now: number;
+  etas: Record<string, TripEta>;
 };
 
 export function LiveDriversSidebar({
@@ -22,6 +24,7 @@ export function LiveDriversSidebar({
   selectedTripId,
   onSelect,
   now,
+  etas,
 }: LiveDriversSidebarProps) {
   if (drivers.length === 0) {
     return (
@@ -45,6 +48,7 @@ export function LiveDriversSidebar({
         const stale =
           hasLocation && isLocationStale(location.recordedAt, now);
         const selected = selectedTripId === driver.tripId;
+        const eta = hasLocation ? etas[driver.tripId] : null;
 
         return (
           <li key={driver.tripId}>
@@ -91,6 +95,12 @@ export function LiveDriversSidebar({
                 {driver.stopsRemaining === 1 ? "στάση" : "στάσεις"} απομένουν
                 {driver.totalStops > 0 ? ` / ${driver.totalStops}` : ""}
               </p>
+
+              {eta ? (
+                <p className="text-xs font-semibold text-navy-900">
+                  {formatEtaGreek(eta.minutes)}
+                </p>
+              ) : null}
 
               <p
                 className={cn(

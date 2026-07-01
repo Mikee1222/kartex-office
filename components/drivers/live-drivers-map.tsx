@@ -2,20 +2,21 @@
 
 import * as React from "react";
 
-import {
-  formatLocationAgeGreek,
-  isLocationStale,
-} from "@/lib/drivers/format-location-age";
+import { bearingFromTrail } from "@/lib/drivers/compute-bearing";
+import { isLocationStale } from "@/lib/drivers/format-location-age";
+import type { TripEta } from "@/lib/drivers/eta";
 import type { LiveDriverRow } from "@/lib/drivers/live-map-types";
+import { createDriverMarkerIcon } from "@/lib/drivers/map-marker-icon";
+import {
+  buildDriverInfoWindowHtml,
+  INFO_WINDOW_CONTAINER_STYLES,
+} from "@/lib/drivers/map-info-window-html";
+import { KARTEX_MAP_STYLES } from "@/lib/drivers/map-styles";
 import { getGoogleMapsPublicKey } from "@/lib/env/google-maps";
 import { loadGoogleMapsScript } from "@/lib/google-maps/load-maps-script";
 
 const DEFAULT_CENTER = { lat: 37.9838, lng: 23.7275 };
 const DEFAULT_ZOOM = 11;
-
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-];
 
 type LiveDriversMapProps = {
   drivers: LiveDriverRow[];
@@ -23,17 +24,13 @@ type LiveDriversMapProps = {
   onSelectTrip: (tripId: string) => void;
   mapsApiKey?: string | null;
   now: number;
+  etas: Record<string, TripEta>;
 };
 
-function markerIcon(stale: boolean): google.maps.Symbol {
-  return {
-    path: google.maps.SymbolPath.CIRCLE,
-    fillColor: stale ? "#94A3B8" : "#D4AF37",
-    fillOpacity: 1,
-    strokeColor: stale ? "#64748B" : "#0A1628",
-    strokeWeight: stale ? 1 : 2,
-    scale: stale ? 8 : 10,
-  };
+function trailPath(
+  trail: LiveDriverRow["locationTrail"],
+): google.maps.LatLngLiteral[] {
+  return trail.map((point) => ({ lat: point.lat, lng: point.lng }));
 }
 
 export function LiveDriversMap({
@@ -42,11 +39,14 @@ export function LiveDriversMap({
   onSelectTrip,
   mapsApiKey,
   now,
+  etas,
 }: LiveDriversMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
   const markersRef = React.useRef<Map<string, google.maps.Marker>>(new Map());
+  const polylinesRef = React.useRef<Map<string, google.maps.Polyline[]>>(new Map());
   const infoWindowRef = React.useRef<google.maps.InfoWindow | null>(null);
+  const styleElRef = React.useRef<HTMLStyleElement | null>(null);
   const [mapError, setMapError] = React.useState<string | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
 
@@ -75,10 +75,16 @@ export function LiveDriversMap({
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: true,
-          styles: MAP_STYLES,
+          styles: KARTEX_MAP_STYLES,
         });
 
         infoWindowRef.current = new google.maps.InfoWindow();
+
+        const styleEl = document.createElement("style");
+        styleEl.textContent = INFO_WINDOW_CONTAINER_STYLES;
+        document.head.appendChild(styleEl);
+        styleElRef.current = styleEl;
+
         setMapReady(true);
       })
       .catch((error: unknown) => {
@@ -91,8 +97,14 @@ export function LiveDriversMap({
       cancelled = true;
       markersRef.current.forEach((marker) => marker.setMap(null));
       markersRef.current.clear();
+      polylinesRef.current.forEach((segments) => {
+        segments.forEach((line) => line.setMap(null));
+      });
+      polylinesRef.current.clear();
       mapRef.current = null;
       infoWindowRef.current = null;
+      styleElRef.current?.remove();
+      styleElRef.current = null;
       setMapReady(false);
     };
   }, [apiKey]);
@@ -110,6 +122,13 @@ export function LiveDriversMap({
       }
     }
 
+    for (const [tripId, segments] of polylinesRef.current.entries()) {
+      if (!activeTripIds.has(tripId)) {
+        segments.forEach((line) => line.setMap(null));
+        polylinesRef.current.delete(tripId);
+      }
+    }
+
     const bounds = new google.maps.LatLngBounds();
     let hasBounds = false;
 
@@ -117,6 +136,7 @@ export function LiveDriversMap({
       const loc = driver.location!;
       const stale = isLocationStale(loc.recordedAt, now);
       const position = { lat: loc.lat, lng: loc.lng };
+      const bearing = bearingFromTrail(driver.locationTrail);
 
       let marker = markersRef.current.get(driver.tripId);
       if (!marker) {
@@ -124,7 +144,7 @@ export function LiveDriversMap({
           map,
           position,
           title: driver.driverName,
-          icon: markerIcon(stale),
+          icon: createDriverMarkerIcon(stale, bearing),
         });
         marker.addListener("click", () => {
           onSelectTrip(driver.tripId);
@@ -132,9 +152,11 @@ export function LiveDriversMap({
         markersRef.current.set(driver.tripId, marker);
       } else {
         marker.setPosition(position);
-        marker.setIcon(markerIcon(stale));
+        marker.setIcon(createDriverMarkerIcon(stale, bearing));
         marker.setTitle(driver.driverName);
       }
+
+      updateTrailPolylines(map, driver, polylinesRef.current);
 
       bounds.extend(position);
       hasBounds = true;
@@ -158,18 +180,12 @@ export function LiveDriversMap({
     const marker = markersRef.current.get(selectedTripId);
     const infoWindow = infoWindowRef.current;
     if (marker && infoWindow) {
-      const stale = isLocationStale(driver.location.recordedAt, now);
-      const age = formatLocationAgeGreek(driver.location.recordedAt, now);
       infoWindow.setContent(
-        `<div style="font-family:Inter,sans-serif;padding:4px 2px;min-width:140px">
-          <div style="font-weight:600;color:#0A1628;margin-bottom:4px">${driver.driverName}</div>
-          <div style="font-size:12px;color:${stale ? "#F59E0B" : "#475569"}">${age}${stale ? " · καθυστέρηση" : ""}</div>
-          <div style="font-size:12px;color:#64748B;margin-top:2px">Δρομολόγιο #${driver.tripNumber}</div>
-        </div>`,
+        buildDriverInfoWindowHtml(driver, now, etas[selectedTripId] ?? null),
       );
       infoWindow.open(map, marker);
     }
-  }, [selectedTripId, trackedDrivers, mapReady, now]);
+  }, [selectedTripId, trackedDrivers, mapReady, now, etas]);
 
   if (mapError) {
     return (
@@ -186,4 +202,47 @@ export function LiveDriversMap({
       aria-label="Χάρτης ζωντανής παρακολούθησης οδηγών"
     />
   );
+}
+
+/** Three-segment polyline with fading opacity toward the tail. */
+function updateTrailPolylines(
+  map: google.maps.Map,
+  driver: LiveDriverRow,
+  polylinesRef: Map<string, google.maps.Polyline[]>,
+): void {
+  const path = trailPath(driver.locationTrail);
+  const existing = polylinesRef.get(driver.tripId) ?? [];
+  existing.forEach((line) => line.setMap(null));
+
+  if (path.length < 2) {
+    polylinesRef.set(driver.tripId, []);
+    return;
+  }
+
+  const third = Math.max(1, Math.floor(path.length / 3));
+  const segments: google.maps.Polyline[] = [];
+
+  const ranges = [
+    { start: 0, end: third, opacity: 0.25, color: "#0A1628" },
+    { start: third, end: third * 2, opacity: 0.45, color: "#0A1628" },
+    { start: third * 2, end: path.length, opacity: 0.75, color: "#D4AF37" },
+  ];
+
+  for (const range of ranges) {
+    if (range.end - range.start < 2) continue;
+    const segmentPath = path.slice(range.start, range.end);
+    segments.push(
+      new google.maps.Polyline({
+        map,
+        path: segmentPath,
+        strokeColor: range.color,
+        strokeOpacity: range.opacity,
+        strokeWeight: 2.5,
+        geodesic: true,
+        zIndex: 1,
+      }),
+    );
+  }
+
+  polylinesRef.set(driver.tripId, segments);
 }

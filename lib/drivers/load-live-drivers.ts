@@ -1,6 +1,8 @@
 import { getAthensDateString } from "@/lib/datetime";
 import { isStopDelivered } from "@/lib/drivers/is-stop-delivered";
-import type { LiveDriverRow } from "@/lib/drivers/live-map-types";
+import { resolveNextStopsByTrip } from "@/lib/drivers/load-next-stops";
+import { TRAIL_WINDOW_MS } from "@/lib/drivers/location-trail";
+import type { LiveDriverLocation, LiveDriverRow } from "@/lib/drivers/live-map-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type TripRow = {
@@ -13,6 +15,11 @@ type TripRow = {
 type OrderRow = {
   trip_id: string | null;
   status: string;
+  delivery_sequence: number | null;
+  customers?:
+    | { lat: number | null; lng: number | null }
+    | { lat: number | null; lng: number | null }[]
+    | null;
 };
 
 type LocationRow = {
@@ -41,6 +48,35 @@ function latestLocationByTrip(
   }
 
   return latest;
+}
+
+function trailsByTrip(
+  rows: LocationRow[],
+  tripIds: Set<string>,
+  tripIdByDriver: Map<string, string>,
+): Map<string, LiveDriverLocation[]> {
+  const trails = new Map<string, LiveDriverLocation[]>();
+
+  for (const row of rows) {
+    const tripKey =
+      row.trip_id && tripIds.has(row.trip_id)
+        ? row.trip_id
+        : tripIdByDriver.get(row.driver_id);
+
+    if (!tripKey) continue;
+
+    const point: LiveDriverLocation = {
+      lat: row.lat,
+      lng: row.lng,
+      recordedAt: row.recorded_at,
+    };
+
+    const list = trails.get(tripKey) ?? [];
+    list.push(point);
+    trails.set(tripKey, list);
+  }
+
+  return trails;
 }
 
 export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
@@ -74,7 +110,14 @@ export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
 
   const { data: orderRows, error: ordersError } = await admin
     .from("orders")
-    .select("trip_id, status")
+    .select(
+      `
+      trip_id,
+      status,
+      delivery_sequence,
+      customers ( lat, lng )
+    `,
+    )
     .in("trip_id", tripIds);
 
   if (ordersError) {
@@ -92,21 +135,43 @@ export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
     stopsByTrip.set(row.trip_id, current);
   }
 
+  const nextStopsByTrip = resolveNextStopsByTrip((orderRows ?? []) as OrderRow[]);
+
   const driverIds = [...new Set(trips.map((trip) => trip.driver_id))];
+  const trailSince = new Date(Date.now() - TRAIL_WINDOW_MS).toISOString();
 
-  const { data: locationRows, error: locationsError } = await admin
-    .from("driver_locations")
-    .select("driver_id, trip_id, lat, lng, recorded_at")
-    .in("driver_id", driverIds)
-    .order("recorded_at", { ascending: false })
-    .limit(500);
+  const [latestLocationsResult, trailLocationsResult] = await Promise.all([
+    admin
+      .from("driver_locations")
+      .select("driver_id, trip_id, lat, lng, recorded_at")
+      .in("driver_id", driverIds)
+      .order("recorded_at", { ascending: false })
+      .limit(500),
+    admin
+      .from("driver_locations")
+      .select("driver_id, trip_id, lat, lng, recorded_at")
+      .in("driver_id", driverIds)
+      .gte("recorded_at", trailSince)
+      .order("recorded_at", { ascending: true })
+      .limit(2000),
+  ]);
 
-  if (locationsError) {
-    return { today, drivers: [], error: locationsError.message };
+  if (latestLocationsResult.error) {
+    return { today, drivers: [], error: latestLocationsResult.error.message };
+  }
+
+  if (trailLocationsResult.error) {
+    return { today, drivers: [], error: trailLocationsResult.error.message };
   }
 
   const latestByTrip = latestLocationByTrip(
-    (locationRows ?? []) as LocationRow[],
+    (latestLocationsResult.data ?? []) as LocationRow[],
+    tripIdSet,
+    tripIdByDriver,
+  );
+
+  const trailsMap = trailsByTrip(
+    (trailLocationsResult.data ?? []) as LocationRow[],
     tripIdSet,
     tripIdByDriver,
   );
@@ -129,6 +194,8 @@ export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
             recordedAt: locationRow.recorded_at,
           }
         : null,
+      locationTrail: trailsMap.get(trip.id) ?? [],
+      nextStop: nextStopsByTrip.get(trip.id) ?? null,
     };
   });
 
