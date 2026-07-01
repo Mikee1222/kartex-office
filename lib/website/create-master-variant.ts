@@ -189,6 +189,9 @@ export async function createWebsiteMasterVariant(
     return { error: "Το master προϊόν δεν έχει κατηγορία." };
   }
 
+  const masterCleanName = master.cleanName.trim();
+  const masterCategory = master.category.trim();
+
   const isDuplicate = await findDuplicateMasterVariant(
     supabase,
     master.id,
@@ -205,7 +208,7 @@ export async function createWebsiteMasterVariant(
 
   const skuResult = await generateNextWarehouseSkuForCategory(
     supabase,
-    master.category,
+    masterCategory,
   );
   if ("error" in skuResult) {
     return { error: skuResult.error };
@@ -227,15 +230,15 @@ export async function createWebsiteMasterVariant(
     (siblingRows as RawProductRow[] | null) ?? [],
   );
 
-  const productName = `${master.cleanName} ${widthCm}×${heightCm}`;
+  const productName = `${masterCleanName} ${widthCm}×${heightCm}`;
 
   const { data: inserted, error: insertError } = await supabase
     .from("products")
     .insert({
       name: productName,
-      clean_name: master.cleanName,
+      clean_name: masterCleanName,
       master_id: master.id,
-      category: master.category,
+      category: masterCategory,
       subcategory: subcategory?.trim() || null,
       sku: skuResult.sku,
       width_cm: widthCm,

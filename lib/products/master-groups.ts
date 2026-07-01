@@ -1,5 +1,6 @@
 import type { Product } from "@/components/products/types";
 import { getStockStatus } from "@/components/products/types";
+import { normalizeProductCategory } from "@/types/database";
 
 export type ProductVariant = {
   id: string;
@@ -47,22 +48,23 @@ export function resolveMasterGroupKey(group: MasterGroup): string {
   return getMasterGroupKey(group.cleanName, group.category);
 }
 
-function resolveProductGroupDisplay(product: Product): {
+function resolveMasterGroupMeta(product: Product): {
   cleanName: string;
   category: string;
 } {
-  if (product.masterId != null) {
-    const cleanName =
-      product.masterCleanName?.trim() ||
-      product.cleanName?.trim() ||
-      product.name;
-    const category =
-      product.masterCategory?.trim() || product.category;
-    return { cleanName, category };
+  if (
+    product.masterId != null &&
+    product.masterCleanName != null &&
+    product.masterCleanName.trim().length > 0
+  ) {
+    return {
+      cleanName: product.masterCleanName.trim(),
+      category: normalizeProductCategory(product.masterCategory),
+    };
   }
 
   return {
-    cleanName: product.cleanName || product.name,
+    cleanName: product.cleanName?.trim() || product.name,
     category: product.category,
   };
 }
@@ -93,7 +95,7 @@ export function buildMasterGroups(products: Product[]): MasterGroup[] {
   const map = new Map<string, MasterGroup>();
 
   for (const product of products) {
-    const { cleanName, category } = resolveProductGroupDisplay(product);
+    const { cleanName, category } = resolveMasterGroupMeta(product);
     const key =
       product.masterId != null
         ? `master:${product.masterId}`

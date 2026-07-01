@@ -246,7 +246,10 @@ export function mapProductRow(row: ProductRow): Product {
   return {
     id: row.id,
     name: row.name,
-    cleanName: row.clean_name?.trim() || undefined,
+    cleanName:
+      masterId && masterCleanName
+        ? masterCleanName
+        : row.clean_name?.trim() || undefined,
     masterCleanName,
     masterCategory,
     sku: row.sku,
