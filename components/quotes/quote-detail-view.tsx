@@ -239,6 +239,29 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
             <p className="mt-1 text-sm text-white/90">{quote.clientNotes}</p>
           </div>
         ) : null}
+        {quote.deliveryMethod ? (
+          <div className="mt-4 rounded-xl bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wide text-white/50">
+              Παράδοση
+            </p>
+            {quote.deliveryRecipientName ? (
+              <p className="mt-1 text-sm text-white/90">
+                Παραλήπτης: {quote.deliveryRecipientName}
+              </p>
+            ) : null}
+            {quote.deliveryMethod === "pickup" ? (
+              <p className="mt-1 text-sm text-white/90">
+                Παραλαβή από πρακτορείο: {quote.pickupAgency ?? "—"}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-white/90">
+                {[quote.deliveryAddress, quote.deliveryCity, quote.deliveryPostalCode]
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </p>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <Card className={premiumTableWrap}>

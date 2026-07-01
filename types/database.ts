@@ -426,6 +426,12 @@ export type QuoteRequestRow = {
   user_id?: string | null;
   customer_id?: string | null;
   locale?: string | null;
+  delivery_method?: string | null;
+  delivery_recipient_name?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
   quoted_at?: string | null;
   accepted_at?: string | null;
   order_id?: string | null;
@@ -452,6 +458,40 @@ export type QuoteRequestItemRow = {
 
 export function quoteShortId(id: string): string {
   return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+export type DeliveryMethod = "address" | "pickup";
+
+export function formatDeliveryDisplay(row: {
+  delivery_method?: string | null;
+  delivery_recipient_name?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
+}): string | null {
+  const method = row.delivery_method;
+  if (!method) return null;
+
+  const recipient = row.delivery_recipient_name?.trim();
+  const recipientSuffix = recipient ? ` (${recipient})` : "";
+
+  if (method === "pickup") {
+    const agency = row.pickup_agency?.trim();
+    if (!agency) return null;
+    return `Παραλαβή από πρακτορείο: ${agency}${recipientSuffix}`;
+  }
+
+  if (method === "address") {
+    const line2 = [row.delivery_city?.trim(), row.delivery_postal_code?.trim()]
+      .filter(Boolean)
+      .join(" ");
+    const parts = [row.delivery_address?.trim(), line2].filter(Boolean);
+    if (parts.length === 0) return null;
+    return `${parts.join(", ")}${recipientSuffix}`;
+  }
+
+  return null;
 }
 
 export function mapQuoteRequestRow(
@@ -537,6 +577,16 @@ export function mapQuoteRequestToDetail(
     clientNotes: row.notes ?? null,
     internalNotes: row.internal_notes ?? null,
     status: normalizeQuoteRequestStatus(row.status),
+    deliveryMethod:
+      row.delivery_method === "address" || row.delivery_method === "pickup"
+        ? row.delivery_method
+        : null,
+    deliveryRecipientName: row.delivery_recipient_name?.trim() || null,
+    deliveryAddress: row.delivery_address?.trim() || null,
+    deliveryCity: row.delivery_city?.trim() || null,
+    deliveryPostalCode: row.delivery_postal_code?.trim() || null,
+    pickupAgency: row.pickup_agency?.trim() || null,
+    deliveryDisplay: formatDeliveryDisplay(row),
     createdAt: row.created_at,
     quotedAt: row.quoted_at ?? null,
     acceptedAt: row.accepted_at ?? null,

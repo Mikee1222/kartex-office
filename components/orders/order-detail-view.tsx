@@ -440,15 +440,35 @@ function TripCard({ trip }: { trip: OrderTripInfo }) {
 
 function CustomerCard({ order }: { order: OrderDetail }) {
   const customerName =
-    order.customerName || order.quoteRequest?.contactName || "—";
+    order.deliveryRecipientName ||
+    order.customerName ||
+    order.quoteRequest?.contactName ||
+    "—";
   const customerPhone =
     order.customerPhone || order.quoteRequest?.phone || "—";
   const customerEmail =
     order.customerEmail || order.quoteRequest?.email || "—";
-  const customerAddress =
-    order.customerAddress || order.customer.address || "—";
   const companyName =
     order.companyName || order.quoteRequest?.companyName || "—";
+
+  const deliveryLabel =
+    order.deliveryMethod === "pickup"
+      ? "Παραλαβή"
+      : order.deliveryMethod === "address"
+        ? "Διεύθυνση παράδοσης"
+        : "Διεύθυνση";
+
+  const deliveryValue =
+    order.deliveryMethod === "pickup"
+      ? order.deliveryDisplay || "—"
+      : order.deliveryMethod === "address"
+        ? [
+            order.deliveryAddress,
+            [order.deliveryCity, order.deliveryPostalCode].filter(Boolean).join(" "),
+          ]
+            .filter(Boolean)
+            .join(", ") || "—"
+        : order.customerAddress || order.customer.address || "—";
 
   return (
     <Card className="border-border/80 shadow-sm">
@@ -460,7 +480,7 @@ function CustomerCard({ order }: { order: OrderDetail }) {
         <InfoRow label="Όνομα" value={customerName} />
         <InfoRow label="Τηλέφωνο" value={customerPhone} />
         <InfoRow label="Email" value={customerEmail} className="sm:col-span-2" />
-        <InfoRow label="Διεύθυνση" value={customerAddress} className="sm:col-span-2" />
+        <InfoRow label={deliveryLabel} value={deliveryValue} className="sm:col-span-2" />
       </CardContent>
     </Card>
   );

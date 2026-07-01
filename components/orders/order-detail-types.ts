@@ -29,6 +29,8 @@ export type OrderCustomerInfo = {
   address: string;
 };
 
+export type DeliveryMethod = "address" | "pickup";
+
 export type OrderQuoteRequestInfo = {
   id: string;
   contactName: string;
@@ -64,6 +66,13 @@ export type OrderDetail = {
   customerEmail: string | null;
   customerAddress: string | null;
   companyName: string | null;
+  deliveryMethod: DeliveryMethod | null;
+  deliveryRecipientName: string | null;
+  deliveryAddress: string | null;
+  deliveryCity: string | null;
+  deliveryPostalCode: string | null;
+  pickupAgency: string | null;
+  deliveryDisplay: string | null;
   quoteRequest: OrderQuoteRequestInfo | null;
   items: OrderLineItem[];
   subtotal: number;

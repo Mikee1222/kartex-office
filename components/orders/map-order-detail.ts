@@ -1,10 +1,11 @@
 import {
   type OrderDetail,
   type OrderQuoteRequestInfo,
+  type DeliveryMethod,
 } from "@/components/orders/order-detail-types";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
 import { parseStatusHistory } from "@/lib/orders/status-timeline";
-import { formatDateEl, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
+import { formatDateEl, formatDeliveryDisplay, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
 
 type CustomerJoin = {
   id: string;
@@ -25,6 +26,12 @@ type QuoteRequestJoin = {
   company_name: string;
   email: string;
   phone?: string | null;
+  delivery_method?: string | null;
+  delivery_recipient_name?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
 };
 
 type ProductJoin = {
@@ -70,7 +77,13 @@ export const ORDER_DETAIL_SELECT = `
     contact_name,
     company_name,
     email,
-    phone
+    phone,
+    delivery_method,
+    delivery_recipient_name,
+    delivery_address,
+    delivery_city,
+    delivery_postal_code,
+    pickup_agency
   )
 `;
 
@@ -127,6 +140,12 @@ export type OrderDetailQueryRow = {
   customer_email?: string | null;
   customer_address?: string | null;
   company_name?: string | null;
+  delivery_method?: string | null;
+  delivery_recipient_name?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
   customers: CustomerJoin | CustomerJoin[] | null;
   order_items: OrderItemJoin[] | null;
   delivery_trips?: TripJoin | TripJoin[] | null;
@@ -183,10 +202,36 @@ function mapQuoteRequestJoin(
   };
 }
 
+function normalizeDeliveryMethod(value: string | null | undefined): DeliveryMethod | null {
+  if (value === "address" || value === "pickup") return value;
+  return null;
+}
+
+function mapDeliveryFields(row: {
+  delivery_method?: string | null;
+  delivery_recipient_name?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
+}) {
+  const deliveryMethod = normalizeDeliveryMethod(row.delivery_method);
+  return {
+    deliveryMethod,
+    deliveryRecipientName: row.delivery_recipient_name?.trim() || null,
+    deliveryAddress: row.delivery_address?.trim() || null,
+    deliveryCity: row.delivery_city?.trim() || null,
+    deliveryPostalCode: row.delivery_postal_code?.trim() || null,
+    pickupAgency: row.pickup_agency?.trim() || null,
+    deliveryDisplay: formatDeliveryDisplay(row),
+  };
+}
+
 export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail {
   const customer = pickOne(row.customers);
   const quoteRequest = mapQuoteRequestJoin(row.quote_request);
   const status = normalizeOrderStatus(row.status);
+  const delivery = mapDeliveryFields(row);
 
   const customerName =
     row.customer_name?.trim() || customer?.name?.trim() || null;
@@ -194,7 +239,7 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     row.customer_phone?.trim() || customer?.phone?.trim() || null;
   const customerEmail =
     row.customer_email?.trim() || customer?.email?.trim() || null;
-  const customerAddress =
+  const legacyCustomerAddress =
     row.customer_address?.trim() ||
     (customer ? formatCustomerAddress(customer) : null) ||
     null;
@@ -204,7 +249,8 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     customerName || quoteRequest?.contactName || quoteRequest?.companyName || "—";
   const resolvedCustomerPhone = customerPhone || quoteRequest?.phone || "—";
   const resolvedCustomerEmail = customerEmail || quoteRequest?.email || "—";
-  const resolvedCustomerAddress = customerAddress || "—";
+  const resolvedCustomerAddress =
+    delivery.deliveryDisplay || legacyCustomerAddress || "—";
 
   const items = (row.order_items ?? []).map((line) => {
     const product = pickOne(line.products);
@@ -265,8 +311,9 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     customerName,
     customerPhone,
     customerEmail,
-    customerAddress,
+    customerAddress: legacyCustomerAddress,
     companyName,
+    ...delivery,
     quoteRequest,
     items,
     subtotal,

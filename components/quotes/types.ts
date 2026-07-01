@@ -6,6 +6,8 @@ export type QuoteRequestStatus =
   | "rejected"
   | "cancelled";
 
+export type DeliveryMethod = "address" | "pickup";
+
 export const QUOTE_STATUS_LABELS: Record<QuoteRequestStatus, string> = {
   pending: "Εκκρεμές",
   reviewing: "Σε Εξέταση",
@@ -59,6 +61,13 @@ export type QuoteDetail = {
   clientNotes: string | null;
   internalNotes: string | null;
   status: QuoteRequestStatus;
+  deliveryMethod: DeliveryMethod | null;
+  deliveryRecipientName: string | null;
+  deliveryAddress: string | null;
+  deliveryCity: string | null;
+  deliveryPostalCode: string | null;
+  pickupAgency: string | null;
+  deliveryDisplay: string | null;
   createdAt: string;
   quotedAt: string | null;
   acceptedAt: string | null;
