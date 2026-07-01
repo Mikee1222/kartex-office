@@ -15,7 +15,7 @@ import {
   mapWebsiteProductMasterRow,
   WEBSITE_PRODUCT_MASTERS_SELECT,
 } from "@/lib/website/product-masters";
-import type { WebsiteProductMasterRow } from "@/lib/website/types";
+import type { WebsiteProductMasterRow, WebsiteProductMasterVariantRow } from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
   premiumFilterTabActiveCategory,
@@ -201,6 +201,26 @@ export function WebsiteProductsPage() {
         };
       }),
     );
+  }
+
+  function addVariantToMaster(
+    masterId: string,
+    variant: WebsiteProductMasterVariantRow,
+  ) {
+    setMasters((current) =>
+      current.map((master) => {
+        if (master.id !== masterId) return master;
+        return {
+          ...master,
+          variants: [...master.variants, variant].sort((a, b) => {
+            const widthDiff = (a.widthCm ?? 0) - (b.widthCm ?? 0);
+            if (widthDiff !== 0) return widthDiff;
+            return (a.heightCm ?? 0) - (b.heightCm ?? 0);
+          }),
+        };
+      }),
+    );
+    toast.success("Η παραλλαγή δημιουργήθηκε.");
   }
 
   async function handleToggleActive(master: WebsiteProductMasterRow) {
@@ -442,6 +462,9 @@ export function WebsiteProductsPage() {
                         onToggleActive={() => void handleToggleActive(master)}
                         onInternalPriceSave={(variantId, value) =>
                           handleInternalPriceSave(master.id, variantId, value)
+                        }
+                        onVariantCreated={(variant) =>
+                          addVariantToMaster(master.id, variant)
                         }
                       />
                     );

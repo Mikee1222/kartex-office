@@ -12,9 +12,13 @@ import Link from "next/link";
 import * as React from "react";
 
 import { WebsiteMasterVariantsTable } from "@/components/website/website-master-variants-table";
+import { AddMasterVariantDialog } from "@/components/website/add-master-variant-dialog";
 import { ActiveToggle } from "@/components/website/active-toggle";
-import type { WebsiteProductMasterRow } from "@/lib/website/types";
-import { premiumGoldButton, premiumTableRow } from "@/lib/ui/premium-styles";
+import type {
+  WebsiteProductMasterRow,
+  WebsiteProductMasterVariantRow,
+} from "@/lib/website/types";
+import { premiumGoldButton, premiumSecondaryButton, premiumTableRow } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
 type WebsiteMasterGroupTableRowProps = {
@@ -30,6 +34,7 @@ type WebsiteMasterGroupTableRowProps = {
     variantId: string,
     value: number | null,
   ) => Promise<boolean>;
+  onVariantCreated: (variant: WebsiteProductMasterVariantRow) => void;
 };
 
 export function WebsiteMasterGroupTableRow({
@@ -42,7 +47,9 @@ export function WebsiteMasterGroupTableRow({
   onToggleSelect,
   onToggleActive,
   onInternalPriceSave,
+  onVariantCreated,
 }: WebsiteMasterGroupTableRowProps) {
+  const [addVariantOpen, setAddVariantOpen] = React.useState(false);
   const imageCount = master.images.length;
   const primaryUrl = master.imageUrl;
 
@@ -154,6 +161,25 @@ export function WebsiteMasterGroupTableRow({
               variants={master.variants}
               isBusy={isBusy}
               onInternalPriceSave={onInternalPriceSave}
+            />
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAddVariantOpen(true)}
+                disabled={isBusy}
+                className={cn(
+                  premiumSecondaryButton,
+                  "inline-flex h-9 items-center gap-1.5 px-3 text-xs font-semibold disabled:opacity-50",
+                )}
+              >
+                + Νέα Παραλλαγή
+              </button>
+            </div>
+            <AddMasterVariantDialog
+              master={master}
+              open={addVariantOpen}
+              onOpenChange={setAddVariantOpen}
+              onCreated={onVariantCreated}
             />
           </td>
         </tr>
