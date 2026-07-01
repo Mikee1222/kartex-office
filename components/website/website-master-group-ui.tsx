@@ -34,6 +34,22 @@ type WebsiteMasterGroupTableRowProps = {
     variantId: string,
     value: number | null,
   ) => Promise<boolean>;
+  onDimensionsSave: (
+    variantId: string,
+    widthCm: number,
+    heightCm: number,
+  ) => Promise<boolean>;
+  onColorSave: (
+    variantId: string,
+    colorId: string,
+    colorName: string,
+    stock: number,
+  ) => Promise<boolean>;
+  onStockSave: (variantId: string, value: number) => Promise<boolean>;
+  onSubcategorySave: (
+    variantId: string,
+    value: string | null,
+  ) => Promise<boolean>;
   onVariantCreated: (variant: WebsiteProductMasterVariantRow) => void;
 };
 
@@ -47,6 +63,10 @@ export function WebsiteMasterGroupTableRow({
   onToggleSelect,
   onToggleActive,
   onInternalPriceSave,
+  onDimensionsSave,
+  onColorSave,
+  onStockSave,
+  onSubcategorySave,
   onVariantCreated,
 }: WebsiteMasterGroupTableRowProps) {
   const [addVariantOpen, setAddVariantOpen] = React.useState(false);
@@ -161,6 +181,10 @@ export function WebsiteMasterGroupTableRow({
               variants={master.variants}
               isBusy={isBusy}
               onInternalPriceSave={onInternalPriceSave}
+              onDimensionsSave={onDimensionsSave}
+              onColorSave={onColorSave}
+              onStockSave={onStockSave}
+              onSubcategorySave={onSubcategorySave}
             />
             <div className="mt-3 flex justify-end">
               <button

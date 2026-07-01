@@ -61,10 +61,12 @@ export type WebsiteProductMasterVariantRow = {
   gsm: number | null;
   threadCount: number | null;
   color: string | null;
+  colorId: string | null;
   sku: string;
   stock: number;
   subcategory: string | null;
   internalPriceEur: number | null;
+  isActive: boolean;
 };
 
 export type ProductMasterImageRow = {

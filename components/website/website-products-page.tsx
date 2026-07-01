@@ -10,11 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { WebsiteVariantFieldPatch } from "@/components/website/website-master-variants-table";
 import { setMasterActive } from "@/lib/products/set-master-active";
 import {
   mapWebsiteProductMasterRow,
   WEBSITE_PRODUCT_MASTERS_SELECT,
 } from "@/lib/website/product-masters";
+import {
+  saveVariantColor,
+  saveVariantDimensions,
+  saveVariantInternalPrice,
+  saveVariantStock,
+  saveVariantSubcategory,
+} from "@/lib/website/variant-field-save-actions";
 import type { WebsiteProductMasterRow, WebsiteProductMasterVariantRow } from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
@@ -183,24 +191,23 @@ export function WebsiteProductsPage() {
     );
   }
 
-  function updateVariantInternalPrice(
-    masterId: string,
-    variantId: string,
-    internalPriceEur: number | null,
-  ) {
+  function patchVariant(variantId: string, patch: WebsiteVariantFieldPatch) {
     setMasters((current) =>
-      current.map((master) => {
-        if (master.id !== masterId) return master;
-        return {
-          ...master,
-          variants: master.variants.map((variant) =>
-            variant.id === variantId
-              ? { ...variant, internalPriceEur }
-              : variant,
-          ),
-        };
-      }),
+      current.map((master) => ({
+        ...master,
+        variants: master.variants.map((variant) =>
+          variant.id === variantId ? { ...variant, ...patch } : variant,
+        ),
+      })),
     );
+  }
+
+  function variantSaveContext() {
+    return {
+      supabase: createClient(),
+      setBusyVariantId: setBusyId,
+      patchVariant,
+    };
   }
 
   function addVariantToMaster(
@@ -280,23 +287,50 @@ export function WebsiteProductsPage() {
     variantId: string,
     value: number | null,
   ): Promise<boolean> {
-    setBusyId(variantId);
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from("products")
-      .update({ internal_price_eur: value })
-      .eq("id", variantId);
+    void masterId;
+    return saveVariantInternalPrice(variantSaveContext(), variantId, value);
+  }
 
-    setBusyId(null);
+  async function handleDimensionsSave(
+    variantId: string,
+    widthCm: number,
+    heightCm: number,
+  ): Promise<boolean> {
+    return saveVariantDimensions(
+      variantSaveContext(),
+      variantId,
+      widthCm,
+      heightCm,
+    );
+  }
 
-    if (updateError) {
-      toast.error(updateError.message);
-      return false;
-    }
+  async function handleColorSave(
+    variantId: string,
+    colorId: string,
+    colorName: string,
+    stock: number,
+  ): Promise<boolean> {
+    return saveVariantColor(
+      variantSaveContext(),
+      variantId,
+      colorId,
+      colorName,
+      stock,
+    );
+  }
 
-    updateVariantInternalPrice(masterId, variantId, value);
-    toast.success("Εσωτερική τιμή αποθηκεύτηκε");
-    return true;
+  async function handleStockSave(
+    variantId: string,
+    value: number,
+  ): Promise<boolean> {
+    return saveVariantStock(variantSaveContext(), variantId, value);
+  }
+
+  async function handleSubcategorySave(
+    variantId: string,
+    value: string | null,
+  ): Promise<boolean> {
+    return saveVariantSubcategory(variantSaveContext(), variantId, value);
   }
 
   const websiteUrl = getWebsiteUrl();
@@ -463,6 +497,10 @@ export function WebsiteProductsPage() {
                         onInternalPriceSave={(variantId, value) =>
                           handleInternalPriceSave(master.id, variantId, value)
                         }
+                        onDimensionsSave={handleDimensionsSave}
+                        onColorSave={handleColorSave}
+                        onStockSave={handleStockSave}
+                        onSubcategorySave={handleSubcategorySave}
                         onVariantCreated={(variant) =>
                           addVariantToMaster(master.id, variant)
                         }

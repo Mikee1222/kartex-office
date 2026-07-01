@@ -13,8 +13,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import type { WebsiteVariantFieldPatch } from "@/components/website/website-master-variants-table";
 import { setMasterActive } from "@/lib/products/set-master-active";
 import type { WebsiteProductMasterRow } from "@/lib/website/types";
+import {
+  saveVariantColor,
+  saveVariantDimensions,
+  saveVariantInternalPrice,
+  saveVariantStock,
+  saveVariantSubcategory,
+} from "@/lib/website/variant-field-save-actions";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
   premiumGoldButton,
@@ -150,32 +158,69 @@ export function WebsiteProductEditPage({ masterId }: WebsiteProductEditPageProps
     variantId: string,
     value: number | null,
   ): Promise<boolean> {
-    setBusyVariantId(variantId);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("products")
-      .update({ internal_price_eur: value })
-      .eq("id", variantId);
-    setBusyVariantId(null);
+    return saveVariantInternalPrice(variantSaveContext(), variantId, value);
+  }
 
-    if (error) {
-      toast.error(error.message);
-      return false;
-    }
-
+  function patchVariant(variantId: string, patch: WebsiteVariantFieldPatch) {
     setMaster((current) => {
       if (!current) return current;
       return {
         ...current,
         variants: current.variants.map((variant) =>
-          variant.id === variantId
-            ? { ...variant, internalPriceEur: value }
-            : variant,
+          variant.id === variantId ? { ...variant, ...patch } : variant,
         ),
       };
     });
-    toast.success("Εσωτερική τιμή αποθηκεύτηκε");
-    return true;
+  }
+
+  function variantSaveContext() {
+    return {
+      supabase: createClient(),
+      setBusyVariantId: setBusyVariantId,
+      patchVariant,
+    };
+  }
+
+  async function handleDimensionsSave(
+    variantId: string,
+    widthCm: number,
+    heightCm: number,
+  ): Promise<boolean> {
+    return saveVariantDimensions(
+      variantSaveContext(),
+      variantId,
+      widthCm,
+      heightCm,
+    );
+  }
+
+  async function handleColorSave(
+    variantId: string,
+    colorId: string,
+    colorName: string,
+    stock: number,
+  ): Promise<boolean> {
+    return saveVariantColor(
+      variantSaveContext(),
+      variantId,
+      colorId,
+      colorName,
+      stock,
+    );
+  }
+
+  async function handleStockSave(
+    variantId: string,
+    value: number,
+  ): Promise<boolean> {
+    return saveVariantStock(variantSaveContext(), variantId, value);
+  }
+
+  async function handleSubcategorySave(
+    variantId: string,
+    value: string | null,
+  ): Promise<boolean> {
+    return saveVariantSubcategory(variantSaveContext(), variantId, value);
   }
 
   const websiteUrl = getWebsiteUrl();
@@ -358,6 +403,10 @@ export function WebsiteProductEditPage({ masterId }: WebsiteProductEditPageProps
             variants={master.variants}
             isBusy={busyVariantId !== null}
             onInternalPriceSave={handleInternalPriceSave}
+            onDimensionsSave={handleDimensionsSave}
+            onColorSave={handleColorSave}
+            onStockSave={handleStockSave}
+            onSubcategorySave={handleSubcategorySave}
           />
         </CardContent>
       </Card>

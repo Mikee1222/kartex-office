@@ -276,6 +276,7 @@ export async function createWebsiteMasterVariant(
       gsm: inserted.gsm,
       threadCount: inserted.thread_count,
       color: colorName,
+      colorId,
       sku: inserted.sku?.trim() ?? skuResult.sku,
       stock: totalStock ?? Math.max(0, Math.round(stock)),
       subcategory: inserted.subcategory?.trim() || subcategory?.trim() || null,
@@ -283,6 +284,7 @@ export async function createWebsiteMasterVariant(
         inserted.internal_price_eur != null
           ? Number(inserted.internal_price_eur)
           : internalPriceEur,
+      isActive: true,
     },
   };
 }
