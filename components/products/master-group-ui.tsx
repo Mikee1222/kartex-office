@@ -163,7 +163,7 @@ export function VariantDimensionBadges({ variant }: { variant: ProductVariant })
   );
 }
 
-function VariantColorStockBars({
+export function VariantColorStockBars({
   productId,
   variantsByProduct,
   maxStock,

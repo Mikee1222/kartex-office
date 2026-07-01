@@ -9,6 +9,7 @@ import {
   ProductCategorySelect,
   ProductSubcategorySelect,
 } from "@/components/products/product-category-select";
+import { InventoryMasterVariantsPanel } from "@/components/products/inventory-master-variants-panel";
 import { ActiveToggle } from "@/components/website/active-toggle";
 import { WebsiteMasterImagesEditor } from "@/components/website/website-master-images-editor";
 import { WebsiteMasterVariantsPanel } from "@/components/website/website-master-variants-panel";
@@ -461,17 +462,31 @@ export function ProductMasterDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <WebsiteMasterVariantsPanel
-            master={master}
-            disabled={saving || busyVariantId !== null}
-            setBusyId={setBusyVariantId}
-            variantDetailHrefPrefix={config.variantDetailHrefPrefix}
-            showInternalPrice={config.showInternalPrice}
-            addVariantMode={config.addVariantMode}
-            onVariantsChange={(variants) =>
-              setMaster((current) => (current ? { ...current, variants } : current))
-            }
-          />
+          {context === "inventory" ? (
+            <InventoryMasterVariantsPanel
+              master={master as InventoryProductMasterRow}
+              disabled={saving}
+              onVariantsChange={(variants) =>
+                setMaster((current) =>
+                  current ? { ...current, variants } : current,
+                )
+              }
+            />
+          ) : (
+            <WebsiteMasterVariantsPanel
+              master={master as WebsiteProductMasterRow}
+              disabled={saving || busyVariantId !== null}
+              setBusyId={setBusyVariantId}
+              variantDetailHrefPrefix={config.variantDetailHrefPrefix}
+              showInternalPrice={config.showInternalPrice}
+              addVariantMode={config.addVariantMode}
+              onVariantsChange={(variants) =>
+                setMaster((current) =>
+                  current ? { ...current, variants } : current,
+                )
+              }
+            />
+          )}
         </CardContent>
       </Card>
     </div>
