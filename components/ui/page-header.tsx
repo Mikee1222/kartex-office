@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type PageHeaderProps = {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   action?: ReactNode;
   className?: string;
 };

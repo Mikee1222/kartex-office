@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Radio, RefreshCw } from "lucide-react";
+import { MapPin, Radio, RefreshCw, Truck } from "lucide-react";
 import * as React from "react";
 
 import { DataError } from "@/components/dashboard/data-error";
@@ -12,11 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { TripEta } from "@/lib/drivers/eta";
 import type { LiveDriverRow } from "@/lib/drivers/live-map-types";
 import { appendLocationTrail } from "@/lib/drivers/location-trail";
+import { useDriverStreetNames } from "@/lib/drivers/use-driver-street-names";
 import {
   buildEtaRequests,
   ETA_REFRESH_MS,
   fetchTripEtas,
 } from "@/lib/drivers/use-live-etas";
+import { premiumPageSubtitle } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -57,10 +59,13 @@ export function LiveDriversView() {
   const [error, setError] = React.useState<string | null>(null);
   const [selectedTripId, setSelectedTripId] = React.useState<string | null>(null);
   const [isLive, setIsLive] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
   const [etas, setEtas] = React.useState<Record<string, TripEta>>({});
   const etaLastFetchRef = React.useRef<Map<string, number>>(new Map());
   const etaInFlightRef = React.useRef(false);
+
+  const streetNames = useDriverStreetNames(drivers);
 
   const refreshEtas = React.useCallback(
     async (driverRows: LiveDriverRow[], forceTripIds?: Set<string>) => {
@@ -114,6 +119,12 @@ export function LiveDriversView() {
 
     setLoading(false);
   }, [refreshEtas]);
+
+  const handleRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   React.useEffect(() => {
     void load();
@@ -175,29 +186,50 @@ export function LiveDriversView() {
     : "Ζωντανή θέση οδηγών σε δρομολόγια που βρίσκονται σε εξέλιξη.";
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[560px] flex-col gap-4">
+    <div className="flex h-[calc(100vh-7rem)] min-h-[560px] flex-col gap-6">
       <PageHeader
         title="Ζωντανή Παρακολούθηση"
-        subtitle={subtitle}
+        subtitle={
+          <span className={cn(premiumPageSubtitle, "inline-flex items-center gap-1.5")}>
+            <Truck className="size-3.5 shrink-0 text-gold-500/70" aria-hidden />
+            {subtitle}
+          </span>
+        }
         action={
           <div className="flex items-center gap-3">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                 isLive
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "bg-gray-100 text-gray-500",
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-gray-200 bg-gray-50 text-gray-500",
               )}
             >
-              <Radio className={cn("size-3.5", isLive && "animate-pulse")} />
+              {isLive ? (
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                </span>
+              ) : (
+                <Radio className="size-3.5 animate-pulse" aria-hidden />
+              )}
               {isLive ? "Live" : "Σύνδεση…"}
             </span>
             <button
               type="button"
-              onClick={() => void load()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-navy-900/10 px-3 py-2 text-sm font-medium text-navy-900 transition-colors hover:bg-gray-50"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg border border-gold-500/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy-900 shadow-sm transition-all duration-200",
+                "hover:border-gold-500/50 hover:bg-gold-500/[0.04] hover:shadow-md",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40",
+                "disabled:pointer-events-none disabled:opacity-60",
+              )}
             >
-              <RefreshCw className="size-4" />
+              <RefreshCw
+                className={cn("size-4 text-gold-500", refreshing && "animate-spin")}
+                aria-hidden
+              />
               Ανανέωση
             </button>
           </div>
@@ -207,22 +239,22 @@ export function LiveDriversView() {
       {error ? <DataError message={error} onRetry={() => void load()} /> : null}
 
       {loading ? (
-        <div className="grid flex-1 gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="grid flex-1 gap-5 lg:grid-cols-[340px_1fr]">
           <Skeleton className="h-full min-h-[420px] rounded-2xl" />
           <Skeleton className="h-full min-h-[420px] rounded-2xl" />
         </div>
       ) : drivers.length === 0 ? (
         <EmptyState
           icon={MapPin}
-          title="Δεν υπάρχουν ενεργά δρομολόγια"
-          description="Όταν ένας οδηγός ξεκινήσει δρομολόγιο σήμερα, θα εμφανιστεί εδώ."
+          title="Κανένας οδηγός σε δρόμο αυτή τη στιγμή"
+          description="Όταν ένας οδηγός ξεκινήσει δρομολόγιο σήμερα, θα εμφανιστεί εδώ με ζωντανή θέση στον χάρτη."
         />
       ) : (
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_1fr]">
-          <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card">
-            <div className="border-b border-gray-100 px-4 py-3">
+        <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[340px_1fr]">
+          <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-gray-50/50 shadow-[0_4px_24px_rgba(10,22,40,0.06)]">
+            <div className="border-b border-gray-200/60 bg-white px-5 py-4">
               <h2 className="text-sm font-semibold text-navy-900">Οδηγοί σε δρόμο</h2>
-              <p className="text-xs text-gray-400">Κλικ για εστίαση στον χάρτη</p>
+              <p className="mt-0.5 text-xs text-gray-400">Κλικ για εστίαση στον χάρτη</p>
             </div>
             <LiveDriversSidebar
               drivers={drivers}
@@ -230,6 +262,7 @@ export function LiveDriversView() {
               onSelect={setSelectedTripId}
               now={now}
               etas={etas}
+              streetNames={streetNames}
             />
           </aside>
 
@@ -241,6 +274,7 @@ export function LiveDriversView() {
               mapsApiKey={mapsApiKey}
               now={now}
               etas={etas}
+              streetNames={streetNames}
             />
           </div>
         </div>

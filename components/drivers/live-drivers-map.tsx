@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import * as React from "react";
 
 import { bearingFromTrail } from "@/lib/drivers/compute-bearing";
@@ -14,6 +15,7 @@ import {
 import { KARTEX_MAP_STYLES } from "@/lib/drivers/map-styles";
 import { getGoogleMapsPublicKey } from "@/lib/env/google-maps";
 import { loadGoogleMapsScript } from "@/lib/google-maps/load-maps-script";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_CENTER = { lat: 37.9838, lng: 23.7275 };
 const DEFAULT_ZOOM = 11;
@@ -25,6 +27,7 @@ type LiveDriversMapProps = {
   mapsApiKey?: string | null;
   now: number;
   etas: Record<string, TripEta>;
+  streetNames: Record<string, string>;
 };
 
 function trailPath(
@@ -40,6 +43,7 @@ export function LiveDriversMap({
   mapsApiKey,
   now,
   etas,
+  streetNames,
 }: LiveDriversMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
@@ -181,15 +185,20 @@ export function LiveDriversMap({
     const infoWindow = infoWindowRef.current;
     if (marker && infoWindow) {
       infoWindow.setContent(
-        buildDriverInfoWindowHtml(driver, now, etas[selectedTripId] ?? null),
+        buildDriverInfoWindowHtml(
+          driver,
+          now,
+          etas[selectedTripId] ?? null,
+          streetNames[selectedTripId],
+        ),
       );
       infoWindow.open(map, marker);
     }
-  }, [selectedTripId, trackedDrivers, mapReady, now, etas]);
+  }, [selectedTripId, trackedDrivers, mapReady, now, etas, streetNames]);
 
   if (mapError) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-2xl border border-warning/30 bg-warning/5 p-6 text-center">
+      <div className="flex h-full min-h-[420px] items-center justify-center rounded-2xl border border-warning/30 bg-warning/5 p-6 text-center shadow-card">
         <p className="max-w-md text-sm text-navy-900">{mapError}</p>
       </div>
     );
@@ -197,10 +206,24 @@ export function LiveDriversMap({
 
   return (
     <div
-      ref={containerRef}
-      className="h-full min-h-[420px] w-full rounded-2xl border border-gray-200/80 bg-gray-100 shadow-card"
-      aria-label="Χάρτης ζωντανής παρακολούθησης οδηγών"
-    />
+      className={cn(
+        "relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl",
+        "border border-gold-500/30 bg-gray-50 shadow-[0_8px_32px_rgba(10,22,40,0.08)]",
+      )}
+    >
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+        aria-label="Χάρτης ζωντανής παρακολούθησης οδηγών"
+      />
+
+      {!mapReady ? (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-gray-50 to-white">
+          <Loader2 className="size-8 animate-spin text-gold-500" aria-hidden />
+          <p className="text-sm font-medium text-gray-400">Φόρτωση χάρτη…</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
