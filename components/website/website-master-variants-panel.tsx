@@ -3,7 +3,12 @@
 import * as React from "react";
 import { toast } from "sonner";
 
-import { AddMasterVariantDialog } from "@/components/website/add-master-variant-dialog";
+import { AddMasterVariantDialog } from "@/components/products/add-master-variant-dialog";
+import {
+  createdVariantToWebsiteRow,
+  sortMasterVariants,
+  websiteMasterToVariantMaster,
+} from "@/lib/products/master-variant/adapters";
 import {
   WebsiteMasterVariantsTable,
   type WebsiteVariantFieldPatch,
@@ -116,10 +121,11 @@ export function WebsiteMasterVariantsPanel({
         </div>
       ) : null}
       <AddMasterVariantDialog
-        master={master}
+        master={websiteMasterToVariantMaster(master)}
+        mode="website"
         open={addVariantOpen}
         onOpenChange={setAddVariantOpen}
-        onCreated={handleVariantCreated}
+        onCreated={(variant) => handleVariantCreated(createdVariantToWebsiteRow(variant))}
       />
     </>
   );

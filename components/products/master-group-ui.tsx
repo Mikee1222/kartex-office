@@ -13,7 +13,9 @@ import {
   Weight,
 } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 
+import { AddMasterVariantDialog } from "@/components/products/add-master-variant-dialog";
 import { CategoryBadge } from "@/components/products/category-badge";
 import { StockBar } from "@/components/products/stock-bar";
 import { StockStatusIcon } from "@/components/products/stock-status-icon";
@@ -26,8 +28,10 @@ import {
   type MasterGroup,
   type ProductVariant,
 } from "@/lib/products/master-groups";
+import { masterGroupToVariantMaster } from "@/lib/products/master-variant/adapters";
+import type { CreatedMasterVariantRow } from "@/lib/products/master-variant/types";
 import type { ProductColorVariant } from "@/lib/products/types";
-import { premiumCard, premiumLabel, premiumStatCard } from "@/lib/ui/premium-styles";
+import { premiumCard, premiumLabel, premiumSecondaryButton, premiumStatCard } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
 export const MASTER_GROUP_PAGE_SIZE = 24;
@@ -212,6 +216,7 @@ type ProductMasterGroupCardProps = {
   onToggle: () => void;
   onVariantClick: (variantId: string) => void;
   onVariantEdit: (variantId: string, event: React.MouseEvent) => void;
+  onVariantCreated?: (variant: CreatedMasterVariantRow) => void;
 };
 
 export function ProductMasterGroupCard({
@@ -221,7 +226,15 @@ export function ProductMasterGroupCard({
   onToggle,
   onVariantClick,
   onVariantEdit,
+  onVariantCreated,
 }: ProductMasterGroupCardProps) {
+  const [addVariantOpen, setAddVariantOpen] = React.useState(false);
+  const variantMaster = React.useMemo(
+    () => masterGroupToVariantMaster(group),
+    [group],
+  );
+  const canAddVariant = variantMaster != null && onVariantCreated != null;
+
   const maxStock = Math.max(...group.variants.map((variant) => variant.stock), 1);
   const uniqueColors = collectUniqueGroupColors(group, variantsByProduct);
   const groupStockBarPct = Math.min(
@@ -413,7 +426,33 @@ export function ProductMasterGroupCard({
               </div>
             );
           })}
+          {canAddVariant ? (
+            <div className="border-t border-gray-100/80 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setAddVariantOpen(true)}
+                className={cn(
+                  premiumSecondaryButton,
+                  "inline-flex h-9 w-full items-center justify-center gap-1.5 text-xs font-semibold",
+                )}
+              >
+                + Νέα Παραλλαγή
+              </button>
+            </div>
+          ) : null}
         </div>
+      ) : null}
+      {canAddVariant && variantMaster ? (
+        <AddMasterVariantDialog
+          master={variantMaster}
+          mode="products"
+          open={addVariantOpen}
+          onOpenChange={setAddVariantOpen}
+          onCreated={(variant) => {
+            onVariantCreated?.(variant);
+            toast.success("Η παραλλαγή δημιουργήθηκε.");
+          }}
+        />
       ) : null}
     </article>
   );

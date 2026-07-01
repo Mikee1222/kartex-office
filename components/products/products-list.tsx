@@ -24,6 +24,8 @@ import {
   resolveMasterGroupKey,
 } from "@/lib/products/master-groups";
 import { fetchVariantsForProducts } from "@/lib/products/color-variants";
+import { isLegacyColorId } from "@/lib/products/master-variant/legacy-color-options";
+import type { CreatedMasterVariantRow } from "@/lib/products/master-variant/types";
 import type { ProductColorVariant } from "@/lib/products/types";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -142,6 +144,58 @@ export function ProductsList() {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [search, activeCategory]);
+
+  async function handleVariantCreated(
+    group: ReturnType<typeof buildMasterGroups>[number],
+    variant: CreatedMasterVariantRow,
+  ) {
+    const now = new Date().toISOString();
+    const newRow: ProductRow = {
+      id: variant.id,
+      name: `${group.cleanName} ${variant.widthCm}×${variant.heightCm}`,
+      clean_name: group.cleanName,
+      sku: variant.sku,
+      barcode: null,
+      category: group.category,
+      subcategory: variant.subcategory,
+      master_id: group.masterId,
+      product_masters: {
+        clean_name: group.cleanName,
+        category: group.category,
+      },
+      purchase_price: 0,
+      sale_price: 0,
+      internal_price_eur: variant.internalPriceEur,
+      stock: variant.stock,
+      reserved_stock: 0,
+      min_stock: 0,
+      supplier: null,
+      description: null,
+      notes: null,
+      width_cm: variant.widthCm,
+      height_cm: variant.heightCm,
+      gsm: variant.gsm,
+      thread_count: variant.threadCount,
+      color: isLegacyColorId(variant.colorId) ? variant.color : null,
+      unit: "τεμ",
+      material: group.material ?? null,
+      quality_grade: group.qualityGrade ?? null,
+      is_active: true,
+      created_at: now,
+    };
+
+    setProducts((current) => [...current, newRow]);
+
+    const supabase = createClient();
+    const variantMap = await fetchVariantsForProducts(supabase, [variant.id]);
+    setVariantsByProduct((current) => {
+      const next = new Map(current);
+      for (const [productId, rows] of variantMap) {
+        next.set(productId, rows);
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
@@ -275,6 +329,9 @@ export function ProductsList() {
                       event.stopPropagation();
                       router.push(`/products/${variantId}/edit`);
                     }}
+                    onVariantCreated={(variant) =>
+                      void handleVariantCreated(group, variant)
+                    }
                   />
                 );
               })}
