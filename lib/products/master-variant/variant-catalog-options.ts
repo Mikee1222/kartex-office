@@ -17,6 +17,7 @@ export type SubcategoryOption = {
 };
 
 export const CUSTOM_DIMENSION_VALUE = "__custom__";
+export const CUSTOM_COLOR_VALUE = "__custom_color__";
 export const CUSTOM_SUBCATEGORY_VALUE = "__custom__";
 
 function formatDimensionLabel(widthCm: number, heightCm: number): string {

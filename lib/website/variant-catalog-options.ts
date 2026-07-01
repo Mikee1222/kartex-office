@@ -1,4 +1,5 @@
 export {
+  CUSTOM_COLOR_VALUE,
   CUSTOM_DIMENSION_VALUE,
   CUSTOM_SUBCATEGORY_VALUE,
   fetchCategoryDimensionOptions,

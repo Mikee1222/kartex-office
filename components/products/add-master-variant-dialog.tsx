@@ -12,11 +12,14 @@ import {
   createMasterVariant,
   generateNextWarehouseSkuForCategory,
 } from "@/lib/products/master-variant/create-master-variant";
+import { toLegacyColorId } from "@/lib/products/master-variant/legacy-color-options";
 import type {
   CreatedMasterVariantRow,
   MasterForVariantCreation,
 } from "@/lib/products/master-variant/types";
 import {
+  CUSTOM_COLOR_VALUE,
+  CUSTOM_DIMENSION_VALUE,
   fetchCategoryDimensionOptions,
   fetchCategorySubcategoryOptions,
   fetchCategoryWarehouseColorOptions,
@@ -39,6 +42,12 @@ type AddMasterVariantDialogProps = {
   onCreated: (variant: CreatedMasterVariantRow) => void;
   mode?: AddMasterVariantDialogMode;
 };
+
+function parsePositiveNumber(value: string): number | null {
+  const parsed = Number.parseFloat(value.trim().replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
 
 export function AddMasterVariantDialog({
   master,
@@ -63,18 +72,27 @@ export function AddMasterVariantDialog({
   const [previewSku, setPreviewSku] = React.useState<string>("—");
 
   const [dimensionKey, setDimensionKey] = React.useState("");
+  const [customWidthCm, setCustomWidthCm] = React.useState("");
+  const [customHeightCm, setCustomHeightCm] = React.useState("");
   const [colorId, setColorId] = React.useState("");
+  const [customColorName, setCustomColorName] = React.useState("");
   const [internalPrice, setInternalPrice] = React.useState("");
   const [startingStock, setStartingStock] = React.useState("0");
 
-  const selectedColor = colors.find((color) => color.id === colorId);
+  const isCustomDimension = dimensionKey === CUSTOM_DIMENSION_VALUE;
+  const isCustomColor = colorId === CUSTOM_COLOR_VALUE;
+  const showDimensionSelect = dimensionOptions.length > 0;
+  const showColorSelect = colors.length > 0;
 
   React.useEffect(() => {
     if (!open) return;
 
     setError(null);
     setDimensionKey("");
+    setCustomWidthCm("");
+    setCustomHeightCm("");
     setColorId("");
+    setCustomColorName("");
     setInternalPrice("");
     setStartingStock("0");
 
@@ -107,6 +125,14 @@ export function AddMasterVariantDialog({
         ),
       );
       setPreviewSku("error" in skuResult ? "—" : skuResult.sku);
+
+      if (dimensions.options.length === 0) {
+        setDimensionKey(CUSTOM_DIMENSION_VALUE);
+      }
+      if (colorResult.colors.length === 0) {
+        setColorId(CUSTOM_COLOR_VALUE);
+      }
+
       setLoadingOptions(false);
     }
 
@@ -117,15 +143,51 @@ export function AddMasterVariantDialog({
     event.preventDefault();
     setError(null);
 
-    const option = dimensionOptions.find((item) => item.key === dimensionKey);
-    if (!option) {
-      setError("Επιλέξτε διαστάσεις από την αποθήκη.");
-      return;
+    let widthCm: number;
+    let heightCm: number;
+
+    if (isCustomDimension) {
+      const parsedWidth = parsePositiveNumber(customWidthCm);
+      const parsedHeight = parsePositiveNumber(customHeightCm);
+      if (parsedWidth == null) {
+        setError("Εισάγετε έγκυρο πλάτος (cm).");
+        return;
+      }
+      if (parsedHeight == null) {
+        setError("Εισάγετε έγκυρο ύψος (cm).");
+        return;
+      }
+      widthCm = parsedWidth;
+      heightCm = parsedHeight;
+    } else {
+      const option = dimensionOptions.find((item) => item.key === dimensionKey);
+      if (!option) {
+        setError("Επιλέξτε διαστάσεις.");
+        return;
+      }
+      widthCm = option.widthCm;
+      heightCm = option.heightCm;
     }
 
-    if (!selectedColor) {
-      setError("Επιλέξτε χρώμα.");
-      return;
+    let resolvedColorId: string;
+    let resolvedColorName: string;
+
+    if (isCustomColor) {
+      const name = customColorName.trim();
+      if (!name) {
+        setError("Εισάγετε όνομα χρώματος.");
+        return;
+      }
+      resolvedColorId = toLegacyColorId(name);
+      resolvedColorName = name;
+    } else {
+      const selectedColor = colors.find((color) => color.id === colorId);
+      if (!selectedColor) {
+        setError("Επιλέξτε χρώμα.");
+        return;
+      }
+      resolvedColorId = selectedColor.id;
+      resolvedColorName = selectedColor.name;
     }
 
     let stock = 0;
@@ -161,10 +223,10 @@ export function AddMasterVariantDialog({
     const supabase = createClient();
     const result = await createMasterVariant(supabase, {
       master,
-      widthCm: option.widthCm,
-      heightCm: option.heightCm,
-      colorId: selectedColor.id,
-      colorName: selectedColor.name,
+      widthCm,
+      heightCm,
+      colorId: resolvedColorId,
+      colorName: resolvedColorName,
       subcategory: defaultSubcategory,
       stock,
       internalPriceEur,
@@ -198,48 +260,99 @@ export function AddMasterVariantDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="variant-dimensions">Διαστάσεις</Label>
-            <select
-              id="variant-dimensions"
-              value={dimensionKey}
-              onChange={(event) => setDimensionKey(event.target.value)}
-              className={selectClassName}
-              required
-              disabled={loadingOptions || pending}
-            >
-              <option value="">— Επιλέξτε μέγεθος —</option>
-              {dimensionOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor={showDimensionSelect ? "variant-dimensions" : "variant-custom-width"}>
+              Διαστάσεις
+            </Label>
+            {showDimensionSelect ? (
+              <select
+                id="variant-dimensions"
+                value={dimensionKey}
+                onChange={(event) => setDimensionKey(event.target.value)}
+                className={selectClassName}
+                disabled={loadingOptions || pending}
+              >
+                <option value="">— Επιλέξτε μέγεθος —</option>
+                {dimensionOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value={CUSTOM_DIMENSION_VALUE}>Άλλο μέγεθος…</option>
+              </select>
+            ) : null}
+            {isCustomDimension ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  id="variant-custom-width"
+                  type="number"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
+                  value={customWidthCm}
+                  onChange={(event) => setCustomWidthCm(event.target.value)}
+                  placeholder="Πλάτος"
+                  disabled={loadingOptions || pending}
+                  aria-label="Πλάτος (cm)"
+                />
+                <span className="text-sm text-gray-500" aria-hidden="true">
+                  ×
+                </span>
+                <Input
+                  id="variant-custom-height"
+                  type="number"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
+                  value={customHeightCm}
+                  onChange={(event) => setCustomHeightCm(event.target.value)}
+                  placeholder="Ύψος"
+                  disabled={loadingOptions || pending}
+                  aria-label="Ύψος (cm)"
+                />
+                <span className="shrink-0 text-sm text-gray-500">cm</span>
+              </div>
+            ) : null}
             <p className="text-xs text-gray-500">
-              Μεγέθη που υπάρχουν ήδη στην αποθήκη για την κατηγορία{" "}
-              {master.category}.
+              {showDimensionSelect
+                ? `Μεγέθη που υπάρχουν ήδη στην αποθήκη για την κατηγορία ${master.category}, ή εισαγωγή νέου μεγέθους.`
+                : "Δεν υπάρχουν μεγέθη στην αποθήκη για αυτή την κατηγορία — εισάγετε διαστάσεις."}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="variant-color">Χρώμα</Label>
-            <select
-              id="variant-color"
-              value={colorId}
-              onChange={(event) => setColorId(event.target.value)}
-              className={selectClassName}
-              required
-              disabled={loadingOptions || pending || colors.length === 0}
-            >
-              <option value="">— Επιλέξτε χρώμα —</option>
-              {colors.map((color) => (
-                <option key={color.id} value={color.id}>
-                  {color.name}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor={showColorSelect ? "variant-color" : "variant-custom-color"}>
+              Χρώμα
+            </Label>
+            {showColorSelect ? (
+              <select
+                id="variant-color"
+                value={colorId}
+                onChange={(event) => setColorId(event.target.value)}
+                className={selectClassName}
+                disabled={loadingOptions || pending}
+              >
+                <option value="">— Επιλέξτε χρώμα —</option>
+                {colors.map((color) => (
+                  <option key={color.id} value={color.id}>
+                    {color.name}
+                  </option>
+                ))}
+                <option value={CUSTOM_COLOR_VALUE}>Άλλο χρώμα…</option>
+              </select>
+            ) : null}
+            {isCustomColor ? (
+              <Input
+                id="variant-custom-color"
+                value={customColorName}
+                onChange={(event) => setCustomColorName(event.target.value)}
+                placeholder="Όνομα χρώματος"
+                disabled={loadingOptions || pending}
+              />
+            ) : null}
             <p className="text-xs text-gray-500">
-              Χρώματα που χρησιμοποιούνται ήδη στην αποθήκη για την κατηγορία{" "}
-              {master.category}.
+              {showColorSelect
+                ? `Χρώματα που χρησιμοποιούνται ήδη στην αποθήκη για την κατηγορία ${master.category}, ή εισαγωγή νέου χρώματος.`
+                : "Δεν υπάρχουν χρώματα στην αποθήκη για αυτή την κατηγορία — εισάγετε όνομα χρώματος."}
             </p>
           </div>
 
