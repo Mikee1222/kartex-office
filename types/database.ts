@@ -436,6 +436,7 @@ export type QuoteRequestRow = {
   accepted_at?: string | null;
   order_id?: string | null;
   responded_by?: string | null;
+  session_id?: string | null;
   created_at: string;
   updated_at?: string | null;
   quote_request_items?: QuoteRequestItemRow[] | { count: number }[] | null;

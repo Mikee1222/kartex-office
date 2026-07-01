@@ -97,3 +97,57 @@ export type AnalyticsTrackPayload =
   | AnalyticsHeartbeatPayload
   | AnalyticsEventPayload
   | AnalyticsPageviewDurationPayload;
+
+export type AnalyticsDatePreset = "today" | "7d" | "30d";
+
+export type AnalyticsStatCards = {
+  activeSessionsNow: number;
+  /** Distinct sessions that started today (Europe/Athens), regardless of selected range. */
+  visitsToday: number;
+  pagesPerVisit: number;
+  avgTimeOnSiteSeconds: number;
+  conversionRatePct: number;
+  /** Sessions in the selected date range (conversion denominator). */
+  sessionsInRange: number;
+  convertedSessionsInRange: number;
+};
+
+export type AnalyticsPopularPageRow = {
+  path: string;
+  count: number;
+  avgTimeOnPageSeconds: number | null;
+};
+
+export type AnalyticsBreakdownRow = {
+  id: string;
+  label: string;
+  count: number;
+  pct: number;
+};
+
+export type AnalyticsCtaRow = {
+  target: string;
+  count: number;
+  typicalPage: string;
+};
+
+export type AnalyticsConversionRow = {
+  id: string;
+  submittedAt: string;
+  companyName: string;
+  contactName: string;
+  journey: string[];
+};
+
+export type AnalyticsDashboardData = {
+  fetchedAt: string;
+  rangeLabel: string;
+  preset: AnalyticsDatePreset;
+  stats: AnalyticsStatCards;
+  popularPages: AnalyticsPopularPageRow[];
+  devices: AnalyticsBreakdownRow[];
+  browsers: AnalyticsBreakdownRow[];
+  referrers: AnalyticsBreakdownRow[];
+  topCtas: AnalyticsCtaRow[];
+  recentConversions: AnalyticsConversionRow[];
+};
