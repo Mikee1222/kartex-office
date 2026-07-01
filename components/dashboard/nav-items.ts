@@ -5,6 +5,7 @@ import {
   FileQuestion,
   LayoutDashboard,
   LayoutGrid,
+  MapPin,
   Package,
   Palette,
   Receipt,
@@ -83,6 +84,12 @@ export const navSections: NavSection[] = [
         label: "Οδηγοί",
         href: "/drivers",
         icon: UserRound,
+        permission: "canViewOrders",
+      },
+      {
+        label: "Live Οδηγοί",
+        href: "/drivers/live",
+        icon: MapPin,
         permission: "canViewOrders",
       },
       {
