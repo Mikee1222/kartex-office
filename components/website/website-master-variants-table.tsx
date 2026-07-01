@@ -5,10 +5,10 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import type { ProductColor } from "@/lib/products/types";
 import type { WebsiteProductMasterVariantRow } from "@/lib/website/types";
+import { mergeWarehouseColorOptions, resolveVariantColorSelectValue } from "@/lib/website/legacy-color-options";
 import {
   fetchCategoryDimensionOptions,
   fetchCategoryWarehouseColorOptions,
-  mergeWarehouseColorOptions,
   type DimensionOption,
 } from "@/lib/website/variant-catalog-options";
 import { premiumTableHead, premiumTableRow } from "@/lib/ui/premium-styles";
@@ -198,13 +198,13 @@ function ColorCell({
   onSave,
 }: ColorCellProps) {
   const [saving, setSaving] = React.useState(false);
-  const value = colorId ?? "";
+  const value = resolveVariantColorSelectValue(colorId, colorName);
 
   async function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const nextColorId = event.target.value;
-    if (!nextColorId || nextColorId === colorId) return;
+    const nextValue = event.target.value;
+    if (!nextValue || nextValue === value) return;
 
-    const selected = colors.find((color) => color.id === nextColorId);
+    const selected = colors.find((color) => color.id === nextValue);
     if (!selected) return;
 
     setSaving(true);
@@ -226,7 +226,7 @@ function ColorCell({
       className={editableSelectClass}
       aria-label="Χρώμα"
     >
-      {!colorId ? <option value="">—</option> : null}
+      {!value ? <option value="">—</option> : null}
       {colors.map((color) => (
         <option key={color.id} value={color.id}>
           {color.name}

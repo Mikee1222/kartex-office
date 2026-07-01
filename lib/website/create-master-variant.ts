@@ -7,6 +7,7 @@ import {
   getWarehouseSkuPrefix,
   parseWarehouseSkuSuffix,
 } from "@/lib/products/warehouse-sku";
+import { isLegacyColorId, toLegacyColorId } from "@/lib/website/legacy-color-options";
 import type {
   WebsiteProductMasterRow,
   WebsiteProductMasterVariantRow,
@@ -86,6 +87,9 @@ function variantHasDuplicateColor(
   );
 
   if (activeVariants.length > 0) {
+    if (isLegacyColorId(colorId)) {
+      return false;
+    }
     return activeVariants.some((row) => row.color_id === colorId);
   }
 
@@ -241,6 +245,7 @@ export async function createWebsiteMasterVariant(
       sale_price: 0,
       min_stock: 0,
       is_active: true,
+      color: isLegacyColorId(colorId) ? colorName.trim() : null,
     })
     .select(
       "id, width_cm, height_cm, gsm, thread_count, color, sku, stock, subcategory, internal_price_eur",
@@ -249,6 +254,28 @@ export async function createWebsiteMasterVariant(
 
   if (insertError || !inserted) {
     return { error: insertError?.message ?? "Αποτυχία δημιουργίας παραλλαγής." };
+  }
+
+  if (isLegacyColorId(colorId)) {
+    return {
+      variant: {
+        id: inserted.id,
+        widthCm: inserted.width_cm,
+        heightCm: inserted.height_cm,
+        gsm: inserted.gsm,
+        threadCount: inserted.thread_count,
+        color: colorName,
+        colorId: toLegacyColorId(colorName),
+        sku: inserted.sku?.trim() ?? skuResult.sku,
+        stock: inserted.stock ?? Math.max(0, Math.round(stock)),
+        subcategory: inserted.subcategory?.trim() || subcategory?.trim() || null,
+        internalPriceEur:
+          inserted.internal_price_eur != null
+            ? Number(inserted.internal_price_eur)
+            : internalPriceEur,
+        isActive: true,
+      },
+    };
   }
 
   const { error: colorError, totalStock } = await saveProductColorVariants(

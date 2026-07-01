@@ -3,8 +3,13 @@ import { toast } from "sonner";
 
 import type { WebsiteVariantFieldPatch } from "@/components/website/website-master-variants-table";
 import {
+  isLegacyColorId,
+  toLegacyColorId,
+} from "@/lib/website/legacy-color-options";
+import {
   updateVariantCatalogColor,
   updateVariantDimensions,
+  updateVariantLegacyColor,
 } from "@/lib/website/variant-field-updates";
 
 type VariantFieldSaveContext = {
@@ -46,12 +51,14 @@ export async function saveVariantColor(
   stock: number,
 ): Promise<boolean> {
   ctx.setBusyVariantId(variantId);
-  const result = await updateVariantCatalogColor(
-    ctx.supabase,
-    variantId,
-    colorId,
-    stock,
-  );
+  const result = isLegacyColorId(colorId)
+    ? await updateVariantLegacyColor(ctx.supabase, variantId, colorName)
+    : await updateVariantCatalogColor(
+        ctx.supabase,
+        variantId,
+        colorId,
+        stock,
+      );
   ctx.setBusyVariantId(null);
 
   if (result.error) {
@@ -60,7 +67,9 @@ export async function saveVariantColor(
   }
 
   ctx.patchVariant(variantId, {
-    colorId: result.colorId,
+    colorId: isLegacyColorId(colorId)
+      ? toLegacyColorId(result.colorName)
+      : result.colorId,
     color: result.colorName,
   });
   toast.success("Το χρώμα αποθηκεύτηκε.");

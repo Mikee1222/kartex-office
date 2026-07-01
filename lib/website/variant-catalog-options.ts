@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ProductColor } from "@/lib/products/types";
 
+import { toLegacyColorId } from "@/lib/website/legacy-color-options";
+
 export type DimensionOption = {
   key: string;
   widthCm: number;
@@ -153,6 +155,17 @@ export async function fetchCategoryWarehouseColorOptions(
           hexCode: catalog.hex_code,
           isActive: true,
         });
+        continue;
+      }
+
+      const legacyId = toLegacyColorId(legacyName);
+      if (!byId.has(legacyId)) {
+        byId.set(legacyId, {
+          id: legacyId,
+          name: legacyName,
+          hexCode: "",
+          isActive: true,
+        });
       }
     }
   }
@@ -164,27 +177,7 @@ export async function fetchCategoryWarehouseColorOptions(
   return { colors, error: null };
 }
 
-export function mergeWarehouseColorOptions(
-  options: ProductColor[],
-  currentColorId: string | null,
-  currentColorName: string | null,
-): ProductColor[] {
-  if (!currentColorId) {
-    return options;
-  }
-  if (options.some((color) => color.id === currentColorId)) {
-    return options;
-  }
-  return [
-    ...options,
-    {
-      id: currentColorId,
-      name: currentColorName?.trim() || "Τρέχον χρώμα",
-      hexCode: "#CCCCCC",
-      isActive: true,
-    },
-  ];
-}
+export { mergeWarehouseColorOptions } from "@/lib/website/legacy-color-options";
 
 export async function fetchCategorySubcategoryOptions(
   supabase: SupabaseClient,

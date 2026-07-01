@@ -182,3 +182,45 @@ export async function updateVariantCatalogColor(
 
   return { colorId, colorName: colorRow.name, error: null };
 }
+
+export async function updateVariantLegacyColor(
+  supabase: SupabaseClient,
+  variantId: string,
+  colorName: string,
+): Promise<{ colorId: null; colorName: string; error: string | null }> {
+  const trimmed = colorName.trim();
+  if (!trimmed) {
+    return { colorId: null, colorName: "", error: "Επιλέξτε χρώμα." };
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("product_color_variants")
+    .select("id, is_active")
+    .eq("product_id", variantId);
+
+  if (fetchError) {
+    return { colorId: null, colorName: trimmed, error: fetchError.message };
+  }
+
+  for (const row of existing ?? []) {
+    if (row.is_active === false) continue;
+    const { error } = await supabase
+      .from("product_color_variants")
+      .update({ is_active: false, is_primary: false })
+      .eq("id", row.id);
+    if (error) {
+      return { colorId: null, colorName: trimmed, error: error.message };
+    }
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({ color: trimmed })
+    .eq("id", variantId);
+
+  return {
+    colorId: null,
+    colorName: trimmed,
+    error: error?.message ?? null,
+  };
+}
