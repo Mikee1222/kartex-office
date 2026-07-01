@@ -100,6 +100,13 @@ export type AnalyticsTrackPayload =
 
 export type AnalyticsDatePreset = "today" | "7d" | "30d";
 
+export type AnalyticsStatTrend = {
+  /** Percent change vs comparison window; null when comparison baseline is zero. */
+  pctChange: number | null;
+  /** Human label for the comparison, e.g. "από χθες". */
+  comparisonLabel: string;
+};
+
 export type AnalyticsStatCards = {
   activeSessionsNow: number;
   /** Distinct sessions that started today (Europe/Athens), regardless of selected range. */
@@ -110,10 +117,18 @@ export type AnalyticsStatCards = {
   /** Sessions in the selected date range (conversion denominator). */
   sessionsInRange: number;
   convertedSessionsInRange: number;
+  /** Optional day-over-day trends (today preset only). */
+  trends?: {
+    visitsToday?: AnalyticsStatTrend;
+    pagesPerVisit?: AnalyticsStatTrend;
+    conversionRatePct?: AnalyticsStatTrend;
+  };
 };
 
 export type AnalyticsPopularPageRow = {
   path: string;
+  /** Resolved product clean_name when path is /{locale}/products/{uuid}. */
+  displayPath: string;
   count: number;
   avgTimeOnPageSeconds: number | null;
 };
@@ -129,6 +144,7 @@ export type AnalyticsCtaRow = {
   target: string;
   count: number;
   typicalPage: string;
+  displayTypicalPage: string;
 };
 
 export type AnalyticsConversionRow = {

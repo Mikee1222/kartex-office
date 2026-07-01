@@ -1,23 +1,26 @@
 "use client";
 
-import { Activity, Globe, RefreshCw } from "lucide-react";
+import { Activity, Globe, MousePointerClick, RefreshCw, Route } from "lucide-react";
 import * as React from "react";
 
 import { DataError } from "@/components/dashboard/data-error";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { AnalyticsBreakdownChart } from "@/components/website/analytics-breakdown-chart";
 import {
-  HorizontalBarChart,
-  ReportKpiRow,
-  ReportTable,
-} from "@/components/reports/report-ui";
+  AnalyticsDataTable,
+  formatPageAvgTime,
+} from "@/components/website/analytics-data-table";
+import { AnalyticsStatCards } from "@/components/website/analytics-stat-cards";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatReportDateTime } from "@/lib/reports/date-range";
-import { breakdownToChartPoints } from "@/lib/website/analytics-chart-utils";
-import { formatDurationSeconds } from "@/lib/website/analytics-date-range";
+import {
+  breakdownToAnalyticsChartPoints,
+  preferDonutChart,
+} from "@/lib/website/analytics-chart-utils";
 import type {
   AnalyticsDashboardData,
   AnalyticsDatePreset,
 } from "@/lib/website/analytics-types";
-import type { ReportKpi } from "@/lib/reports/compute-analytics";
 import {
   premiumFilterTabActive,
   premiumFilterTabInactive,
@@ -35,53 +38,19 @@ const RANGE_TABS: { id: AnalyticsDatePreset; label: string }[] = [
   { id: "30d", label: "Τελευταίες 30 ημέρες" },
 ];
 
-function buildKpis(data: AnalyticsDashboardData): ReportKpi[] {
-  return [
-    {
-      key: "active",
-      label: "Ενεργές συνεδρίες τώρα",
-      value: String(data.stats.activeSessionsNow),
-      tone: data.stats.activeSessionsNow > 0 ? "success" : "default",
-      hint: "Τελευταία 5 λεπτά",
-    },
-    {
-      key: "visits",
-      label: "Επισκέψεις σήμερα",
-      value: String(data.stats.visitsToday),
-      hint: "Europe/Athens",
-    },
-    {
-      key: "pages",
-      label: "Σελίδες/επίσκεψη",
-      value: data.stats.pagesPerVisit.toLocaleString("el-GR", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      }),
-      hint: data.rangeLabel,
-    },
-    {
-      key: "duration",
-      label: "Μέσος χρόνος στο site",
-      value: formatDurationSeconds(data.stats.avgTimeOnSiteSeconds),
-      hint: `Μέγ. 2ω — ${data.rangeLabel}`,
-    },
-    {
-      key: "conversion",
-      label: "Ποσοστό μετατροπής",
-      value: `${data.stats.conversionRatePct.toLocaleString("el-GR", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      })}%`,
-      tone: data.stats.conversionRatePct >= 5 ? "success" : "default",
-      hint: `${data.stats.convertedSessionsInRange}/${data.stats.sessionsInRange} συνεδρίες`,
-    },
-  ];
-}
-
 function secondsAgoLabel(fetchedAt: string, now: number): string {
   const seconds = Math.max(0, Math.floor((now - new Date(fetchedAt).getTime()) / 1000));
   if (seconds < 5) return "μόλις τώρα";
   return `${seconds} δευτερόλεπτα`;
+}
+
+function hasAnyData(data: AnalyticsDashboardData): boolean {
+  return (
+    data.stats.sessionsInRange > 0 ||
+    data.popularPages.length > 0 ||
+    data.topCtas.length > 0 ||
+    data.recentConversions.length > 0
+  );
 }
 
 export function AnalyticsDashboardView() {
@@ -140,7 +109,8 @@ export function AnalyticsDashboardView() {
     return () => window.clearInterval(interval);
   }, [load]);
 
-  const kpis = data ? buildKpis(data) : [];
+  const showEmpty =
+    !loading && !error && data != null && !hasAnyData(data);
 
   return (
     <div className="space-y-6">
@@ -206,91 +176,142 @@ export function AnalyticsDashboardView() {
 
       {error ? <DataError message={error} onRetry={() => void load()} /> : null}
 
-      <ReportKpiRow kpis={kpis} loading={loading} />
+      <AnalyticsStatCards stats={data?.stats ?? null} loading={loading} />
 
-      {!loading && data ? (
+      {showEmpty ? (
+        <EmptyState
+          icon={Globe}
+          title="Δεν υπάρχουν δεδομένα analytics"
+          description="Όταν επισκέπτες αλληλεπιδράσουν με το kartex.gr, οι επισκέψεις, οι πηγές και τα CTA θα εμφανίζονται εδώ."
+        />
+      ) : null}
+
+      {!loading && data && hasAnyData(data) ? (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <HorizontalBarChart
-              title="Συσκευές (%)"
-              data={breakdownToChartPoints(data.devices)}
-            />
-            <HorizontalBarChart
-              title="Browsers (%)"
-              data={breakdownToChartPoints(data.browsers)}
-            />
-          </div>
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-kartex-navy">Κατανομή επισκεπτών</h2>
+              <p className="text-xs text-muted-foreground">
+                Συσκευές, browsers και πηγές για την επιλεγμένη περίοδο.
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              <AnalyticsBreakdownChart
+                title="Συσκευές"
+                description="Desktop, κινητό ή tablet."
+                data={breakdownToAnalyticsChartPoints(data.devices)}
+                preferDonut={preferDonutChart(data.devices.length)}
+                totalLabel="συνεδρίες"
+              />
+              <AnalyticsBreakdownChart
+                title="Browsers"
+                description="Ποιο browser χρησιμοποιούν οι επισκέπτες."
+                data={breakdownToAnalyticsChartPoints(data.browsers)}
+                preferDonut={preferDonutChart(data.browsers.length)}
+                totalLabel="συνεδρίες"
+              />
+              <AnalyticsBreakdownChart
+                title="Πηγές επισκεψιμότητας"
+                description="Απευθείας, Google, social ή άλλες πηγές."
+                data={breakdownToAnalyticsChartPoints(data.referrers)}
+                preferDonut={preferDonutChart(data.referrers.length)}
+                totalLabel="συνεδρίες"
+              />
+            </div>
+          </section>
 
-          <HorizontalBarChart
-            title="Πηγές επισκεψιμότητας (%)"
-            data={breakdownToChartPoints(data.referrers)}
-          />
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-kartex-navy">Συμπεριφορά στο site</h2>
+              <p className="text-xs text-muted-foreground">
+                Ποιες σελίδες βλέπουν και ποια κουμπιά κάνουν κλικ.
+              </p>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <AnalyticsDataTable
+                title="Δημοφιλέστερες σελίδες"
+                description="Κατάταξη pageviews με μέσο χρόνο ανά σελίδα."
+                columns={[
+                  { key: "path", label: "Διαδρομή" },
+                  { key: "count", label: "Επισκέψεις", align: "right", barKey: true },
+                  { key: "avgTime", label: "Μέσος χρόνος", align: "right" },
+                ]}
+                rows={data.popularPages.map((row) => ({
+                  path: row.path,
+                  count: row.count,
+                  avgTime: formatPageAvgTime(row.avgTimeOnPageSeconds),
+                }))}
+                emptyTitle="Δεν υπάρχουν pageviews"
+                emptyDescription="Δεν καταγράφηκαν προβολές σελίδων στην επιλεγμένη περίοδο."
+              />
 
-          <ReportTable
-            title="Δημοφιλέστερες σελίδες"
-            columns={[
-              { key: "path", label: "Διαδρομή" },
-              { key: "count", label: "Επισκέψεις", align: "right" },
-              { key: "avgTime", label: "Μέσος χρόνος", align: "right" },
-            ]}
-            rows={data.popularPages.map((row) => ({
-              path: row.path,
-              count: row.count,
-              avgTime:
-                row.avgTimeOnPageSeconds != null
-                  ? formatDurationSeconds(row.avgTimeOnPageSeconds)
-                  : "—",
-            }))}
-            emptyMessage="Δεν υπάρχουν pageviews στην επιλεγμένη περίοδο."
-          />
+              <AnalyticsDataTable
+                title="Δημοφιλέστερα CTA"
+                description="Κλικ σε κουμπιά δράσης και τυπική σελίδα προέλευσης."
+                columns={[
+                  { key: "target", label: "CTA" },
+                  { key: "count", label: "Κλικ", align: "right", barKey: true },
+                  { key: "typicalPage", label: "Τυπική σελίδα" },
+                ]}
+                rows={data.topCtas.map((row) => ({
+                  target: row.target,
+                  count: row.count,
+                  typicalPage: row.typicalPage,
+                }))}
+                emptyTitle="Δεν καταγράφηκαν κλικ CTA"
+                emptyDescription="Τα κλικ σε κουμπιά προσφοράς και επικοινωνίας θα εμφανίζονται εδώ."
+              />
+            </div>
+          </section>
 
-          <ReportTable
-            title="Δημοφιλέστερα CTA"
-            columns={[
-              { key: "target", label: "CTA" },
-              { key: "count", label: "Κλικ", align: "right" },
-              { key: "typicalPage", label: "Τυπική σελίδα" },
-            ]}
-            rows={data.topCtas.map((row) => ({
-              target: row.target,
-              count: row.count,
-              typicalPage: row.typicalPage,
-            }))}
-            emptyMessage="Δεν καταγράφηκαν κλικ CTA."
-          />
-
-          <Card className={cn(premiumStatCard, "border-border/80")}>
-            <CardHeader>
-              <CardTitle className="text-lg text-kartex-navy">Πρόσφατες μετατροπές</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.recentConversions.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  Δεν υπάρχουν αιτήματα προσφοράς με συνδεδεμένη συνεδρία.
-                </p>
-              ) : (
-                data.recentConversions.map((conversion) => (
-                  <div
-                    key={conversion.id}
-                    className="rounded-xl border border-gray-100 bg-gray-50/60 p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-kartex-navy">{conversion.companyName}</p>
-                        <p className="text-sm text-muted-foreground">{conversion.contactName}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {formatReportDateTime(conversion.submittedAt)}
-                      </p>
-                    </div>
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                      {conversion.journey.join(" → ")}
-                    </p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-kartex-navy">Μετατροπές</h2>
+              <p className="text-xs text-muted-foreground">
+                Αιτήματα προσφοράς με συνδεδεμένη διαδρομή επισκέπτη.
+              </p>
+            </div>
+            <Card className={cn(premiumStatCard, "overflow-hidden border-border/80")}>
+              <CardHeader className="border-b border-gray-100 bg-white">
+                <CardTitle className="text-sm font-semibold text-kartex-navy">
+                  Πρόσφατες μετατροπές
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.recentConversions.length === 0 ? (
+                  <EmptyState
+                    icon={Route}
+                    title="Δεν υπάρχουν μετατροπές"
+                    description="Όταν ένα αίτημα προσφοράς συνδέεται με analytics session, η διαδρομή θα εμφανίζεται εδώ."
+                    className="py-8"
+                  />
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {data.recentConversions.map((conversion) => (
+                      <li
+                        key={conversion.id}
+                        className="p-5 transition-colors hover:bg-gold-500/[0.03]"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-kartex-navy">{conversion.companyName}</p>
+                            <p className="text-sm text-muted-foreground">{conversion.contactName}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatReportDateTime(conversion.submittedAt)}
+                          </p>
+                        </div>
+                        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                          <MousePointerClick className="mt-0.5 size-3.5 shrink-0 text-gold-500/70" aria-hidden />
+                          {conversion.journey.join(" → ")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </section>
         </>
       ) : null}
     </div>

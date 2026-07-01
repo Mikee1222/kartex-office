@@ -1,8 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAthensDateString } from "@/lib/datetime";
 import {
+  getPartialDayBounds,
+  pctChange,
   resolveAnalyticsDateBounds,
   type AnalyticsDatePreset,
 } from "@/lib/website/analytics-date-range";
+import {
+  formatAnalyticsPath,
+  resolveAnalyticsPaths,
+} from "@/lib/website/analytics-path-resolver";
 import { bucketReferrer } from "@/lib/website/analytics-referrer";
 import type {
   AnalyticsBreakdownRow,
@@ -50,6 +57,130 @@ type QuoteRow = {
   created_at: string;
 };
 
+function addDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, day!, 12, 0, 0));
+  date.setUTCDate(date.getUTCDate() + days);
+  return getAthensDateString(date);
+}
+
+async function countSessionsInWindow(
+  supabase: ReturnType<typeof createAdminClient>,
+  startIso: string,
+  endIso: string,
+): Promise<number> {
+  const { count } = await supabase
+    .from("analytics_sessions")
+    .select("session_id", { count: "exact", head: true })
+    .gte("started_at", startIso)
+    .lt("started_at", endIso);
+  return count ?? 0;
+}
+
+async function computePartialDayMetrics(
+  supabase: ReturnType<typeof createAdminClient>,
+  startIso: string,
+  endIso: string,
+): Promise<{ sessions: number; pagesPerVisit: number; conversionRatePct: number }> {
+  const { data: sessionsData } = await supabase
+    .from("analytics_sessions")
+    .select("session_id")
+    .gte("started_at", startIso)
+    .lt("started_at", endIso);
+
+  const sessionIds = (sessionsData ?? []).map(
+    (row) => (row as { session_id: string }).session_id,
+  );
+  const sessions = sessionIds.length;
+
+  if (sessions === 0) {
+    return { sessions: 0, pagesPerVisit: 0, conversionRatePct: 0 };
+  }
+
+  const [{ count: pageviewCount }, { data: convertedRows }] = await Promise.all([
+    supabase
+      .from("analytics_pageviews")
+      .select("id", { count: "exact", head: true })
+      .in("session_id", sessionIds),
+    supabase
+      .from("quote_requests")
+      .select("session_id")
+      .in("session_id", sessionIds)
+      .not("session_id", "is", null),
+  ]);
+
+  const converted = new Set(
+    (convertedRows ?? [])
+      .map((row) => (row as { session_id: string | null }).session_id)
+      .filter((value): value is string => Boolean(value)),
+  ).size;
+
+  return {
+    sessions,
+    pagesPerVisit: Math.round(((pageviewCount ?? 0) / sessions) * 10) / 10,
+    conversionRatePct: Math.round((converted / sessions) * 1000) / 10,
+  };
+}
+
+async function loadTodayTrends(
+  supabase: ReturnType<typeof createAdminClient>,
+  now: Date,
+): Promise<AnalyticsDashboardData["stats"]["trends"]> {
+  const today = getAthensDateString(now);
+  const yesterday = addDays(today, -1);
+  const todayPartial = getPartialDayBounds(today, now);
+  const yesterdayPartial = getPartialDayBounds(yesterday, now);
+
+  const [todayVisits, yesterdayVisits, todayMetrics, yesterdayMetrics] = await Promise.all([
+    countSessionsInWindow(supabase, todayPartial.startIso, todayPartial.endIso),
+    countSessionsInWindow(supabase, yesterdayPartial.startIso, yesterdayPartial.endIso),
+    computePartialDayMetrics(supabase, todayPartial.startIso, todayPartial.endIso),
+    computePartialDayMetrics(supabase, yesterdayPartial.startIso, yesterdayPartial.endIso),
+  ]);
+
+  const comparisonLabel = "από χθες";
+
+  const trends: NonNullable<AnalyticsDashboardData["stats"]["trends"]> = {
+    visitsToday: {
+      pctChange: pctChange(todayVisits, yesterdayVisits),
+      comparisonLabel,
+    },
+  };
+
+  if (todayMetrics.sessions >= 3 && yesterdayMetrics.sessions >= 3) {
+    trends.pagesPerVisit = {
+      pctChange: pctChange(todayMetrics.pagesPerVisit, yesterdayMetrics.pagesPerVisit),
+      comparisonLabel,
+    };
+    trends.conversionRatePct = {
+      pctChange: pctChange(todayMetrics.conversionRatePct, yesterdayMetrics.conversionRatePct),
+      comparisonLabel,
+    };
+  }
+
+  return trends;
+}
+
+async function enrichPopularPages(
+  rows: AnalyticsPopularPageRow[],
+): Promise<AnalyticsPopularPageRow[]> {
+  const paths = rows.map((row) => row.path);
+  const resolved = await resolveAnalyticsPaths(paths);
+  return rows.map((row) => ({
+    ...row,
+    displayPath: formatAnalyticsPath(row.path, resolved),
+  }));
+}
+
+async function enrichCtas(rows: AnalyticsCtaRow[]): Promise<AnalyticsCtaRow[]> {
+  const paths = rows.map((row) => row.typicalPage).filter((path) => path !== "—");
+  const resolved = await resolveAnalyticsPaths(paths);
+  return rows.map((row) => ({
+    ...row,
+    displayTypicalPage: formatAnalyticsPath(row.typicalPage, resolved),
+  }));
+}
+
 function sessionDurationSeconds(session: SessionRow): number {
   const start = new Date(session.started_at).getTime();
   const end = new Date(session.last_seen_at).getTime();
@@ -73,6 +204,7 @@ function aggregatePopularPages(pageviews: PageviewRow[]): AnalyticsPopularPageRo
   return [...map.entries()]
     .map(([path, stats]) => ({
       path,
+      displayPath: path,
       count: stats.count,
       avgTimeOnPageSeconds:
         stats.timeCount > 0 ? Math.round(stats.totalTime / stats.timeCount) : null,
@@ -110,7 +242,7 @@ function aggregateReferrers(sessions: SessionRow[]): AnalyticsBreakdownRow[] {
 
   for (const session of sessions) {
     const { bucket, label } = bucketReferrer(session.referrer);
-    const key = bucket === "other" ? `other:${label}` : bucket;
+    const key = bucket;
     const existing = counts.get(key) ?? { id: key, label, count: 0 };
     existing.count += 1;
     counts.set(key, existing);
@@ -149,7 +281,7 @@ function aggregateCtas(events: EventRow[]): AnalyticsCtaRow[] {
           typicalPage = path;
         }
       }
-      return { target, count: stats.count, typicalPage };
+      return { target, count: stats.count, typicalPage, displayTypicalPage: typicalPage };
     })
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
@@ -307,8 +439,15 @@ export async function loadAnalyticsDashboard(
     const conversionRatePct =
       sessionsInRange > 0 ? (convertedSessionsInRange / sessionsInRange) * 100 : 0;
 
+    const now = new Date();
+    const [popularPages, topCtas, trends] = await Promise.all([
+      enrichPopularPages(aggregatePopularPages(pageviews)),
+      enrichCtas(aggregateCtas(events)),
+      preset === "today" ? loadTodayTrends(supabase, now) : Promise.resolve(undefined),
+    ]);
+
     const data: AnalyticsDashboardData = {
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: now.toISOString(),
       rangeLabel: bounds.label,
       preset,
       stats: {
@@ -319,8 +458,9 @@ export async function loadAnalyticsDashboard(
         conversionRatePct: Math.round(conversionRatePct * 10) / 10,
         sessionsInRange,
         convertedSessionsInRange,
+        trends,
       },
-      popularPages: aggregatePopularPages(pageviews),
+      popularPages,
       devices: aggregateBreakdown(
         sessions,
         (session) => session.device_type,
@@ -328,7 +468,7 @@ export async function loadAnalyticsDashboard(
       ),
       browsers: aggregateBreakdown(sessions, (session) => session.browser),
       referrers: aggregateReferrers(sessions),
-      topCtas: aggregateCtas(events),
+      topCtas,
       recentConversions: conversionsRes,
     };
 

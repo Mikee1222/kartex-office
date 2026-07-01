@@ -116,3 +116,57 @@ export function formatDurationSeconds(totalSeconds: number): string {
   const remainingMinutes = minutes % 60;
   return remainingMinutes > 0 ? `${hours} ώ. ${remainingMinutes} λ.` : `${hours} ώ.`;
 }
+
+/** Compact duration for stat cards — e.g. "1λ 23δ" when ≥ 60s. */
+export function formatDurationCompact(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return "0δ";
+  const capped = Math.round(totalSeconds);
+  if (capped < 60) return `${capped}δ`;
+  const minutes = Math.floor(capped / 60);
+  const seconds = capped % 60;
+  if (minutes < 60) {
+    return seconds > 0 ? `${minutes}λ ${seconds}δ` : `${minutes}λ`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}ω ${remainingMinutes}λ` : `${hours}ω`;
+}
+
+function getAthensTimeParts(now: Date): { hours: number; minutes: number; seconds: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: APP_TIMEZONE,
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    })
+      .formatToParts(now)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return {
+    hours: Number(parts.hour ?? 0),
+    minutes: Number(parts.minute ?? 0),
+    seconds: Number(parts.second ?? 0),
+  };
+}
+
+/** Sessions from Athens midnight until the same wall-clock time on a given date. */
+export function getPartialDayBounds(dateStr: string, now = new Date()): AnalyticsDateBounds {
+  const { hours, minutes, seconds } = getAthensTimeParts(now);
+  const end = athensLocalToUtc(dateStr, hours, minutes, seconds);
+
+  return {
+    preset: "today",
+    label: dateStr,
+    startIso: athensLocalToUtc(dateStr, 0, 0, 0).toISOString(),
+    endIso: end.toISOString(),
+  };
+}
+
+export function pctChange(current: number, previous: number): number | null {
+  if (previous <= 0) return current > 0 ? 100 : null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
