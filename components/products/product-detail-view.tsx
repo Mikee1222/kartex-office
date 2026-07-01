@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
-  Box,
   Layers,
   Pencil,
   Palette,
@@ -14,12 +12,21 @@ import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { CategoryBadge, getCategoryIconClass } from "@/components/products/category-badge";
+import { CategoryBadge } from "@/components/products/category-badge";
 import { ProductColorStockSection } from "@/components/products/product-color-stock-section";
+import {
+  DetailField,
+  marginBadgeClass,
+  premiumGoldButton,
+  ProductDetailBackLink,
+  ProductDetailHero,
+  ProductDetailSkeleton,
+  ProductDetailStatCard,
+  ProductFinancialsCard,
+} from "@/components/products/product-detail-ui";
 import { getStockStatus } from "@/components/products/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchProductColorVariants,
   setVariantActive,
@@ -28,12 +35,7 @@ import {
 import type { ProductColorVariant } from "@/lib/products/types";
 import { formatDimensionsLabel } from "@/lib/products/form-utils";
 import { calcMargin } from "@/lib/reports/compute-analytics";
-import {
-  premiumCard,
-  premiumGoldButton,
-  premiumLabel,
-  premiumStatCard,
-} from "@/lib/ui/premium-styles";
+import { premiumCard } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatCurrencyEl,
@@ -46,53 +48,6 @@ import { cn } from "@/lib/utils";
 type ProductDetailViewProps = {
   productId: string;
 };
-
-function marginBadgeClass(marginPct: number): string {
-  if (marginPct > 30) return "bg-emerald-100 text-emerald-800";
-  if (marginPct > 15) return "bg-amber-100 text-amber-900";
-  return "bg-red-100 text-red-800";
-}
-
-function DetailField({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <p className={premiumLabel}>{label}</p>
-      <p className="mt-1 text-sm font-medium text-navy-900">{value}</p>
-    </div>
-  );
-}
-
-function ProductDetailSkeleton() {
-  return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-40 w-full rounded-2xl" />
-      <div className="grid gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-48 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-24 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-48 rounded-2xl" />
-        <Skeleton className="h-48 rounded-2xl" />
-      </div>
-      <Skeleton className="h-64 w-full rounded-2xl" />
-    </div>
-  );
-}
 
 export function ProductDetailView({ productId }: ProductDetailViewProps) {
   const [loading, setLoading] = React.useState(true);
@@ -206,13 +161,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   if (error || !product) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <Link
-          href="/products"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-navy-900"
-        >
-          <ArrowLeft className="size-4" />
-          Προϊόντα
-        </Link>
+        <ProductDetailBackLink href="/products" label="Προϊόντα" />
         <p className="text-destructive">{error ?? "Το προϊόν δεν βρέθηκε."}</p>
       </div>
     );
@@ -233,68 +182,29 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <Link
-        href="/products"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 transition-colors hover:text-navy-900"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Προϊόντα
-      </Link>
+      <ProductDetailBackLink href="/products" label="Προϊόντα" />
 
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 p-6 shadow-card sm:p-8">
-        <div
-          className="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-gold-500/10 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex gap-4">
-            <span
-              className={cn(
-                "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white backdrop-blur-sm",
-                getCategoryIconClass(product.category),
-              )}
-            >
-              <Box className="size-7" aria-hidden />
-            </span>
-            <div className="min-w-0 space-y-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {product.cleanName || product.name}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-white/15 px-2.5 py-1 font-mono text-sm font-semibold text-white backdrop-blur-sm">
-                  {product.sku}
-                </span>
-                <CategoryBadge category={product.category} />
-                <button
-                  type="button"
-                  disabled={busy === "product-active"}
-                  onClick={() => void handleToggleProductActive()}
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
-                    product.isActive !== false
-                      ? "bg-success/20 text-emerald-200"
-                      : "bg-white/10 text-white/60",
-                  )}
-                >
-                  {product.isActive !== false ? "Ενεργό" : "Ανενεργό"}
-                </button>
-              </div>
-            </div>
-          </div>
-          <Button
-            asChild
-            className={cn(premiumGoldButton, "shrink-0")}
-          >
+      <ProductDetailHero
+        title={product.cleanName || product.name}
+        category={product.category}
+        isActive={product.isActive !== false}
+        onToggleActive={() => void handleToggleProductActive()}
+        toggleBusy={busy === "product-active"}
+        badges={
+          <span className="rounded-md bg-white/15 px-2.5 py-1 font-mono text-sm font-semibold text-white backdrop-blur-sm">
+            {product.sku}
+          </span>
+        }
+        editAction={
+          <Button asChild className={premiumGoldButton}>
             <Link href={`/products/${productId}/edit`}>
               <Pencil className="size-4" />
               Επεξεργασία
             </Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Configuration Overview Panel */}
       <section className="grid gap-4 md:grid-cols-3">
         <div className={cn(premiumCard, "p-5")}>
           <div className="mb-4 flex items-center justify-between">
@@ -455,42 +365,28 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         </div>
       </section>
 
-      {/* Stats row */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <article className={cn(premiumStatCard, "p-5")}>
-          <div className="flex items-center gap-2 text-gray-400">
-            <Layers className="size-4" aria-hidden />
-            <p className="text-xs font-medium uppercase tracking-wide">Συνολικό Απόθεμα</p>
-          </div>
-          <p className={cn("mt-2 text-[28px] font-semibold leading-none tabular-nums", stockStatusTone[stockStatus])}>
-            {product.stock}
-          </p>
-          <p className="mt-1 text-sm text-gray-400">{unit}</p>
-        </article>
-        <article className={cn(premiumStatCard, "p-5")}>
-          <div className="flex items-center gap-2 text-gray-400">
-            <Wallet className="size-4" aria-hidden />
-            <p className="text-xs font-medium uppercase tracking-wide">Τιμή Αγοράς</p>
-          </div>
-          <p className="mt-2 text-[28px] font-semibold leading-none text-navy-900">
-            {formatCurrencyEl(product.purchasePrice)}
-          </p>
-        </article>
-        <article className={cn(premiumStatCard, "p-5")}>
-          <div className="flex items-center gap-2 text-gray-400">
-            <TrendingUp className="size-4" aria-hidden />
-            <p className="text-xs font-medium uppercase tracking-wide">Τιμή Πώλησης</p>
-          </div>
-          <p className="mt-2 text-[28px] font-semibold leading-none text-navy-900">
-            {formatCurrencyEl(product.salePrice)}
-          </p>
-        </article>
-        <article className={cn(premiumStatCard, "p-5")}>
-          <div className="flex items-center gap-2 text-gray-400">
-            <TrendingUp className="size-4" aria-hidden />
-            <p className="text-xs font-medium uppercase tracking-wide">Περιθώριο %</p>
-          </div>
-          <p className="mt-2">
+        <ProductDetailStatCard
+          icon={Layers}
+          label="Συνολικό Απόθεμα"
+          value={product.stock}
+          hint={unit}
+          valueClassName={stockStatusTone[stockStatus]}
+        />
+        <ProductDetailStatCard
+          icon={Wallet}
+          label="Τιμή Αγοράς"
+          value={formatCurrencyEl(product.purchasePrice)}
+        />
+        <ProductDetailStatCard
+          icon={TrendingUp}
+          label="Τιμή Πώλησης"
+          value={formatCurrencyEl(product.salePrice)}
+        />
+        <ProductDetailStatCard
+          icon={TrendingUp}
+          label="Περιθώριο %"
+          value={
             <span
               className={cn(
                 "inline-flex rounded-full px-3 py-1 text-xl font-semibold tabular-nums",
@@ -499,11 +395,10 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             >
               {marginPct.toFixed(1)}%
             </span>
-          </p>
-        </article>
+          }
+        />
       </section>
 
-      {/* Info grid */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className={premiumCard}>
           <CardHeader>
@@ -555,7 +450,6 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         </Card>
       </div>
 
-      {/* Color variants */}
       <Card className={premiumCard}>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-2 text-lg text-navy-900">
@@ -593,53 +487,31 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         </CardContent>
       </Card>
 
-      {/* Financials */}
-      <Card className={premiumCard}>
-        <CardHeader>
-          <CardTitle className="text-lg text-navy-900">Οικονομικά</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-              <dt className={premiumLabel}>Κόστος</dt>
-              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
-                {formatCurrencyEl(product.purchasePrice)}
-              </dd>
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-              <dt className={premiumLabel}>Πώληση</dt>
-              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
-                {formatCurrencyEl(product.salePrice)}
-              </dd>
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-              <dt className={premiumLabel}>Περιθώριο %</dt>
-              <dd className="mt-1">
-                <span
-                  className={cn(
-                    "inline-flex rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums",
-                    marginBadgeClass(marginPct),
-                  )}
-                >
-                  {marginPct.toFixed(1)}%
-                </span>
-              </dd>
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-              <dt className={premiumLabel}>Κέρδος/τεμ</dt>
-              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
-                {formatCurrencyEl(profitPerUnit)}
-              </dd>
-            </div>
-            <div className="rounded-xl border border-gold-500/20 bg-gold-500/5 p-4 sm:col-span-2 lg:col-span-1">
-              <dt className={premiumLabel}>Συνολική Αξία Αποθέματος</dt>
-              <dd className="mt-1 text-lg font-semibold tabular-nums text-navy-900">
-                {formatCurrencyEl(inventoryValue)}
-              </dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
+      <ProductFinancialsCard
+        items={[
+          { label: "Κόστος", value: formatCurrencyEl(product.purchasePrice) },
+          { label: "Πώληση", value: formatCurrencyEl(product.salePrice) },
+          {
+            label: "Περιθώριο %",
+            value: (
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums",
+                  marginBadgeClass(marginPct),
+                )}
+              >
+                {marginPct.toFixed(1)}%
+              </span>
+            ),
+          },
+          { label: "Κέρδος/τεμ", value: formatCurrencyEl(profitPerUnit) },
+          {
+            label: "Συνολική Αξία Αποθέματος",
+            value: formatCurrencyEl(inventoryValue),
+            highlight: true,
+          },
+        ]}
+      />
 
       {product.description?.trim() ? (
         <Card className={premiumCard}>

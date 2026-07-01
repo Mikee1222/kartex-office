@@ -95,3 +95,99 @@ export function countInventoryMasterStockStats(variants: InventoryMasterVariantR
 
   return { criticalCount, lowCount, okCount };
 }
+
+export type MasterColorSummary = {
+  id: string;
+  name: string;
+  hexCode: string;
+  totalStock: number;
+};
+
+export type MasterInventoryStats = {
+  totalStock: number;
+  variantCount: number;
+  minInternalPrice: number | null;
+  maxInternalPrice: number | null;
+  avgInternalPrice: number | null;
+  avgPurchasePrice: number;
+  avgSalePrice: number;
+  avgMarginPct: number;
+  avgProfitPerUnit: number;
+  totalInventoryValue: number;
+  totalSaleValue: number;
+};
+
+function weightedAverage(
+  items: { value: number; weight: number }[],
+): number {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  if (totalWeight <= 0) return 0;
+  const weightedSum = items.reduce((sum, item) => sum + item.value * item.weight, 0);
+  return weightedSum / totalWeight;
+}
+
+export function computeMasterInventoryStats(
+  variants: InventoryMasterVariantRow[],
+): MasterInventoryStats {
+  const totalStock = variants.reduce((sum, variant) => sum + variant.stock, 0);
+  const variantCount = variants.length;
+
+  const internalPrices = variants
+    .map((variant) => variant.internalPriceEur)
+    .filter((price): price is number => price != null && price > 0);
+
+  const minInternalPrice =
+    internalPrices.length > 0 ? Math.min(...internalPrices) : null;
+  const maxInternalPrice =
+    internalPrices.length > 0 ? Math.max(...internalPrices) : null;
+  const avgInternalPrice =
+    internalPrices.length > 0
+      ? internalPrices.reduce((sum, price) => sum + price, 0) / internalPrices.length
+      : null;
+
+  const purchaseItems = variants
+    .filter((variant) => variant.purchasePrice > 0)
+    .map((variant) => ({ value: variant.purchasePrice, weight: variant.stock || 1 }));
+  const saleItems = variants
+    .filter((variant) => variant.salePrice > 0)
+    .map((variant) => ({ value: variant.salePrice, weight: variant.stock || 1 }));
+
+  const avgPurchasePrice = weightedAverage(purchaseItems);
+  const avgSalePrice = weightedAverage(saleItems);
+  const avgProfitPerUnit = avgSalePrice - avgPurchasePrice;
+  const avgMarginPct =
+    avgSalePrice > 0 ? (avgProfitPerUnit / avgSalePrice) * 100 : 0;
+
+  const totalInventoryValue = variants.reduce(
+    (sum, variant) => sum + variant.stock * variant.purchasePrice,
+    0,
+  );
+  const totalSaleValue = variants.reduce(
+    (sum, variant) => sum + variant.stock * variant.salePrice,
+    0,
+  );
+
+  return {
+    totalStock,
+    variantCount,
+    minInternalPrice,
+    maxInternalPrice,
+    avgInternalPrice,
+    avgPurchasePrice,
+    avgSalePrice,
+    avgMarginPct,
+    avgProfitPerUnit,
+    totalInventoryValue,
+    totalSaleValue,
+  };
+}
+
+export function formatInternalPriceRange(
+  min: number | null,
+  max: number | null,
+  formatCurrency: (value: number) => string,
+): string {
+  if (min == null || max == null) return "—";
+  if (min === max) return formatCurrency(min);
+  return `${formatCurrency(min)} – ${formatCurrency(max)}`;
+}

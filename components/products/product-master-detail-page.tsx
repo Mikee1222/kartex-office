@@ -6,13 +6,12 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import {
-  ProductCategorySelect,
-  ProductSubcategorySelect,
-} from "@/components/products/product-category-select";
-import { InventoryMasterVariantsPanel } from "@/components/products/inventory-master-variants-panel";
-import { ActiveToggle } from "@/components/website/active-toggle";
+  InventoryProductMasterDetailSkeleton,
+  InventoryProductMasterDetailView,
+} from "@/components/products/inventory-product-master-detail-view";
 import { WebsiteMasterImagesEditor } from "@/components/website/website-master-images-editor";
 import { WebsiteMasterVariantsPanel } from "@/components/website/website-master-variants-panel";
+import { ActiveToggle } from "@/components/website/active-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -100,7 +99,6 @@ export function ProductMasterDetailPage({
 
   const [cleanName, setCleanName] = React.useState("");
   const [category, setCategory] = React.useState("");
-  const [categoryId, setCategoryId] = React.useState("");
   const [subcategory, setSubcategory] = React.useState("");
   const [qualityGrade, setQualityGrade] = React.useState("");
   const [material, setMaterial] = React.useState("");
@@ -187,62 +185,31 @@ export function ProductMasterDetailPage({
     event.preventDefault();
     setSaving(true);
 
-    if (context === "website") {
-      const response = await fetch(`/api/website/product-masters/${masterId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cleanName,
-          category,
-          subcategory: subcategory || null,
-          qualityGrade: qualityGrade || null,
-          material: material || null,
-          description: description || null,
-        }),
-      });
+    const response = await fetch(`/api/website/product-masters/${masterId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cleanName,
+        category,
+        subcategory: subcategory || null,
+        qualityGrade: qualityGrade || null,
+        material: material || null,
+        description: description || null,
+      }),
+    });
 
-      const payload = (await response.json()) as {
-        master?: WebsiteProductMasterRow;
-        error?: string;
-      };
-      setSaving(false);
-
-      if (!response.ok || !payload.master) {
-        toast.error(payload.error ?? "Αποτυχία αποθήκευσης.");
-        return;
-      }
-
-      setMaster(payload.master);
-      toast.success("Οι αλλαγές αποθηκεύτηκαν.");
-      return;
-    }
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("product_masters")
-      .update({
-        clean_name: cleanName.trim(),
-        category: category.trim(),
-        subcategory: subcategory.trim() || null,
-        quality_grade: qualityGrade.trim() || null,
-        material: material.trim() || null,
-        description: description.trim() || null,
-      })
-      .eq("id", masterId)
-      .select(INVENTORY_PRODUCT_MASTER_DETAIL_SELECT)
-      .single();
-
+    const payload = (await response.json()) as {
+      master?: WebsiteProductMasterRow;
+      error?: string;
+    };
     setSaving(false);
 
-    if (error || !data) {
-      toast.error(error?.message ?? "Αποτυχία αποθήκευσης.");
+    if (!response.ok || !payload.master) {
+      toast.error(payload.error ?? "Αποτυχία αποθήκευσης.");
       return;
     }
 
-    const mapped = mapInventoryProductMasterRow(
-      data as Parameters<typeof mapInventoryProductMasterRow>[0],
-    );
-    setMaster(mapped);
+    setMaster(payload.master);
     toast.success("Οι αλλαγές αποθηκεύτηκαν.");
   }
 
@@ -265,6 +232,9 @@ export function ProductMasterDetailPage({
   const websiteUrl = getWebsiteUrl();
 
   if (loading) {
+    if (context === "inventory") {
+      return <InventoryProductMasterDetailSkeleton />;
+    }
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <Loader2 className="size-8 animate-spin text-gold-600" />
@@ -280,6 +250,15 @@ export function ProductMasterDetailPage({
           <Link href={config.notFoundBackHref}>Επιστροφή στη λίστα</Link>
         </Button>
       </div>
+    );
+  }
+
+  if (context === "inventory") {
+    return (
+      <InventoryProductMasterDetailView
+        master={master as InventoryProductMasterRow}
+        onMasterChange={setMaster}
+      />
     );
   }
 
@@ -346,64 +325,43 @@ export function ProductMasterDetailPage({
                   onChange={(event) => setQualityGrade(event.target.value)}
                 />
               </div>
-              {context === "website" ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Κατηγορία</Label>
-                    <select
-                      id="category"
-                      value={category}
-                      onChange={(event) => {
-                        setCategory(event.target.value);
-                        setSubcategory("");
-                      }}
-                      className="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
-                      required
-                    >
-                      <option value="">—</option>
-                      {websiteCategories.map((item) => (
-                        <option key={item.id} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="subcategory">Υποκατηγορία</Label>
-                    <select
-                      id="subcategory"
-                      value={subcategory}
-                      onChange={(event) => setSubcategory(event.target.value)}
-                      className="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
-                      disabled={!category}
-                    >
-                      <option value="">—</option>
-                      {subcategoryOptions.map((item) => (
-                        <option key={item.id} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <ProductCategorySelect
-                    value={category}
-                    onChange={(name, id) => {
-                      setCategory(name);
-                      setCategoryId(id);
-                      setSubcategory("");
-                    }}
-                    required
-                  />
-                  <ProductSubcategorySelect
-                    categoryId={categoryId}
-                    value={subcategory}
-                    onChange={setSubcategory}
-                  />
-                </>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="category">Κατηγορία</Label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(event) => {
+                    setCategory(event.target.value);
+                    setSubcategory("");
+                  }}
+                  className="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
+                  required
+                >
+                  <option value="">—</option>
+                  {websiteCategories.map((item) => (
+                    <option key={item.id} value={item.name}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subcategory">Υποκατηγορία</Label>
+                <select
+                  id="subcategory"
+                  value={subcategory}
+                  onChange={(event) => setSubcategory(event.target.value)}
+                  className="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
+                  disabled={!category}
+                >
+                  <option value="">—</option>
+                  {subcategoryOptions.map((item) => (
+                    <option key={item.id} value={item.name}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="material">Υλικό</Label>
                 <Input
@@ -462,31 +420,19 @@ export function ProductMasterDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {context === "inventory" ? (
-            <InventoryMasterVariantsPanel
-              master={master as InventoryProductMasterRow}
-              disabled={saving}
-              onVariantsChange={(variants) =>
-                setMaster((current) =>
-                  current ? { ...current, variants } : current,
-                )
-              }
-            />
-          ) : (
-            <WebsiteMasterVariantsPanel
-              master={master as WebsiteProductMasterRow}
-              disabled={saving || busyVariantId !== null}
-              setBusyId={setBusyVariantId}
-              variantDetailHrefPrefix={config.variantDetailHrefPrefix}
-              showInternalPrice={config.showInternalPrice}
-              addVariantMode={config.addVariantMode}
-              onVariantsChange={(variants) =>
-                setMaster((current) =>
-                  current ? { ...current, variants } : current,
-                )
-              }
-            />
-          )}
+          <WebsiteMasterVariantsPanel
+            master={master as WebsiteProductMasterRow}
+            disabled={saving || busyVariantId !== null}
+            setBusyId={setBusyVariantId}
+            variantDetailHrefPrefix={config.variantDetailHrefPrefix}
+            showInternalPrice={config.showInternalPrice}
+            addVariantMode={config.addVariantMode}
+            onVariantsChange={(variants) =>
+              setMaster((current) =>
+                current ? { ...current, variants } : current,
+              )
+            }
+          />
         </CardContent>
       </Card>
     </div>
