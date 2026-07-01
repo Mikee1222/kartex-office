@@ -1,11 +1,20 @@
 import type { WebsiteProductMasterRow } from "@/lib/website/types";
+import {
+  mapProductMasterImageRow,
+  primaryImageUrl,
+  sortImages,
+  type RawProductMasterImage,
+} from "@/lib/website/product-master-images";
 
 export const WEBSITE_PRODUCT_MASTERS_SELECT = `
-  id, clean_name, category, subcategory, quality_grade, material, image_url, is_active,
+  id, clean_name, category, subcategory, quality_grade, material, description, image_url, is_active,
+  product_master_images ( id, master_id, url, sort_order, alt_text, created_at ),
   products!products_master_id_fkey (
     id, width_cm, height_cm, gsm, thread_count, color, sku, stock, subcategory, internal_price_eur
   )
 `;
+
+export const WEBSITE_PRODUCT_MASTER_DETAIL_SELECT = WEBSITE_PRODUCT_MASTERS_SELECT;
 
 type RawVariant = {
   id: string;
@@ -27,8 +36,10 @@ type RawMaster = {
   subcategory?: string | null;
   quality_grade?: string | null;
   material?: string | null;
+  description?: string | null;
   image_url?: string | null;
   is_active?: boolean | null;
+  product_master_images?: RawProductMasterImage[] | null;
   products?: RawVariant[] | null;
 };
 
@@ -52,6 +63,15 @@ export function mapWebsiteProductMasterRow(row: RawMaster): WebsiteProductMaster
     internalPriceEur: toNumber(variant.internal_price_eur),
   }));
 
+  const images = sortImages(
+    (row.product_master_images ?? []).map((image) =>
+      mapProductMasterImageRow(image),
+    ),
+  );
+
+  const imageUrl =
+    primaryImageUrl(images, row.image_url?.trim() || null) ?? null;
+
   return {
     id: row.id,
     cleanName: row.clean_name,
@@ -59,8 +79,10 @@ export function mapWebsiteProductMasterRow(row: RawMaster): WebsiteProductMaster
     subcategory: row.subcategory?.trim() || null,
     qualityGrade: row.quality_grade?.trim() || null,
     material: row.material?.trim() || null,
-    imageUrl: row.image_url?.trim() || null,
+    description: row.description?.trim() || null,
+    imageUrl,
     isActive: row.is_active ?? true,
+    images,
     variants,
   };
 }

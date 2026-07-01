@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["sharp"],
 };
 
 export default nextConfig;

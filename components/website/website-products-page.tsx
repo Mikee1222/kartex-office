@@ -255,94 +255,6 @@ export function WebsiteProductsPage() {
     );
   }
 
-  async function handleCategoryChange(masterId: string, categoryName: string) {
-    if (!categoryName) return;
-
-    setBusyId(masterId);
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from("product_masters")
-      .update({ category: categoryName, subcategory: null })
-      .eq("id", masterId);
-
-    setBusyId(null);
-
-    if (updateError) {
-      toast.error(updateError.message);
-      return;
-    }
-
-    updateMaster(masterId, {
-      category: categoryName,
-      subcategory: null,
-    });
-    toast.success("Κατηγορία αποθηκεύτηκε");
-  }
-
-  async function handleSubcategoryChange(
-    masterId: string,
-    subcategoryName: string,
-  ) {
-    setBusyId(masterId);
-    const supabase = createClient();
-    const subcategory = subcategoryName || null;
-    const { error: updateError } = await supabase
-      .from("product_masters")
-      .update({ subcategory })
-      .eq("id", masterId);
-
-    setBusyId(null);
-
-    if (updateError) {
-      toast.error(updateError.message);
-      return;
-    }
-
-    updateMaster(masterId, { subcategory });
-    toast.success("Υποκατηγορία αποθηκεύτηκε");
-  }
-
-  async function handleImageUpload(masterId: string, file: File) {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Επιλέξτε αρχείο εικόνας.");
-      return;
-    }
-
-    setBusyId(masterId);
-    const supabase = createClient();
-    const extension = file.name.split(".").pop() || "jpg";
-    const filePath = `masters/${masterId}/${Date.now()}.${extension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("product-images")
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      setBusyId(null);
-      toast.error(uploadError.message);
-      return;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("product-images").getPublicUrl(filePath);
-
-    const { error: updateError } = await supabase
-      .from("product_masters")
-      .update({ image_url: publicUrl })
-      .eq("id", masterId);
-
-    setBusyId(null);
-
-    if (updateError) {
-      toast.error(updateError.message);
-      return;
-    }
-
-    updateMaster(masterId, { imageUrl: publicUrl });
-    toast.success("Η εικόνα αποθηκεύτηκε.");
-  }
-
   async function handleInternalPriceSave(
     masterId: string,
     variantId: string,
@@ -482,7 +394,7 @@ export function WebsiteProductsPage() {
             </p>
           ) : (
             <div className={premiumTableWrap}>
-              <table className="w-full min-w-[960px]">
+              <table className="w-full min-w-[880px]">
                 <thead>
                   <tr className={premiumTableHead}>
                     <th className="w-10 px-4 py-3">
@@ -497,11 +409,9 @@ export function WebsiteProductsPage() {
                     </th>
                     <th className="w-20 px-4 py-3">Εικόνα</th>
                     <th className="px-4 py-3">Προϊόν</th>
-                    <th className="px-4 py-3">Κατηγορία</th>
-                    <th className="px-4 py-3">Υποκατηγορία</th>
                     <th className="px-4 py-3">Παραλλαγές</th>
                     <th className="px-4 py-3">Ενεργό</th>
-                    <th className="px-4 py-3">Ανέβασμα</th>
+                    <th className="w-28 px-4 py-3">Επεξεργασία</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -517,7 +427,6 @@ export function WebsiteProductsPage() {
                       <WebsiteMasterGroupTableRow
                         key={master.id}
                         master={master}
-                        websiteCategories={websiteCategories}
                         isExpanded={expandedId === master.id}
                         isSelected={selectedIds.has(master.id)}
                         isBusy={isBusy}
@@ -531,18 +440,6 @@ export function WebsiteProductsPage() {
                           toggleSelection(master.id, checked)
                         }
                         onToggleActive={() => void handleToggleActive(master)}
-                        onCategoryChange={(categoryName) =>
-                          void handleCategoryChange(master.id, categoryName)
-                        }
-                        onSubcategoryChange={(subcategoryName) =>
-                          void handleSubcategoryChange(
-                            master.id,
-                            subcategoryName,
-                          )
-                        }
-                        onImageUpload={(file) =>
-                          void handleImageUpload(master.id, file)
-                        }
                         onInternalPriceSave={(variantId, value) =>
                           handleInternalPriceSave(master.id, variantId, value)
                         }

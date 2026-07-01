@@ -67,6 +67,15 @@ export type WebsiteProductMasterVariantRow = {
   internalPriceEur: number | null;
 };
 
+export type ProductMasterImageRow = {
+  id: string;
+  masterId: string;
+  url: string;
+  sortOrder: number;
+  altText: string | null;
+  createdAt: string | null;
+};
+
 export type WebsiteProductMasterRow = {
   id: string;
   cleanName: string;
@@ -74,8 +83,10 @@ export type WebsiteProductMasterRow = {
   subcategory: string | null;
   qualityGrade: string | null;
   material: string | null;
+  description: string | null;
   imageUrl: string | null;
   isActive: boolean;
+  images: ProductMasterImageRow[];
   variants: WebsiteProductMasterVariantRow[];
 };
 
