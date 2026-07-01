@@ -134,13 +134,11 @@ update public.product_masters set
 where id = 'eea24ab1-2176-4869-856a-14291f124929';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '545392a7-8de7-4ef5-9b0f-5e5fcdd778a2';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '553b216a-4846-4adc-8c0f-9968adfc8a1a';
 
 update public.product_masters set
@@ -209,48 +207,39 @@ update public.product_masters set
 where id = '902fad0f-f576-4e9c-abc3-2f49fa69d219';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'b1cfd1a5-2f43-4544-bebb-4888a9b96013';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'f2381e47-b334-465a-b318-6979b00a2e12';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '66a6f974-5416-4e3d-94bf-06b35a388942';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '94fdbe22-7ec7-4a5c-a3ed-bf938e257e8d';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '65373b53-d9db-4d51-85a9-2f33b49c7dd8';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'c72205f5-dfdf-46d9-8073-0c0414632ec8';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '9a76aa89-117c-4c7d-aa3c-8c9a1990e0fa';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '03944f82-247b-494f-a3b4-eea0a5fe64e8';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'ab5a91c8-6cb7-4671-a541-1d6ff115b512';
 
 update public.product_masters set
@@ -259,23 +248,19 @@ update public.product_masters set
 where id = '4a082a22-f63e-404d-a28d-34834996152e';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'fd57c9be-6303-4e63-b015-87e4f04c66bc';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'e281a0d2-1597-4ef1-aa33-9fba684ae83e';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'bb8535c6-4c99-4c9e-af05-f770047e801a';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '4f34b5ae-9544-4303-bd32-ee0a28c60f61';
 
 update public.product_masters set
@@ -284,18 +269,15 @@ update public.product_masters set
 where id = 'fbde3f8b-cbe0-4ba5-80ca-96ee599fdd47';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = '67308958-85da-4607-a519-b6c33e725e66';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'c88b5cae-a20e-4b26-a0d6-071594ec18b4';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'fb381037-38b9-4c4d-a818-e9b0c1684479';
 
 update public.product_masters set
@@ -369,8 +351,7 @@ update public.product_masters set
 where id = '57ad05af-b9c6-478c-ae88-6f050db1fe63';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'a389e0a3-d568-4d4e-8a41-c59543339d5f';
 
 update public.product_masters set
@@ -389,8 +370,7 @@ update public.product_masters set
 where id = '2001352f-2b3f-4611-b74e-8a3847ac3b40';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
-  description = null
+  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1)
 where id = 'ca576b36-a73d-4663-a961-8cbd74c4ad22';
 
 update public.product_masters set
