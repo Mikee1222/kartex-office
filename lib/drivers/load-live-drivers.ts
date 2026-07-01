@@ -16,9 +16,27 @@ type OrderRow = {
   trip_id: string | null;
   status: string;
   delivery_sequence: number | null;
+  delivery_method?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_postal_code?: string | null;
+  pickup_agency?: string | null;
+  customer_address?: string | null;
   customers?:
-    | { lat: number | null; lng: number | null }
-    | { lat: number | null; lng: number | null }[]
+    | {
+        lat: number | null;
+        lng: number | null;
+        address?: string | null;
+        city?: string | null;
+        postal_code?: string | null;
+      }
+    | {
+        lat: number | null;
+        lng: number | null;
+        address?: string | null;
+        city?: string | null;
+        postal_code?: string | null;
+      }[]
     | null;
 };
 
@@ -115,7 +133,13 @@ export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
       trip_id,
       status,
       delivery_sequence,
-      customers ( lat, lng )
+      delivery_method,
+      delivery_address,
+      delivery_city,
+      delivery_postal_code,
+      pickup_agency,
+      customer_address,
+      customers ( lat, lng, address, city, postal_code )
     `,
     )
     .in("trip_id", tripIds);
@@ -135,7 +159,7 @@ export async function loadLiveDrivers(today = getAthensDateString()): Promise<{
     stopsByTrip.set(row.trip_id, current);
   }
 
-  const nextStopsByTrip = resolveNextStopsByTrip((orderRows ?? []) as OrderRow[]);
+  const nextStopsByTrip = await resolveNextStopsByTrip((orderRows ?? []) as OrderRow[]);
 
   const driverIds = [...new Set(trips.map((trip) => trip.driver_id))];
   const trailSince = new Date(Date.now() - TRAIL_WINDOW_MS).toISOString();
