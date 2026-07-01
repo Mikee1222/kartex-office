@@ -1,18 +1,21 @@
 "use client";
 
-import { ExternalLink, ImageIcon, Upload } from "lucide-react";
-import Image from "next/image";
+import { ExternalLink } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { ActiveToggle } from "@/components/website/active-toggle";
 import { DataError } from "@/components/dashboard/data-error";
+import { WebsiteMasterGroupTableRow } from "@/components/website/website-master-group-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { setProductActive } from "@/lib/products/set-product-active";
-import type { WebsiteProductRow } from "@/lib/website/types";
+import { setMasterActive } from "@/lib/products/set-master-active";
+import {
+  mapWebsiteProductMasterRow,
+  WEBSITE_PRODUCT_MASTERS_SELECT,
+} from "@/lib/website/product-masters";
+import type { WebsiteProductMasterRow } from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
   premiumFilterTabActiveCategory,
@@ -21,14 +24,10 @@ import {
   premiumSecondaryButton,
   premiumStatCard,
   premiumTableHead,
-  premiumTableRow,
   premiumTableWrap,
 } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-
-const PRODUCT_SELECT =
-  "id, name, clean_name, sku, category, subcategory, image_url, is_active";
 
 type WebsiteCategoryWithSubs = {
   id: string;
@@ -37,7 +36,7 @@ type WebsiteCategoryWithSubs = {
 };
 
 export function WebsiteProductsPage() {
-  const [products, setProducts] = React.useState<WebsiteProductRow[]>([]);
+  const [masters, setMasters] = React.useState<WebsiteProductMasterRow[]>([]);
   const [websiteCategories, setWebsiteCategories] = React.useState<
     WebsiteCategoryWithSubs[]
   >([]);
@@ -48,23 +47,36 @@ export function WebsiteProductsPage() {
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = React.useState(false);
   const [fetchKey, setFetchKey] = React.useState(0);
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   const headerCheckboxRef = React.useRef<HTMLInputElement>(null);
+
+  const knownCategoryNames = React.useMemo(
+    () => new Set(websiteCategories.map((category) => category.name)),
+    [websiteCategories],
+  );
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     const supabase = createClient();
     const { data, error: fetchError } = await supabase
-      .from("products")
-      .select(PRODUCT_SELECT)
-      .order("name", { ascending: true });
+      .from("product_masters")
+      .select(WEBSITE_PRODUCT_MASTERS_SELECT)
+      .order("category")
+      .order("clean_name");
 
     if (fetchError) {
       setError(fetchError.message);
-      setProducts([]);
+      setMasters([]);
     } else {
-      setProducts((data as WebsiteProductRow[]) ?? []);
+      setMasters(
+        (data ?? []).map((row) =>
+          mapWebsiteProductMasterRow(
+            row as Parameters<typeof mapWebsiteProductMasterRow>[0],
+          ),
+        ),
+      );
     }
     setLoading(false);
   }, []);
@@ -86,37 +98,42 @@ export function WebsiteProductsPage() {
     void loadCategories();
   }, []);
 
-  const categories = React.useMemo(
-    () =>
-      [
-        ...new Set(
-          products
-            .map((product) => product.category)
-            .filter((category): category is string => Boolean(category)),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "el")),
-    [products],
-  );
+  const categoryTabs = React.useMemo(() => {
+    const tabs = [
+      {
+        id: "all",
+        label: "Όλα",
+        count: masters.length,
+      },
+      ...websiteCategories.map((category) => ({
+        id: category.name,
+        label: category.name,
+        count: masters.filter((master) => master.category === category.name)
+          .length,
+      })),
+    ];
+    return tabs;
+  }, [masters, websiteCategories]);
 
   const filtered = React.useMemo(() => {
     if (activeCategory === "all") {
-      return products;
+      return masters;
     }
-    return products.filter((product) => product.category === activeCategory);
-  }, [products, activeCategory]);
+    return masters.filter((master) => master.category === activeCategory);
+  }, [masters, activeCategory]);
 
   const activeCount = React.useMemo(
-    () => products.filter((product) => product.is_active).length,
-    [products],
+    () => masters.filter((master) => master.isActive).length,
+    [masters],
   );
 
   const withImageCount = React.useMemo(
-    () => products.filter((product) => product.image_url).length,
-    [products],
+    () => masters.filter((master) => master.imageUrl).length,
+    [masters],
   );
 
   const selectedOnPage = React.useMemo(
-    () => filtered.filter((product) => selectedIds.has(product.id)),
+    () => filtered.filter((master) => selectedIds.has(master.id)),
     [filtered, selectedIds],
   );
 
@@ -131,13 +148,13 @@ export function WebsiteProductsPage() {
     }
   }, [someSelected]);
 
-  function toggleSelection(productId: string, checked: boolean) {
+  function toggleSelection(masterId: string, checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
       if (checked) {
-        next.add(productId);
+        next.add(masterId);
       } else {
-        next.delete(productId);
+        next.delete(masterId);
       }
       return next;
     });
@@ -146,29 +163,50 @@ export function WebsiteProductsPage() {
   function toggleAll(checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const product of filtered) {
+      for (const master of filtered) {
         if (checked) {
-          next.add(product.id);
+          next.add(master.id);
         } else {
-          next.delete(product.id);
+          next.delete(master.id);
         }
       }
       return next;
     });
   }
 
-  function productDisplayName(product: WebsiteProductRow) {
-    return product.clean_name || product.name;
+  function updateMaster(
+    masterId: string,
+    patch: Partial<WebsiteProductMasterRow>,
+  ) {
+    setMasters((current) =>
+      current.map((row) => (row.id === masterId ? { ...row, ...patch } : row)),
+    );
   }
 
-  async function handleToggleActive(product: WebsiteProductRow) {
-    setBusyId(product.id);
-    const supabase = createClient();
-    const result = await setProductActive(
-      supabase,
-      product.id,
-      !product.is_active,
+  function updateVariantInternalPrice(
+    masterId: string,
+    variantId: string,
+    internalPriceEur: number | null,
+  ) {
+    setMasters((current) =>
+      current.map((master) => {
+        if (master.id !== masterId) return master;
+        return {
+          ...master,
+          variants: master.variants.map((variant) =>
+            variant.id === variantId
+              ? { ...variant, internalPriceEur }
+              : variant,
+          ),
+        };
+      }),
     );
+  }
+
+  async function handleToggleActive(master: WebsiteProductMasterRow) {
+    setBusyId(master.id);
+    const supabase = createClient();
+    const result = await setMasterActive(supabase, master.id, !master.isActive);
     setBusyId(null);
 
     if (!result.ok) {
@@ -176,13 +214,9 @@ export function WebsiteProductsPage() {
       return;
     }
 
-    setProducts((current) =>
-      current.map((row) =>
-        row.id === product.id ? { ...row, is_active: !row.is_active } : row,
-      ),
-    );
+    updateMaster(master.id, { isActive: !master.isActive });
     toast.success(
-      product.is_active
+      master.isActive
         ? "Το προϊόν αφαιρέθηκε από τον κατάλογο website."
         : "Το προϊόν εμφανίζεται στον κατάλογο website.",
     );
@@ -198,7 +232,7 @@ export function WebsiteProductsPage() {
     const supabase = createClient();
     const ids = Array.from(selectedIds);
     const { error: updateError } = await supabase
-      .from("products")
+      .from("product_masters")
       .update({ is_active: isActive })
       .in("id", ids);
 
@@ -209,26 +243,27 @@ export function WebsiteProductsPage() {
       return;
     }
 
-    setProducts((current) =>
+    setMasters((current) =>
       current.map((row) =>
-        selectedIds.has(row.id) ? { ...row, is_active: isActive } : row,
+        selectedIds.has(row.id) ? { ...row, isActive } : row,
       ),
     );
     toast.success(
       isActive
-        ? `Ενεργοποιήθηκαν ${ids.length} προϊόντα στο website.`
-        : `Απενεργοποιήθηκαν ${ids.length} προϊόντα στο website.`,
+        ? `Ενεργοποιήθηκαν ${ids.length} masters στο website.`
+        : `Απενεργοποιήθηκαν ${ids.length} masters στο website.`,
     );
   }
 
-  async function handleCategoryChange(productId: string, categoryName: string) {
-    setBusyId(productId);
+  async function handleCategoryChange(masterId: string, categoryName: string) {
+    if (!categoryName) return;
+
+    setBusyId(masterId);
     const supabase = createClient();
-    const category = categoryName || null;
     const { error: updateError } = await supabase
-      .from("products")
-      .update({ category, subcategory: null })
-      .eq("id", productId);
+      .from("product_masters")
+      .update({ category: categoryName, subcategory: null })
+      .eq("id", masterId);
 
     setBusyId(null);
 
@@ -237,27 +272,24 @@ export function WebsiteProductsPage() {
       return;
     }
 
-    setProducts((current) =>
-      current.map((row) =>
-        row.id === productId
-          ? { ...row, category, subcategory: null }
-          : row,
-      ),
-    );
+    updateMaster(masterId, {
+      category: categoryName,
+      subcategory: null,
+    });
     toast.success("Κατηγορία αποθηκεύτηκε");
   }
 
   async function handleSubcategoryChange(
-    productId: string,
+    masterId: string,
     subcategoryName: string,
   ) {
-    setBusyId(productId);
+    setBusyId(masterId);
     const supabase = createClient();
     const subcategory = subcategoryName || null;
     const { error: updateError } = await supabase
-      .from("products")
+      .from("product_masters")
       .update({ subcategory })
-      .eq("id", productId);
+      .eq("id", masterId);
 
     setBusyId(null);
 
@@ -266,24 +298,20 @@ export function WebsiteProductsPage() {
       return;
     }
 
-    setProducts((current) =>
-      current.map((row) =>
-        row.id === productId ? { ...row, subcategory } : row,
-      ),
-    );
+    updateMaster(masterId, { subcategory });
     toast.success("Υποκατηγορία αποθηκεύτηκε");
   }
 
-  async function handleImageUpload(productId: string, file: File) {
+  async function handleImageUpload(masterId: string, file: File) {
     if (!file.type.startsWith("image/")) {
       toast.error("Επιλέξτε αρχείο εικόνας.");
       return;
     }
 
-    setBusyId(productId);
+    setBusyId(masterId);
     const supabase = createClient();
     const extension = file.name.split(".").pop() || "jpg";
-    const filePath = `${productId}/${Date.now()}.${extension}`;
+    const filePath = `masters/${masterId}/${Date.now()}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("product-images")
@@ -300,9 +328,9 @@ export function WebsiteProductsPage() {
     } = supabase.storage.from("product-images").getPublicUrl(filePath);
 
     const { error: updateError } = await supabase
-      .from("products")
+      .from("product_masters")
       .update({ image_url: publicUrl })
-      .eq("id", productId);
+      .eq("id", masterId);
 
     setBusyId(null);
 
@@ -311,12 +339,32 @@ export function WebsiteProductsPage() {
       return;
     }
 
-    setProducts((current) =>
-      current.map((row) =>
-        row.id === productId ? { ...row, image_url: publicUrl } : row,
-      ),
-    );
+    updateMaster(masterId, { imageUrl: publicUrl });
     toast.success("Η εικόνα αποθηκεύτηκε.");
+  }
+
+  async function handleInternalPriceSave(
+    masterId: string,
+    variantId: string,
+    value: number | null,
+  ): Promise<boolean> {
+    setBusyId(variantId);
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ internal_price_eur: value })
+      .eq("id", variantId);
+
+    setBusyId(null);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return false;
+    }
+
+    updateVariantInternalPrice(masterId, variantId, value);
+    toast.success("Εσωτερική τιμή αποθηκεύτηκε");
+    return true;
   }
 
   const websiteUrl = getWebsiteUrl();
@@ -325,7 +373,7 @@ export function WebsiteProductsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader
         title="Προϊόντα Website"
-        subtitle="Διαχείριση εμφάνισης προϊόντων στον δημόσιο κατάλογο kartex.gr."
+        subtitle="Διαχείριση εμφάνισης product masters στον δημόσιο κατάλογο kartex.gr."
         action={
           <Button asChild variant="outline" className={premiumSecondaryButton}>
             <a href={`${websiteUrl}/el/products`} target="_blank" rel="noreferrer">
@@ -340,9 +388,9 @@ export function WebsiteProductsPage() {
         <section className="grid gap-4 sm:grid-cols-3">
           <article className={cn(premiumStatCard, "p-5")}>
             <p className="text-[28px] font-semibold leading-none text-navy-900">
-              {products.length}
+              {masters.length}
             </p>
-            <p className="mt-1 text-sm text-gray-400">Συνολικά</p>
+            <p className="mt-1 text-sm text-gray-400">Συνολικά masters</p>
           </article>
           <article className={cn(premiumStatCard, "p-5")}>
             <p className="text-[28px] font-semibold leading-none text-navy-900">
@@ -359,36 +407,28 @@ export function WebsiteProductsPage() {
         </section>
       ) : null}
 
-      {!loading && products.length > 0 ? (
+      {!loading && masters.length > 0 ? (
         <div
           className="flex flex-wrap gap-2"
           role="tablist"
           aria-label="Φίλτρο κατηγορίας"
         >
-          {["all", ...categories].map((category) => {
-            const isActive = activeCategory === category;
-            const count =
-              category === "all"
-                ? products.length
-                : products.filter((product) => product.category === category)
-                    .length;
-
+          {categoryTabs.map((tab) => {
+            const isActive = activeCategory === tab.id;
             return (
               <button
-                key={category}
+                key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => setActiveCategory(category)}
+                onClick={() => setActiveCategory(tab.id)}
                 className={cn(
                   isActive
                     ? premiumFilterTabActiveCategory
                     : premiumFilterTabInactive,
                 )}
               >
-                {category === "all"
-                  ? `Όλα (${count})`
-                  : `${category} (${count})`}
+                {tab.label} ({tab.count})
               </button>
             );
           })}
@@ -420,7 +460,9 @@ export function WebsiteProductsPage() {
         </div>
       ) : null}
 
-      {error ? <DataError message={error} onRetry={() => setFetchKey((k) => k + 1)} /> : null}
+      {error ? (
+        <DataError message={error} onRetry={() => setFetchKey((k) => k + 1)} />
+      ) : null}
 
       <Card className="border-gray-200/80 shadow-card">
         <CardContent className="p-0">
@@ -430,9 +472,9 @@ export function WebsiteProductsPage() {
                 <Skeleton key={index} className="h-14 w-full" />
               ))}
             </div>
-          ) : products.length === 0 ? (
+          ) : masters.length === 0 ? (
             <p className="p-8 text-center text-sm text-gray-500">
-              Δεν βρέθηκαν προϊόντα.
+              Δεν βρέθηκαν product masters.
             </p>
           ) : filtered.length === 0 ? (
             <p className="p-8 text-center text-sm text-gray-500">
@@ -440,7 +482,7 @@ export function WebsiteProductsPage() {
             </p>
           ) : (
             <div className={premiumTableWrap}>
-              <table className="w-full min-w-[720px]">
+              <table className="w-full min-w-[960px]">
                 <thead>
                   <tr className={premiumTableHead}>
                     <th className="w-10 px-4 py-3">
@@ -457,143 +499,54 @@ export function WebsiteProductsPage() {
                     <th className="px-4 py-3">Προϊόν</th>
                     <th className="px-4 py-3">Κατηγορία</th>
                     <th className="px-4 py-3">Υποκατηγορία</th>
+                    <th className="px-4 py-3">Παραλλαγές</th>
                     <th className="px-4 py-3">Ενεργό</th>
                     <th className="px-4 py-3">Ανέβασμα</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((product) => {
-                    const isBusy = busyId === product.id;
-                    const displayName = productDisplayName(product);
-                    const matchedCategory = websiteCategories.find(
-                      (category) => category.name === product.category,
-                    );
-                    const subcategoryOptions =
-                      matchedCategory?.website_subcategories ?? [];
+                  {filtered.map((master) => {
+                    const isBusy =
+                      busyId === master.id ||
+                      master.variants.some((variant) => variant.id === busyId);
+                    const hasUnknownCategory =
+                      Boolean(master.category) &&
+                      !knownCategoryNames.has(master.category);
+
                     return (
-                      <tr key={product.id} className={premiumTableRow}>
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(product.id)}
-                            onChange={(event) =>
-                              toggleSelection(product.id, event.target.checked)
-                            }
-                            className="size-4 rounded border-gray-300"
-                            aria-label={`Επιλογή ${displayName}`}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          {product.image_url ? (
-                            <div className="relative size-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                              <Image
-                                src={product.image_url}
-                                alt={displayName}
-                                fill
-                                className="object-cover"
-                                sizes="48px"
-                                unoptimized
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex size-12 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-gray-300">
-                              <ImageIcon className="size-5" />
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-navy-900">{displayName}</p>
-                          <p className="text-xs text-gray-400">{product.sku}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={product.category ?? ""}
-                            disabled={isBusy}
-                            onChange={(event) =>
-                              void handleCategoryChange(
-                                product.id,
-                                event.target.value,
-                              )
-                            }
-                            className={cn(
-                              "w-full min-w-[140px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-600",
-                              isBusy && "opacity-50",
-                            )}
-                            aria-label={`Κατηγορία ${displayName}`}
-                          >
-                            <option value="">—</option>
-                            {websiteCategories.map((category) => (
-                              <option key={category.id} value={category.name}>
-                                {category.name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-3">
-                          {product.category ? (
-                            <select
-                              value={product.subcategory ?? ""}
-                              disabled={isBusy}
-                              onChange={(event) =>
-                                void handleSubcategoryChange(
-                                  product.id,
-                                  event.target.value,
-                                )
-                              }
-                              className={cn(
-                                "w-full min-w-[140px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-600",
-                                isBusy && "opacity-50",
-                              )}
-                              aria-label={`Υποκατηγορία ${displayName}`}
-                            >
-                              <option value="">—</option>
-                              {subcategoryOptions.map((subcategory) => (
-                                <option
-                                  key={subcategory.id}
-                                  value={subcategory.name}
-                                >
-                                  {subcategory.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <ActiveToggle
-                            active={product.is_active}
-                            disabled={isBusy}
-                            onClick={() => void handleToggleActive(product)}
-                            label={`Ενεργό ${displayName}`}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <label
-                            className={cn(
-                              premiumSecondaryButton,
-                              "cursor-pointer px-3 py-2 text-xs",
-                              isBusy && "pointer-events-none opacity-50",
-                            )}
-                          >
-                            <Upload className="size-3.5" />
-                            Εικόνα
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="sr-only"
-                              disabled={isBusy}
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                event.target.value = "";
-                                if (file) {
-                                  void handleImageUpload(product.id, file);
-                                }
-                              }}
-                            />
-                          </label>
-                        </td>
-                      </tr>
+                      <WebsiteMasterGroupTableRow
+                        key={master.id}
+                        master={master}
+                        websiteCategories={websiteCategories}
+                        isExpanded={expandedId === master.id}
+                        isSelected={selectedIds.has(master.id)}
+                        isBusy={isBusy}
+                        hasUnknownCategory={hasUnknownCategory}
+                        onToggleExpand={() =>
+                          setExpandedId((current) =>
+                            current === master.id ? null : master.id,
+                          )
+                        }
+                        onToggleSelect={(checked) =>
+                          toggleSelection(master.id, checked)
+                        }
+                        onToggleActive={() => void handleToggleActive(master)}
+                        onCategoryChange={(categoryName) =>
+                          void handleCategoryChange(master.id, categoryName)
+                        }
+                        onSubcategoryChange={(subcategoryName) =>
+                          void handleSubcategoryChange(
+                            master.id,
+                            subcategoryName,
+                          )
+                        }
+                        onImageUpload={(file) =>
+                          void handleImageUpload(master.id, file)
+                        }
+                        onInternalPriceSave={(variantId, value) =>
+                          handleInternalPriceSave(master.id, variantId, value)
+                        }
+                      />
                     );
                   })}
                 </tbody>

@@ -40,6 +40,7 @@ export type ProductRow = {
   master_id?: string | null;
   purchase_price: number | string;
   sale_price: number | string;
+  internal_price_eur?: number | string | null;
   stock: number;
   reserved_stock?: number;
   min_stock: number;
@@ -60,6 +61,20 @@ export type ProductRow = {
   image_url?: string | null;
   created_at: string;
   updated_at?: string;
+};
+
+export type ProductMasterRow = {
+  id: string;
+  clean_name: string;
+  category: string;
+  subcategory?: string | null;
+  quality_grade?: string | null;
+  material?: string | null;
+  image_url?: string | null;
+  is_active?: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+  products?: ProductRow[];
 };
 
 export type OrderQuoteRequestJoin = {

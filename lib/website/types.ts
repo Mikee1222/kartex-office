@@ -53,6 +53,32 @@ export type WebsiteProductRow = {
   is_active: boolean;
 };
 
+/** Variant nested under product_masters for website CMS. */
+export type WebsiteProductMasterVariantRow = {
+  id: string;
+  widthCm: number | null;
+  heightCm: number | null;
+  gsm: number | null;
+  threadCount: number | null;
+  color: string | null;
+  sku: string;
+  stock: number;
+  subcategory: string | null;
+  internalPriceEur: number | null;
+};
+
+export type WebsiteProductMasterRow = {
+  id: string;
+  cleanName: string;
+  category: string;
+  subcategory: string | null;
+  qualityGrade: string | null;
+  material: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  variants: WebsiteProductMasterVariantRow[];
+};
+
 export type WebsiteSubcategory = {
   id: string;
   category_id: string;

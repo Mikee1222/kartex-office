@@ -134,7 +134,7 @@ function collectUniqueGroupColors(
   return [...new Map(allColors.map((color) => [color.name, color])).values()];
 }
 
-function VariantDimensionBadges({ variant }: { variant: ProductVariant }) {
+export function VariantDimensionBadges({ variant }: { variant: ProductVariant }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {variant.widthCm && variant.heightCm ? (
