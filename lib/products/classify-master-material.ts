@@ -77,7 +77,18 @@ function isPolyester(material: string): boolean {
   return false;
 }
 
-export function classifyMasterMaterial(material: string | null): CanonicalMaterial {
+function hasPcInName(cleanName: string | null | undefined): boolean {
+  return cleanName != null && /\bp\/c\b/i.test(cleanName);
+}
+
+export function classifyMasterMaterial(
+  material: string | null,
+  cleanName?: string | null,
+): CanonicalMaterial {
+  if (hasPcInName(cleanName)) {
+    return "Μικτό Βαμβάκι-Πολυεστέρας";
+  }
+
   if (material == null || material.trim() === "") {
     return "Άλλο/Άγνωστο";
   }
@@ -149,7 +160,7 @@ export function classifyMasterRows(rows: MasterMaterialRow[]): ClassifiedMasterM
       masterId: row.id,
       cleanName: row.clean_name,
       originalMaterial: row.material,
-      classifiedPrimary: classifyMasterMaterial(row.material),
+      classifiedPrimary: classifyMasterMaterial(row.material, row.clean_name),
       descriptionBefore: row.description,
       descriptionAfter: appendCompositionToDescription(row.description, row.material),
     }));

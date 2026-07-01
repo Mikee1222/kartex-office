@@ -1,4 +1,3 @@
--- PENDING: DO NOT APPLY until classification mapping is confirmed by user.
 -- Sets material_id + appends Σύνθεση line to description for active product masters.
 
 begin;
@@ -24,7 +23,7 @@ update public.product_masters set
 where id = '511d3dc9-9e8c-4b20-9fc8-6b60d040b9c6';
 
 update public.product_masters set
-  material_id = (select id from public.materials where name = 'Άλλο/Άγνωστο' limit 1),
+  material_id = (select id from public.materials where name = 'Μικτό Βαμβάκι-Πολυεστέρας' limit 1),
   description = 'Σύνθεση: Filling 7D Microfiber'
 where id = '8d72e210-8913-4f50-9dd3-ffbecdc3ae17';
 
