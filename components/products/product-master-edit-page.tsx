@@ -5,11 +5,14 @@ import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { InventoryMasterVariantsPanel } from "@/components/products/inventory-master-variants-panel";
+import {
+  MasterGroupStatsRow,
+} from "@/components/products/master-group-ui";
 import {
   ProductCategorySelect,
   ProductSubcategorySelect,
 } from "@/components/products/product-category-select";
-import { ProductsMasterVariantsPanel } from "@/components/products/products-master-variants-panel";
 import { ActiveToggle } from "@/components/website/active-toggle";
 import { WebsiteMasterImagesEditor } from "@/components/website/website-master-images-editor";
 import { Button } from "@/components/ui/button";
@@ -18,11 +21,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import {
-  fetchProductMasterDetail,
-  updateProductMasterDetail,
-} from "@/lib/products/fetch-product-master-detail";
+  countInventoryMasterStockStats,
+  INVENTORY_PRODUCT_MASTER_DETAIL_SELECT,
+  mapInventoryProductMasterRow,
+  type InventoryProductMasterRow,
+} from "@/lib/products/product-master-detail";
 import { setMasterActive } from "@/lib/products/set-master-active";
-import type { WebsiteProductMasterRow } from "@/lib/website/types";
 import {
   premiumGoldButton,
   premiumSecondaryButton,
@@ -35,13 +39,13 @@ type ProductMasterEditPageProps = {
 };
 
 export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) {
-  const [master, setMaster] = React.useState<WebsiteProductMasterRow | null>(null);
+  const [master, setMaster] = React.useState<InventoryProductMasterRow | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [categoryId, setCategoryId] = React.useState("");
 
   const [cleanName, setCleanName] = React.useState("");
   const [category, setCategory] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState("");
   const [subcategory, setSubcategory] = React.useState("");
   const [qualityGrade, setQualityGrade] = React.useState("");
   const [material, setMaterial] = React.useState("");
@@ -50,22 +54,29 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
   const loadMaster = React.useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
-    const result = await fetchProductMasterDetail(supabase, masterId);
+    const { data, error } = await supabase
+      .from("product_masters")
+      .select(INVENTORY_PRODUCT_MASTER_DETAIL_SELECT)
+      .eq("id", masterId)
+      .maybeSingle();
 
-    if (result.error || !result.master) {
-      toast.error(result.error ?? "Αποτυχία φόρτωσης προϊόντος.");
+    if (error || !data) {
+      toast.error(error?.message ?? "Αποτυχία φόρτωσης προϊόντος.");
       setMaster(null);
       setLoading(false);
       return;
     }
 
-    setMaster(result.master);
-    setCleanName(result.master.cleanName);
-    setCategory(result.master.category);
-    setSubcategory(result.master.subcategory ?? "");
-    setQualityGrade(result.master.qualityGrade ?? "");
-    setMaterial(result.master.material ?? "");
-    setDescription(result.master.description ?? "");
+    const mapped = mapInventoryProductMasterRow(
+      data as Parameters<typeof mapInventoryProductMasterRow>[0],
+    );
+    setMaster(mapped);
+    setCleanName(mapped.cleanName);
+    setCategory(mapped.category);
+    setSubcategory(mapped.subcategory ?? "");
+    setQualityGrade(mapped.qualityGrade ?? "");
+    setMaterial(mapped.material ?? "");
+    setDescription(mapped.description ?? "");
     setLoading(false);
   }, [masterId]);
 
@@ -73,46 +84,36 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
     void loadMaster();
   }, [loadMaster]);
 
-  React.useEffect(() => {
-    if (!category || categoryId) return;
-
-    async function resolveCategoryId() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("website_categories")
-        .select("id")
-        .eq("name", category)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (data?.id) {
-        setCategoryId(data.id as string);
-      }
-    }
-
-    void resolveCategoryId();
-  }, [category, categoryId]);
-
   async function handleSaveDetails(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
 
     const supabase = createClient();
-    const result = await updateProductMasterDetail(supabase, masterId, {
-      cleanName,
-      category,
-      subcategory: subcategory || null,
-      qualityGrade: qualityGrade || null,
-      material: material || null,
-      description: description || null,
-    });
+    const { data, error } = await supabase
+      .from("product_masters")
+      .update({
+        clean_name: cleanName.trim(),
+        category: category.trim(),
+        subcategory: subcategory.trim() || null,
+        quality_grade: qualityGrade.trim() || null,
+        material: material.trim() || null,
+        description: description.trim() || null,
+      })
+      .eq("id", masterId)
+      .select(INVENTORY_PRODUCT_MASTER_DETAIL_SELECT)
+      .single();
+
     setSaving(false);
 
-    if (result.error || !result.master) {
-      toast.error(result.error ?? "Αποτυχία αποθήκευσης.");
+    if (error || !data) {
+      toast.error(error?.message ?? "Αποτυχία αποθήκευσης.");
       return;
     }
 
-    setMaster(result.master);
+    const mapped = mapInventoryProductMasterRow(
+      data as Parameters<typeof mapInventoryProductMasterRow>[0],
+    );
+    setMaster(mapped);
     toast.success("Οι αλλαγές αποθηκεύτηκαν.");
   }
 
@@ -135,6 +136,12 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
         : "Το προϊόν ενεργοποιήθηκε.",
     );
   }
+
+  const stockStats = master
+    ? countInventoryMasterStockStats(master.variants)
+    : { criticalCount: 0, lowCount: 0, okCount: 0 };
+
+  const totalStock = master?.variants.reduce((sum, variant) => sum + variant.stock, 0) ?? 0;
 
   if (loading) {
     return (
@@ -160,13 +167,13 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
       <Button asChild variant="outline" className={premiumSecondaryButton}>
         <Link href="/products">
           <ArrowLeft className="size-4" />
-          Πίσω
+          Πίσω στα Προϊόντα
         </Link>
       </Button>
 
       <PageHeader
         title={master.cleanName}
-        subtitle="Διαχείριση master προϊόντος — στοιχεία, εικόνες και παραλλαγές."
+        subtitle="Επισκόπηση master προϊόντος — στοιχεία, εικόνες και παραλλαγές αποθήκης."
         action={
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">Ενεργό</span>
@@ -178,6 +185,29 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
             />
           </div>
         }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Συνολικό απόθεμα
+          </p>
+          <p className="mt-1 text-3xl font-bold tabular-nums text-navy-900">{totalStock}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Παραλλαγές
+          </p>
+          <p className="mt-1 text-3xl font-bold tabular-nums text-navy-900">
+            {master.variants.length}
+          </p>
+        </div>
+      </div>
+
+      <MasterGroupStatsRow
+        criticalCount={stockStats.criticalCount}
+        lowCount={stockStats.lowCount}
+        okCount={stockStats.okCount}
       />
 
       <Card className="border-gray-200/80 shadow-card">
@@ -211,19 +241,12 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
                   setCategoryId(id);
                   setSubcategory("");
                 }}
-                onCategoriesLoaded={(categories) => {
-                  const match = categories.find((item) => item.name === category);
-                  if (match) setCategoryId(match.id);
-                }}
-                disabled={saving}
-                selectClassName="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
+                required
               />
               <ProductSubcategorySelect
                 categoryId={categoryId}
                 value={subcategory}
                 onChange={setSubcategory}
-                disabled={saving}
-                selectClassName="flex h-10 w-full rounded-input border border-input bg-background px-3 text-sm"
               />
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="material">Υλικό</Label>
@@ -283,13 +306,11 @@ export function ProductMasterEditPage({ masterId }: ProductMasterEditPageProps) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductsMasterVariantsPanel
+          <InventoryMasterVariantsPanel
             master={master}
             disabled={saving}
             onVariantsChange={(variants) =>
-              setMaster((current) =>
-                current ? { ...current, variants } : current,
-              )
+              setMaster((current) => (current ? { ...current, variants } : current))
             }
           />
         </CardContent>
