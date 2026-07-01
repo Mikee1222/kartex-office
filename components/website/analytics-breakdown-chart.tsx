@@ -1,7 +1,10 @@
 "use client";
 
+import { PieChart as PieChartIcon } from "lucide-react";
 import * as React from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+
+import { AnalyticsEmptyState } from "@/components/website/analytics-section";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AnalyticsChartPoint } from "@/lib/website/analytics-chart-utils";
@@ -161,9 +164,16 @@ export function AnalyticsBreakdownChart({
 
   if (data.length === 0) {
     return (
-      <div className={cn(premiumStatCard, "flex h-full flex-col items-center justify-center p-8 text-center")}>
-        <p className="text-sm font-semibold text-kartex-navy">Δεν υπάρχουν δεδομένα</p>
-        <p className="mt-1 text-xs text-muted-foreground">Για την επιλεγμένη περίοδο.</p>
+      <div className={cn(premiumStatCard, "overflow-hidden")}>
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h3 className="text-sm font-semibold text-kartex-navy">{title}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <AnalyticsEmptyState
+          icon={PieChartIcon}
+          title="Δεν υπάρχουν δεδομένα"
+          description="Για την επιλεγμένη περίοδο."
+        />
       </div>
     );
   }

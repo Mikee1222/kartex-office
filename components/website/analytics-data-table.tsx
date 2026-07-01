@@ -2,7 +2,7 @@
 
 import { BarChart3 } from "lucide-react";
 
-import { EmptyState } from "@/components/dashboard/empty-state";
+import { AnalyticsEmptyState } from "@/components/website/analytics-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDurationSeconds } from "@/lib/website/analytics-date-range";
 import { premiumStatCard, premiumTableHead } from "@/lib/ui/premium-styles";
@@ -80,11 +80,10 @@ export function AnalyticsDataTable({
           <h3 className="text-sm font-semibold text-kartex-navy">{title}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         </div>
-        <EmptyState
+        <AnalyticsEmptyState
           icon={BarChart3}
           title={emptyTitle}
           description={emptyDescription}
-          className="py-6"
         />
       </div>
     );
