@@ -10,20 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { WebsiteVariantFieldPatch } from "@/components/website/website-master-variants-table";
 import { setMasterActive } from "@/lib/products/set-master-active";
 import {
   mapWebsiteProductMasterRow,
   WEBSITE_PRODUCT_MASTERS_SELECT,
 } from "@/lib/website/product-masters";
-import {
-  saveVariantColor,
-  saveVariantDimensions,
-  saveVariantInternalPrice,
-  saveVariantStock,
-  saveVariantSubcategory,
-} from "@/lib/website/variant-field-save-actions";
-import type { WebsiteProductMasterRow, WebsiteProductMasterVariantRow } from "@/lib/website/types";
+import type {
+  WebsiteProductMasterRow,
+  WebsiteProductMasterVariantRow,
+} from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
   premiumFilterTabActiveCategory,
@@ -191,43 +186,11 @@ export function WebsiteProductsPage() {
     );
   }
 
-  function patchVariant(variantId: string, patch: WebsiteVariantFieldPatch) {
-    setMasters((current) =>
-      current.map((master) => ({
-        ...master,
-        variants: master.variants.map((variant) =>
-          variant.id === variantId ? { ...variant, ...patch } : variant,
-        ),
-      })),
-    );
-  }
-
-  function variantSaveContext() {
-    return {
-      supabase: createClient(),
-      setBusyVariantId: setBusyId,
-      patchVariant,
-    };
-  }
-
-  function addVariantToMaster(
+  function updateMasterVariants(
     masterId: string,
-    variant: WebsiteProductMasterVariantRow,
+    variants: WebsiteProductMasterVariantRow[],
   ) {
-    setMasters((current) =>
-      current.map((master) => {
-        if (master.id !== masterId) return master;
-        return {
-          ...master,
-          variants: [...master.variants, variant].sort((a, b) => {
-            const widthDiff = (a.widthCm ?? 0) - (b.widthCm ?? 0);
-            if (widthDiff !== 0) return widthDiff;
-            return (a.heightCm ?? 0) - (b.heightCm ?? 0);
-          }),
-        };
-      }),
-    );
-    toast.success("Η παραλλαγή δημιουργήθηκε.");
+    updateMaster(masterId, { variants });
   }
 
   async function handleToggleActive(master: WebsiteProductMasterRow) {
@@ -280,57 +243,6 @@ export function WebsiteProductsPage() {
         ? `Ενεργοποιήθηκαν ${ids.length} masters στο website.`
         : `Απενεργοποιήθηκαν ${ids.length} masters στο website.`,
     );
-  }
-
-  async function handleInternalPriceSave(
-    masterId: string,
-    variantId: string,
-    value: number | null,
-  ): Promise<boolean> {
-    void masterId;
-    return saveVariantInternalPrice(variantSaveContext(), variantId, value);
-  }
-
-  async function handleDimensionsSave(
-    variantId: string,
-    widthCm: number,
-    heightCm: number,
-  ): Promise<boolean> {
-    return saveVariantDimensions(
-      variantSaveContext(),
-      variantId,
-      widthCm,
-      heightCm,
-    );
-  }
-
-  async function handleColorSave(
-    variantId: string,
-    colorId: string,
-    colorName: string,
-    stock: number,
-  ): Promise<boolean> {
-    return saveVariantColor(
-      variantSaveContext(),
-      variantId,
-      colorId,
-      colorName,
-      stock,
-    );
-  }
-
-  async function handleStockSave(
-    variantId: string,
-    value: number,
-  ): Promise<boolean> {
-    return saveVariantStock(variantSaveContext(), variantId, value);
-  }
-
-  async function handleSubcategorySave(
-    variantId: string,
-    value: string | null,
-  ): Promise<boolean> {
-    return saveVariantSubcategory(variantSaveContext(), variantId, value);
   }
 
   const websiteUrl = getWebsiteUrl();
@@ -494,16 +406,8 @@ export function WebsiteProductsPage() {
                           toggleSelection(master.id, checked)
                         }
                         onToggleActive={() => void handleToggleActive(master)}
-                        onInternalPriceSave={(variantId, value) =>
-                          handleInternalPriceSave(master.id, variantId, value)
-                        }
-                        onDimensionsSave={handleDimensionsSave}
-                        onColorSave={handleColorSave}
-                        onStockSave={handleStockSave}
-                        onSubcategorySave={handleSubcategorySave}
-                        onVariantCreated={(variant) =>
-                          addVariantToMaster(master.id, variant)
-                        }
+                        setBusyId={setBusyId}
+                        onVariantsChange={updateMasterVariants}
                       />
                     );
                   })}

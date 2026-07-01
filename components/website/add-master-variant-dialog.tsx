@@ -8,16 +8,19 @@ import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProductColor } from "@/lib/products/types";
-import { fetchActiveProductColors } from "@/lib/products/color-variants";
-import { createWebsiteMasterVariant, generateNextWarehouseSkuForCategory } from "@/lib/website/create-master-variant";
-import type { WebsiteProductMasterRow, WebsiteProductMasterVariantRow } from "@/lib/website/types";
 import {
-  CUSTOM_DIMENSION_VALUE,
-  CUSTOM_SUBCATEGORY_VALUE,
+  createWebsiteMasterVariant,
+  generateNextWarehouseSkuForCategory,
+} from "@/lib/website/create-master-variant";
+import type {
+  WebsiteProductMasterRow,
+  WebsiteProductMasterVariantRow,
+} from "@/lib/website/types";
+import {
   fetchCategoryDimensionOptions,
   fetchCategorySubcategoryOptions,
+  fetchCategoryWarehouseColorOptions,
   type DimensionOption,
-  type SubcategoryOption,
 } from "@/lib/website/variant-catalog-options";
 import { premiumGoldButton, premiumSecondaryButton } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -43,22 +46,17 @@ export function AddMasterVariantDialog({
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [dimensionOptions, setDimensionOptions] = React.useState<DimensionOption[]>(
-    [],
-  );
-  const [subcategoryOptions, setSubcategoryOptions] = React.useState<
-    SubcategoryOption[]
+  const [dimensionOptions, setDimensionOptions] = React.useState<
+    DimensionOption[]
   >([]);
   const [colors, setColors] = React.useState<ProductColor[]>([]);
+  const [defaultSubcategory, setDefaultSubcategory] = React.useState<
+    string | null
+  >(null);
   const [previewSku, setPreviewSku] = React.useState<string>("—");
 
   const [dimensionKey, setDimensionKey] = React.useState("");
-  const [customWidth, setCustomWidth] = React.useState("");
-  const [customHeight, setCustomHeight] = React.useState("");
   const [colorId, setColorId] = React.useState("");
-  const [subcategoryValue, setSubcategoryValue] = React.useState("");
-  const [customSubcategory, setCustomSubcategory] = React.useState("");
-  const [stock, setStock] = React.useState("0");
   const [internalPrice, setInternalPrice] = React.useState("");
 
   const selectedColor = colors.find((color) => color.id === colorId);
@@ -68,84 +66,56 @@ export function AddMasterVariantDialog({
 
     setError(null);
     setDimensionKey("");
-    setCustomWidth("");
-    setCustomHeight("");
     setColorId("");
-    setSubcategoryValue("");
-    setCustomSubcategory("");
-    setStock("0");
     setInternalPrice("");
 
     async function loadOptions() {
       setLoadingOptions(true);
       const supabase = createClient();
-      const [dimensions, subcategories, colorResult, skuResult] =
+      const [dimensions, colorResult, subcategories, skuResult] =
         await Promise.all([
           fetchCategoryDimensionOptions(supabase, master.category),
+          fetchCategoryWarehouseColorOptions(supabase, master.category),
           fetchCategorySubcategoryOptions(supabase, master.category),
-          fetchActiveProductColors(supabase),
           generateNextWarehouseSkuForCategory(supabase, master.category),
         ]);
 
-      if (dimensions.error || subcategories.error || colorResult.error) {
+      if (dimensions.error || colorResult.error || subcategories.error) {
         setError(
           dimensions.error ??
-            subcategories.error ??
             colorResult.error ??
+            subcategories.error ??
             "Αποτυχία φόρτωσης επιλογών.",
         );
       }
 
       setDimensionOptions(dimensions.options);
-      setSubcategoryOptions(subcategories.options);
       setColors(colorResult.colors);
+      setDefaultSubcategory(
+        master.subcategory?.trim() ||
+          master.variants.find((variant) => variant.subcategory)?.subcategory ||
+          subcategories.options[0]?.value ||
+          null,
+      );
       setPreviewSku("error" in skuResult ? "—" : skuResult.sku);
       setLoadingOptions(false);
     }
 
     void loadOptions();
-  }, [open, master.category]);
-
-  function resolveDimensions(): { widthCm: number; heightCm: number } | null {
-    if (dimensionKey === CUSTOM_DIMENSION_VALUE) {
-      const widthCm = Number.parseFloat(customWidth.replace(",", "."));
-      const heightCm = Number.parseFloat(customHeight.replace(",", "."));
-      if (!Number.isFinite(widthCm) || widthCm <= 0) return null;
-      if (!Number.isFinite(heightCm) || heightCm <= 0) return null;
-      return { widthCm, heightCm };
-    }
-
-    const option = dimensionOptions.find((item) => item.key === dimensionKey);
-    if (!option) return null;
-    return { widthCm: option.widthCm, heightCm: option.heightCm };
-  }
-
-  function resolveSubcategory(): string | null {
-    if (subcategoryValue === CUSTOM_SUBCATEGORY_VALUE) {
-      const trimmed = customSubcategory.trim();
-      return trimmed || null;
-    }
-    return subcategoryValue.trim() || null;
-  }
+  }, [open, master]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
-    const dimensions = resolveDimensions();
-    if (!dimensions) {
-      setError("Επιλέξτε ή εισάγετε έγκυρες διαστάσεις.");
+    const option = dimensionOptions.find((item) => item.key === dimensionKey);
+    if (!option) {
+      setError("Επιλέξτε διαστάσεις από την αποθήκη.");
       return;
     }
 
     if (!selectedColor) {
       setError("Επιλέξτε χρώμα.");
-      return;
-    }
-
-    const parsedStock = Number.parseInt(stock, 10);
-    if (!Number.isFinite(parsedStock) || parsedStock < 0) {
-      setError("Εισάγετε έγκυρο απόθεμα (≥ 0).");
       return;
     }
 
@@ -163,12 +133,12 @@ export function AddMasterVariantDialog({
     const supabase = createClient();
     const result = await createWebsiteMasterVariant(supabase, {
       master,
-      widthCm: dimensions.widthCm,
-      heightCm: dimensions.heightCm,
+      widthCm: option.widthCm,
+      heightCm: option.heightCm,
       colorId: selectedColor.id,
       colorName: selectedColor.name,
-      subcategory: resolveSubcategory(),
-      stock: parsedStock,
+      subcategory: defaultSubcategory,
+      stock: 0,
       internalPriceEur: parsedPrice,
     });
     setPending(false);
@@ -215,34 +185,11 @@ export function AddMasterVariantDialog({
                   {option.label}
                 </option>
               ))}
-              <option value={CUSTOM_DIMENSION_VALUE}>Άλλο μέγεθος…</option>
             </select>
-            {dimensionKey === CUSTOM_DIMENSION_VALUE ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="custom-width">Πλάτος (cm)</Label>
-                  <Input
-                    id="custom-width"
-                    inputMode="decimal"
-                    value={customWidth}
-                    onChange={(event) => setCustomWidth(event.target.value)}
-                    disabled={pending}
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="custom-height">Ύψος (cm)</Label>
-                  <Input
-                    id="custom-height"
-                    inputMode="decimal"
-                    value={customHeight}
-                    onChange={(event) => setCustomHeight(event.target.value)}
-                    disabled={pending}
-                    required
-                  />
-                </div>
-              </div>
-            ) : null}
+            <p className="text-xs text-gray-500">
+              Μεγέθη που υπάρχουν ήδη στην αποθήκη για την κατηγορία{" "}
+              {master.category}.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -253,7 +200,7 @@ export function AddMasterVariantDialog({
               onChange={(event) => setColorId(event.target.value)}
               className={selectClassName}
               required
-              disabled={loadingOptions || pending}
+              disabled={loadingOptions || pending || colors.length === 0}
             >
               <option value="">— Επιλέξτε χρώμα —</option>
               {colors.map((color) => (
@@ -262,62 +209,35 @@ export function AddMasterVariantDialog({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500">
+              Χρώματα που χρησιμοποιούνται ήδη στην αποθήκη για την κατηγορία{" "}
+              {master.category}.
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="variant-subcategory">Υποκατηγορία</Label>
-            <select
-              id="variant-subcategory"
-              value={subcategoryValue}
-              onChange={(event) => setSubcategoryValue(event.target.value)}
-              className={selectClassName}
-              disabled={loadingOptions || pending}
-            >
-              <option value="">— Προαιρετικό —</option>
-              {subcategoryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-              <option value={CUSTOM_SUBCATEGORY_VALUE}>
-                Άλλη υποκατηγορία…
-              </option>
-            </select>
-            {subcategoryValue === CUSTOM_SUBCATEGORY_VALUE ? (
-              <Input
-                value={customSubcategory}
-                onChange={(event) => setCustomSubcategory(event.target.value)}
-                placeholder="Νέα υποκατηγορία"
-                disabled={pending}
-              />
-            ) : null}
+            <Label htmlFor="variant-internal-price">Εσωτ. τιμή (€)</Label>
+            <Input
+              id="variant-internal-price"
+              inputMode="decimal"
+              value={internalPrice}
+              onChange={(event) => setInternalPrice(event.target.value)}
+              placeholder="Προαιρετικό"
+              disabled={pending}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="variant-stock">Απόθεμα</Label>
-              <Input
-                id="variant-stock"
-                type="number"
-                min={0}
-                step={1}
-                value={stock}
-                onChange={(event) => setStock(event.target.value)}
-                disabled={pending}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="variant-internal-price">Εσωτ. τιμή (€)</Label>
-              <Input
-                id="variant-internal-price"
-                inputMode="decimal"
-                value={internalPrice}
-                onChange={(event) => setInternalPrice(event.target.value)}
-                placeholder="Προαιρετικό"
-                disabled={pending}
-              />
-            </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+            <p>
+              <span className="font-medium text-navy-900">Απόθεμα:</span> 0
+              (διαχείριση από Αποθήκη)
+            </p>
+            {defaultSubcategory ? (
+              <p className="mt-1">
+                <span className="font-medium text-navy-900">Υποκατηγορία:</span>{" "}
+                {defaultSubcategory}
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">

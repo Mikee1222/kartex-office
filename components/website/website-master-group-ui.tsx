@@ -11,14 +11,13 @@ import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
 
-import { WebsiteMasterVariantsTable } from "@/components/website/website-master-variants-table";
-import { AddMasterVariantDialog } from "@/components/website/add-master-variant-dialog";
+import { WebsiteMasterVariantsPanel } from "@/components/website/website-master-variants-panel";
 import { ActiveToggle } from "@/components/website/active-toggle";
 import type {
   WebsiteProductMasterRow,
   WebsiteProductMasterVariantRow,
 } from "@/lib/website/types";
-import { premiumGoldButton, premiumSecondaryButton, premiumTableRow } from "@/lib/ui/premium-styles";
+import { premiumGoldButton, premiumTableRow } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
 type WebsiteMasterGroupTableRowProps = {
@@ -30,27 +29,11 @@ type WebsiteMasterGroupTableRowProps = {
   onToggleExpand: () => void;
   onToggleSelect: (checked: boolean) => void;
   onToggleActive: () => void;
-  onInternalPriceSave: (
-    variantId: string,
-    value: number | null,
-  ) => Promise<boolean>;
-  onDimensionsSave: (
-    variantId: string,
-    widthCm: number,
-    heightCm: number,
-  ) => Promise<boolean>;
-  onColorSave: (
-    variantId: string,
-    colorId: string,
-    colorName: string,
-    stock: number,
-  ) => Promise<boolean>;
-  onStockSave: (variantId: string, value: number) => Promise<boolean>;
-  onSubcategorySave: (
-    variantId: string,
-    value: string | null,
-  ) => Promise<boolean>;
-  onVariantCreated: (variant: WebsiteProductMasterVariantRow) => void;
+  setBusyId: (id: string | null) => void;
+  onVariantsChange: (
+    masterId: string,
+    variants: WebsiteProductMasterVariantRow[],
+  ) => void;
 };
 
 export function WebsiteMasterGroupTableRow({
@@ -62,14 +45,9 @@ export function WebsiteMasterGroupTableRow({
   onToggleExpand,
   onToggleSelect,
   onToggleActive,
-  onInternalPriceSave,
-  onDimensionsSave,
-  onColorSave,
-  onStockSave,
-  onSubcategorySave,
-  onVariantCreated,
+  setBusyId,
+  onVariantsChange,
 }: WebsiteMasterGroupTableRowProps) {
-  const [addVariantOpen, setAddVariantOpen] = React.useState(false);
   const imageCount = master.images.length;
   const primaryUrl = master.imageUrl;
 
@@ -177,33 +155,13 @@ export function WebsiteMasterGroupTableRow({
       {isExpanded ? (
         <tr className="bg-gray-50/80">
           <td colSpan={6} className="px-4 py-3">
-            <WebsiteMasterVariantsTable
-              variants={master.variants}
-              isBusy={isBusy}
-              onInternalPriceSave={onInternalPriceSave}
-              onDimensionsSave={onDimensionsSave}
-              onColorSave={onColorSave}
-              onStockSave={onStockSave}
-              onSubcategorySave={onSubcategorySave}
-            />
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setAddVariantOpen(true)}
-                disabled={isBusy}
-                className={cn(
-                  premiumSecondaryButton,
-                  "inline-flex h-9 items-center gap-1.5 px-3 text-xs font-semibold disabled:opacity-50",
-                )}
-              >
-                + Νέα Παραλλαγή
-              </button>
-            </div>
-            <AddMasterVariantDialog
+            <WebsiteMasterVariantsPanel
               master={master}
-              open={addVariantOpen}
-              onOpenChange={setAddVariantOpen}
-              onCreated={onVariantCreated}
+              disabled={isBusy}
+              setBusyId={setBusyId}
+              onVariantsChange={(variants) =>
+                onVariantsChange(master.id, variants)
+              }
             />
           </td>
         </tr>

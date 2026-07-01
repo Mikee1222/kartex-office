@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { ProductColor } from "@/lib/products/types";
+
 export type DimensionOption = {
   key: string;
   widthCm: number;
@@ -19,14 +21,35 @@ function formatDimensionLabel(widthCm: number, heightCm: number): string {
   return `${widthCm}×${heightCm}`;
 }
 
+function pickJoin<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+type RawColorVariant = {
+  is_active?: boolean | null;
+  product_colors?: {
+    id: string;
+    name: string;
+    hex_code: string;
+    is_active?: boolean | null;
+  } | {
+    id: string;
+    name: string;
+    hex_code: string;
+    is_active?: boolean | null;
+  }[] | null;
+};
+
 export async function fetchCategoryDimensionOptions(
   supabase: SupabaseClient,
   category: string,
 ): Promise<{ options: DimensionOption[]; error: string | null }> {
   const { data, error } = await supabase
     .from("products")
-    .select("width_cm, height_cm, product_masters!inner(category)")
+    .select("width_cm, height_cm, is_active, product_masters!inner(category)")
     .eq("product_masters.category", category)
+    .eq("is_active", true)
     .not("width_cm", "is", null)
     .not("height_cm", "is", null);
 
@@ -58,14 +81,120 @@ export async function fetchCategoryDimensionOptions(
   return { options, error: null };
 }
 
+/** Colors that already appear in warehouse data for this category (catalog-backed). */
+export async function fetchCategoryWarehouseColorOptions(
+  supabase: SupabaseClient,
+  category: string,
+): Promise<{ colors: ProductColor[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `
+      color,
+      is_active,
+      product_masters!inner(category),
+      product_color_variants (
+        is_active,
+        product_colors ( id, name, hex_code, is_active )
+      )
+    `,
+    )
+    .eq("product_masters.category", category)
+    .eq("is_active", true);
+
+  if (error) {
+    return { colors: [], error: error.message };
+  }
+
+  const byId = new Map<string, ProductColor>();
+  const legacyNames = new Set<string>();
+
+  for (const row of data ?? []) {
+    let hasCatalogColor = false;
+    for (const colorVariant of (row.product_color_variants ??
+      []) as RawColorVariant[]) {
+      if (colorVariant.is_active === false) continue;
+      const catalog = pickJoin(colorVariant.product_colors);
+      if (!catalog || catalog.is_active === false) continue;
+      hasCatalogColor = true;
+      byId.set(catalog.id, {
+        id: catalog.id,
+        name: catalog.name,
+        hexCode: catalog.hex_code,
+        isActive: true,
+      });
+    }
+    const legacy = row.color?.trim();
+    if (!hasCatalogColor && legacy) {
+      legacyNames.add(legacy);
+    }
+  }
+
+  if (legacyNames.size > 0) {
+    const { data: catalogRows, error: catalogError } = await supabase
+      .from("product_colors")
+      .select("id, name, hex_code, is_active")
+      .eq("is_active", true);
+
+    if (catalogError) {
+      return { colors: [], error: catalogError.message };
+    }
+
+    const catalogByName = new Map(
+      (catalogRows ?? []).map((row) => [row.name.trim(), row]),
+    );
+
+    for (const legacyName of legacyNames) {
+      const catalog = catalogByName.get(legacyName);
+      if (catalog && !byId.has(catalog.id)) {
+        byId.set(catalog.id, {
+          id: catalog.id,
+          name: catalog.name,
+          hexCode: catalog.hex_code,
+          isActive: true,
+        });
+      }
+    }
+  }
+
+  const colors = [...byId.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "el"),
+  );
+
+  return { colors, error: null };
+}
+
+export function mergeWarehouseColorOptions(
+  options: ProductColor[],
+  currentColorId: string | null,
+  currentColorName: string | null,
+): ProductColor[] {
+  if (!currentColorId) {
+    return options;
+  }
+  if (options.some((color) => color.id === currentColorId)) {
+    return options;
+  }
+  return [
+    ...options,
+    {
+      id: currentColorId,
+      name: currentColorName?.trim() || "Τρέχον χρώμα",
+      hexCode: "#CCCCCC",
+      isActive: true,
+    },
+  ];
+}
+
 export async function fetchCategorySubcategoryOptions(
   supabase: SupabaseClient,
   category: string,
 ): Promise<{ options: SubcategoryOption[]; error: string | null }> {
   const { data, error } = await supabase
     .from("products")
-    .select("subcategory, product_masters!inner(category)")
+    .select("subcategory, is_active, product_masters!inner(category)")
     .eq("product_masters.category", category)
+    .eq("is_active", true)
     .not("subcategory", "is", null);
 
   if (error) {

@@ -6,23 +6,15 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { WebsiteMasterImagesEditor } from "@/components/website/website-master-images-editor";
-import { WebsiteMasterVariantsTable } from "@/components/website/website-master-variants-table";
+import { WebsiteMasterVariantsPanel } from "@/components/website/website-master-variants-panel";
 import { ActiveToggle } from "@/components/website/active-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
-import type { WebsiteVariantFieldPatch } from "@/components/website/website-master-variants-table";
 import { setMasterActive } from "@/lib/products/set-master-active";
 import type { WebsiteProductMasterRow } from "@/lib/website/types";
-import {
-  saveVariantColor,
-  saveVariantDimensions,
-  saveVariantInternalPrice,
-  saveVariantStock,
-  saveVariantSubcategory,
-} from "@/lib/website/variant-field-save-actions";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import {
   premiumGoldButton,
@@ -152,75 +144,6 @@ export function WebsiteProductEditPage({ masterId }: WebsiteProductEditPageProps
         ? "Το προϊόν αφαιρέθηκε από τον κατάλογο."
         : "Το προϊόν εμφανίζεται στον κατάλογο.",
     );
-  }
-
-  async function handleInternalPriceSave(
-    variantId: string,
-    value: number | null,
-  ): Promise<boolean> {
-    return saveVariantInternalPrice(variantSaveContext(), variantId, value);
-  }
-
-  function patchVariant(variantId: string, patch: WebsiteVariantFieldPatch) {
-    setMaster((current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        variants: current.variants.map((variant) =>
-          variant.id === variantId ? { ...variant, ...patch } : variant,
-        ),
-      };
-    });
-  }
-
-  function variantSaveContext() {
-    return {
-      supabase: createClient(),
-      setBusyVariantId: setBusyVariantId,
-      patchVariant,
-    };
-  }
-
-  async function handleDimensionsSave(
-    variantId: string,
-    widthCm: number,
-    heightCm: number,
-  ): Promise<boolean> {
-    return saveVariantDimensions(
-      variantSaveContext(),
-      variantId,
-      widthCm,
-      heightCm,
-    );
-  }
-
-  async function handleColorSave(
-    variantId: string,
-    colorId: string,
-    colorName: string,
-    stock: number,
-  ): Promise<boolean> {
-    return saveVariantColor(
-      variantSaveContext(),
-      variantId,
-      colorId,
-      colorName,
-      stock,
-    );
-  }
-
-  async function handleStockSave(
-    variantId: string,
-    value: number,
-  ): Promise<boolean> {
-    return saveVariantStock(variantSaveContext(), variantId, value);
-  }
-
-  async function handleSubcategorySave(
-    variantId: string,
-    value: string | null,
-  ): Promise<boolean> {
-    return saveVariantSubcategory(variantSaveContext(), variantId, value);
   }
 
   const websiteUrl = getWebsiteUrl();
@@ -399,15 +322,18 @@ export function WebsiteProductEditPage({ masterId }: WebsiteProductEditPageProps
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <WebsiteMasterVariantsTable
-            variants={master.variants}
-            isBusy={busyVariantId !== null}
-            onInternalPriceSave={handleInternalPriceSave}
-            onDimensionsSave={handleDimensionsSave}
-            onColorSave={handleColorSave}
-            onStockSave={handleStockSave}
-            onSubcategorySave={handleSubcategorySave}
-          />
+          {master ? (
+            <WebsiteMasterVariantsPanel
+              master={master}
+              disabled={saving}
+              setBusyId={setBusyVariantId}
+              onVariantsChange={(variants) =>
+                setMaster((current) =>
+                  current ? { ...current, variants } : current,
+                )
+              }
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>

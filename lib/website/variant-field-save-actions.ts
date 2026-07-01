@@ -5,8 +5,6 @@ import type { WebsiteVariantFieldPatch } from "@/components/website/website-mast
 import {
   updateVariantCatalogColor,
   updateVariantDimensions,
-  updateVariantStock,
-  updateVariantSubcategory,
 } from "@/lib/website/variant-field-updates";
 
 type VariantFieldSaveContext = {
@@ -66,48 +64,6 @@ export async function saveVariantColor(
     color: result.colorName,
   });
   toast.success("Το χρώμα αποθηκεύτηκε.");
-  return true;
-}
-
-export async function saveVariantStock(
-  ctx: VariantFieldSaveContext,
-  variantId: string,
-  stock: number,
-): Promise<boolean> {
-  ctx.setBusyVariantId(variantId);
-  const result = await updateVariantStock(ctx.supabase, variantId, stock);
-  ctx.setBusyVariantId(null);
-
-  if (result.error) {
-    toast.error(result.error);
-    return false;
-  }
-
-  ctx.patchVariant(variantId, { stock: result.stock });
-  toast.success("Το απόθεμα αποθηκεύτηκε.");
-  return true;
-}
-
-export async function saveVariantSubcategory(
-  ctx: VariantFieldSaveContext,
-  variantId: string,
-  subcategory: string | null,
-): Promise<boolean> {
-  ctx.setBusyVariantId(variantId);
-  const result = await updateVariantSubcategory(
-    ctx.supabase,
-    variantId,
-    subcategory,
-  );
-  ctx.setBusyVariantId(null);
-
-  if (result.error) {
-    toast.error(result.error);
-    return false;
-  }
-
-  ctx.patchVariant(variantId, { subcategory });
-  toast.success("Η υποκατηγορία αποθηκεύτηκε.");
   return true;
 }
 

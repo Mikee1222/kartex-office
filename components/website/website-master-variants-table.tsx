@@ -3,9 +3,14 @@
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
-import { fetchActiveProductColors } from "@/lib/products/color-variants";
 import type { ProductColor } from "@/lib/products/types";
 import type { WebsiteProductMasterVariantRow } from "@/lib/website/types";
+import {
+  fetchCategoryDimensionOptions,
+  fetchCategoryWarehouseColorOptions,
+  mergeWarehouseColorOptions,
+  type DimensionOption,
+} from "@/lib/website/variant-catalog-options";
 import { premiumTableHead, premiumTableRow } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -20,6 +25,11 @@ function blurOnEnter(event: React.KeyboardEvent<HTMLInputElement>) {
   if (event.key === "Enter") {
     event.currentTarget.blur();
   }
+}
+
+function dimensionKey(widthCm: number | null, heightCm: number | null): string {
+  if (widthCm == null || heightCm == null) return "";
+  return `${widthCm}x${heightCm}`;
 }
 
 type InternalPriceCellProps = {
@@ -79,10 +89,11 @@ function InternalPriceCell({
   );
 }
 
-type DimensionsCellProps = {
+type DimensionsSelectCellProps = {
   variantId: string;
   widthCm: number | null;
   heightCm: number | null;
+  options: DimensionOption[];
   disabled?: boolean;
   onSave: (
     variantId: string,
@@ -91,174 +102,74 @@ type DimensionsCellProps = {
   ) => Promise<boolean>;
 };
 
-function DimensionsCell({
+function DimensionsSelectCell({
   variantId,
   widthCm,
   heightCm,
+  options,
   disabled,
   onSave,
-}: DimensionsCellProps) {
-  const [localWidth, setLocalWidth] = React.useState(widthCm?.toString() ?? "");
-  const [localHeight, setLocalHeight] = React.useState(
-    heightCm?.toString() ?? "",
-  );
+}: DimensionsSelectCellProps) {
   const [saving, setSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    setLocalWidth(widthCm?.toString() ?? "");
-    setLocalHeight(heightCm?.toString() ?? "");
-  }, [widthCm, heightCm]);
-
-  async function handleBlur() {
-    const parsedWidth = Number.parseFloat(localWidth.replace(",", "."));
-    const parsedHeight = Number.parseFloat(localHeight.replace(",", "."));
-
-    if (!Number.isFinite(parsedWidth) || parsedWidth <= 0) {
-      setLocalWidth(widthCm?.toString() ?? "");
-      setLocalHeight(heightCm?.toString() ?? "");
-      return;
+  const currentKey = dimensionKey(widthCm, heightCm);
+  const mergedOptions = React.useMemo(() => {
+    if (!currentKey || options.some((option) => option.key === currentKey)) {
+      return options;
     }
-    if (!Number.isFinite(parsedHeight) || parsedHeight <= 0) {
-      setLocalWidth(widthCm?.toString() ?? "");
-      setLocalHeight(heightCm?.toString() ?? "");
-      return;
+    if (widthCm == null || heightCm == null) {
+      return options;
     }
+    return [
+      ...options,
+      {
+        key: currentKey,
+        widthCm,
+        heightCm,
+        label: `${widthCm}×${heightCm}`,
+      },
+    ].sort((a, b) => {
+      if (a.widthCm !== b.widthCm) return a.widthCm - b.widthCm;
+      return a.heightCm - b.heightCm;
+    });
+  }, [options, currentKey, widthCm, heightCm]);
 
-    if (parsedWidth === widthCm && parsedHeight === heightCm) {
-      return;
-    }
+  async function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const nextKey = event.target.value;
+    if (!nextKey || nextKey === currentKey) return;
+
+    const selected = mergedOptions.find((option) => option.key === nextKey);
+    if (!selected) return;
 
     setSaving(true);
-    const ok = await onSave(variantId, parsedWidth, parsedHeight);
+    await onSave(variantId, selected.widthCm, selected.heightCm);
     setSaving(false);
-    if (!ok) {
-      setLocalWidth(widthCm?.toString() ?? "");
-      setLocalHeight(heightCm?.toString() ?? "");
-    }
+  }
+
+  if (mergedOptions.length === 0) {
+    return (
+      <span className="text-sm text-gray-500">
+        {widthCm != null && heightCm != null
+          ? `${widthCm}×${heightCm}`
+          : "—"}
+      </span>
+    );
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <Input
-        type="text"
-        inputMode="decimal"
-        value={localWidth}
-        disabled={disabled || saving}
-        onChange={(event) => setLocalWidth(event.target.value)}
-        onBlur={() => void handleBlur()}
-        onKeyDown={blurOnEnter}
-        className={cn(editableInputClass, "w-16 tabular-nums")}
-        aria-label="Πλάτος cm"
-      />
-      <span className="text-xs text-gray-400">×</span>
-      <Input
-        type="text"
-        inputMode="decimal"
-        value={localHeight}
-        disabled={disabled || saving}
-        onChange={(event) => setLocalHeight(event.target.value)}
-        onBlur={() => void handleBlur()}
-        onKeyDown={blurOnEnter}
-        className={cn(editableInputClass, "w-16 tabular-nums")}
-        aria-label="Ύψος cm"
-      />
-    </div>
-  );
-}
-
-type StockCellProps = {
-  variantId: string;
-  value: number;
-  disabled?: boolean;
-  onSave: (variantId: string, value: number) => Promise<boolean>;
-};
-
-function StockCell({ variantId, value, disabled, onSave }: StockCellProps) {
-  const [local, setLocal] = React.useState(value.toString());
-  const [saving, setSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    setLocal(value.toString());
-  }, [value]);
-
-  async function handleBlur() {
-    const parsed = Number.parseInt(local, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      setLocal(value.toString());
-      return;
-    }
-    if (parsed === value) return;
-
-    setSaving(true);
-    const ok = await onSave(variantId, parsed);
-    setSaving(false);
-    if (!ok) {
-      setLocal(value.toString());
-    }
-  }
-
-  return (
-    <Input
-      type="number"
-      min={0}
-      step={1}
-      value={local}
+    <select
+      value={currentKey}
       disabled={disabled || saving}
-      onChange={(event) => setLocal(event.target.value)}
-      onBlur={() => void handleBlur()}
-      onKeyDown={blurOnEnter}
-      className={cn(editableInputClass, "ml-auto w-20 text-right tabular-nums")}
-      aria-label="Απόθεμα"
-    />
-  );
-}
-
-type SubcategoryCellProps = {
-  variantId: string;
-  value: string | null;
-  disabled?: boolean;
-  onSave: (variantId: string, value: string | null) => Promise<boolean>;
-};
-
-function SubcategoryCell({
-  variantId,
-  value,
-  disabled,
-  onSave,
-}: SubcategoryCellProps) {
-  const [local, setLocal] = React.useState(value ?? "");
-  const [saving, setSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    setLocal(value ?? "");
-  }, [value]);
-
-  async function handleBlur() {
-    const trimmed = local.trim();
-    const next = trimmed || null;
-    const current = value?.trim() || null;
-    if (next === current) return;
-
-    setSaving(true);
-    const ok = await onSave(variantId, next);
-    setSaving(false);
-    if (!ok) {
-      setLocal(value ?? "");
-    }
-  }
-
-  return (
-    <Input
-      type="text"
-      value={local}
-      disabled={disabled || saving}
-      onChange={(event) => setLocal(event.target.value)}
-      onBlur={() => void handleBlur()}
-      onKeyDown={blurOnEnter}
-      className={cn(editableInputClass, "min-w-[8rem]")}
-      aria-label="Υποκατηγορία"
-      placeholder="—"
-    />
+      onChange={(event) => void handleChange(event)}
+      className={editableSelectClass}
+      aria-label="Διαστάσεις"
+    >
+      {!currentKey ? <option value="">—</option> : null}
+      {mergedOptions.map((option) => (
+        <option key={option.key} value={option.key}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -280,6 +191,7 @@ type ColorCellProps = {
 function ColorCell({
   variantId,
   colorId,
+  colorName,
   stock,
   colors,
   disabled,
@@ -300,15 +212,21 @@ function ColorCell({
     setSaving(false);
   }
 
+  if (colors.length === 0) {
+    return (
+      <span className="text-sm text-gray-600">{colorName ?? "—"}</span>
+    );
+  }
+
   return (
     <select
       value={value}
-      disabled={disabled || saving || colors.length === 0}
+      disabled={disabled || saving}
       onChange={(event) => void handleChange(event)}
       className={editableSelectClass}
       aria-label="Χρώμα"
     >
-      <option value="">—</option>
+      {!colorId ? <option value="">—</option> : null}
       {colors.map((color) => (
         <option key={color.id} value={color.id}>
           {color.name}
@@ -321,17 +239,12 @@ function ColorCell({
 export type WebsiteVariantFieldPatch = Partial<
   Pick<
     WebsiteProductMasterVariantRow,
-    | "widthCm"
-    | "heightCm"
-    | "color"
-    | "colorId"
-    | "stock"
-    | "subcategory"
-    | "internalPriceEur"
+    "widthCm" | "heightCm" | "color" | "colorId" | "internalPriceEur"
   >
 >;
 
 type WebsiteMasterVariantsTableProps = {
+  category: string;
   variants: WebsiteProductMasterVariantRow[];
   isBusy: boolean;
   onInternalPriceSave: (
@@ -349,34 +262,39 @@ type WebsiteMasterVariantsTableProps = {
     colorName: string,
     stock: number,
   ) => Promise<boolean>;
-  onStockSave: (variantId: string, value: number) => Promise<boolean>;
-  onSubcategorySave: (
-    variantId: string,
-    value: string | null,
-  ) => Promise<boolean>;
 };
 
 export function WebsiteMasterVariantsTable({
+  category,
   variants,
   isBusy,
   onInternalPriceSave,
   onDimensionsSave,
   onColorSave,
-  onStockSave,
-  onSubcategorySave,
 }: WebsiteMasterVariantsTableProps) {
-  const [colors, setColors] = React.useState<ProductColor[]>([]);
+  const [dimensionOptions, setDimensionOptions] = React.useState<
+    DimensionOption[]
+  >([]);
+  const [warehouseColors, setWarehouseColors] = React.useState<ProductColor[]>(
+    [],
+  );
 
   React.useEffect(() => {
-    async function loadColors() {
+    async function loadOptions() {
       const supabase = createClient();
-      const result = await fetchActiveProductColors(supabase);
-      if (!result.error) {
-        setColors(result.colors);
+      const [dimensions, colors] = await Promise.all([
+        fetchCategoryDimensionOptions(supabase, category),
+        fetchCategoryWarehouseColorOptions(supabase, category),
+      ]);
+      if (!dimensions.error) {
+        setDimensionOptions(dimensions.options);
+      }
+      if (!colors.error) {
+        setWarehouseColors(colors.colors);
       }
     }
-    void loadColors();
-  }, []);
+    void loadOptions();
+  }, [category]);
 
   if (variants.length === 0) {
     return (
@@ -400,60 +318,59 @@ export function WebsiteMasterVariantsTable({
           </tr>
         </thead>
         <tbody>
-          {variants.map((variant) => (
-            <tr
-              key={variant.id}
-              className={cn(premiumTableRow, "border-t border-gray-100")}
-            >
-              <td className="px-3 py-2">
-                <DimensionsCell
-                  variantId={variant.id}
-                  widthCm={variant.widthCm}
-                  heightCm={variant.heightCm}
-                  disabled={isBusy}
-                  onSave={onDimensionsSave}
-                />
-              </td>
-              <td className="px-3 py-2">
-                <ColorCell
-                  variantId={variant.id}
-                  colorId={variant.colorId}
-                  colorName={variant.color}
-                  stock={variant.stock}
-                  colors={colors}
-                  disabled={isBusy}
-                  onSave={onColorSave}
-                />
-              </td>
-              <td className="px-3 py-2 font-mono text-xs text-gray-500">
-                {variant.sku || "—"}
-              </td>
-              <td className="px-3 py-2 text-right">
-                <StockCell
-                  variantId={variant.id}
-                  value={variant.stock}
-                  disabled={isBusy}
-                  onSave={onStockSave}
-                />
-              </td>
-              <td className="px-3 py-2">
-                <SubcategoryCell
-                  variantId={variant.id}
-                  value={variant.subcategory}
-                  disabled={isBusy}
-                  onSave={onSubcategorySave}
-                />
-              </td>
-              <td className="px-3 py-2 text-right">
-                <InternalPriceCell
-                  variantId={variant.id}
-                  value={variant.internalPriceEur}
-                  disabled={isBusy}
-                  onSave={onInternalPriceSave}
-                />
-              </td>
-            </tr>
-          ))}
+          {variants.map((variant) => {
+            const colorOptions = mergeWarehouseColorOptions(
+              warehouseColors,
+              variant.colorId,
+              variant.color,
+            );
+
+            return (
+              <tr
+                key={variant.id}
+                className={cn(premiumTableRow, "border-t border-gray-100")}
+              >
+                <td className="px-3 py-2">
+                  <DimensionsSelectCell
+                    variantId={variant.id}
+                    widthCm={variant.widthCm}
+                    heightCm={variant.heightCm}
+                    options={dimensionOptions}
+                    disabled={isBusy}
+                    onSave={onDimensionsSave}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <ColorCell
+                    variantId={variant.id}
+                    colorId={variant.colorId}
+                    colorName={variant.color}
+                    stock={variant.stock}
+                    colors={colorOptions}
+                    disabled={isBusy}
+                    onSave={onColorSave}
+                  />
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-gray-500">
+                  {variant.sku || "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-navy-900">
+                  {variant.stock}
+                </td>
+                <td className="px-3 py-2 text-gray-600">
+                  {variant.subcategory ?? "—"}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <InternalPriceCell
+                    variantId={variant.id}
+                    value={variant.internalPriceEur}
+                    disabled={isBusy}
+                    onSave={onInternalPriceSave}
+                  />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
