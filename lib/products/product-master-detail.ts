@@ -4,7 +4,8 @@ import {
 import type { WebsiteProductMasterRow } from "@/lib/website/types";
 
 export const INVENTORY_PRODUCT_MASTER_DETAIL_SELECT = `
-  id, clean_name, category, subcategory, quality_grade, material, description, image_url, is_active,
+  id, clean_name, category, subcategory, quality_grade, material, material_id, description, image_url, is_active,
+  materials ( id, name, is_active ),
   product_master_images ( id, master_id, url, sort_order, alt_text, created_at ),
   products!products_master_id_fkey (
     id, width_cm, height_cm, gsm, thread_count, color, sku, stock, subcategory, internal_price_eur, is_active,

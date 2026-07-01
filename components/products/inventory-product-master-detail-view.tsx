@@ -86,7 +86,8 @@ export function InventoryProductMasterDetailView({
     category: master.category,
     subcategory: master.subcategory ?? "",
     qualityGrade: master.qualityGrade ?? "",
-    material: master.material ?? "",
+    materialId: master.materialId ?? null,
+    materialName: master.materialName ?? master.material ?? null,
     description: master.description ?? "",
   });
 
@@ -101,7 +102,8 @@ export function InventoryProductMasterDetailView({
       category: master.category,
       subcategory: master.subcategory ?? "",
       qualityGrade: master.qualityGrade ?? "",
-      material: master.material ?? "",
+      materialId: master.materialId ?? null,
+      materialName: master.materialName ?? master.material ?? null,
       description: master.description ?? "",
     });
   }, [master]);
@@ -161,7 +163,7 @@ export function InventoryProductMasterDetailView({
         category: formValues.category.trim(),
         subcategory: formValues.subcategory.trim() || null,
         quality_grade: formValues.qualityGrade.trim() || null,
-        material: formValues.material.trim() || null,
+        material_id: formValues.materialId,
         description: formValues.description.trim() || null,
       })
       .eq("id", master.id)
@@ -213,7 +215,15 @@ export function InventoryProductMasterDetailView({
       <section className="grid gap-4 md:grid-cols-3">
         <ProductQualityMaterialCard
           qualityGrade={master.qualityGrade}
-          material={master.material}
+          materialName={master.materialName}
+          materialSpec={
+            master.materialName
+              ? master.material &&
+                master.material.trim() !== master.materialName.trim()
+                ? master.material
+                : null
+              : master.material
+          }
           subcategory={master.subcategory}
           description={master.description}
           onEdit={() => setEditOpen(true)}

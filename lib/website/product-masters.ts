@@ -15,7 +15,8 @@ export const WEBSITE_PRODUCT_VARIANT_SELECT = `
 `;
 
 export const WEBSITE_PRODUCT_MASTERS_SELECT = `
-  id, clean_name, category, subcategory, quality_grade, material, description, image_url, is_active,
+  id, clean_name, category, subcategory, quality_grade, material, material_id, description, image_url, is_active,
+  materials ( id, name, is_active ),
   product_master_images ( id, master_id, url, sort_order, alt_text, created_at ),
   products!products_master_id_fkey (
     ${WEBSITE_PRODUCT_VARIANT_SELECT}
@@ -55,6 +56,12 @@ type RawVariant = {
   product_color_variants?: RawColorVariant[] | null;
 };
 
+type RawMaterialCatalog = {
+  id: string;
+  name: string;
+  is_active?: boolean | null;
+};
+
 type RawMaster = {
   id: string;
   clean_name: string;
@@ -62,6 +69,8 @@ type RawMaster = {
   subcategory?: string | null;
   quality_grade?: string | null;
   material?: string | null;
+  material_id?: string | null;
+  materials?: RawMaterialCatalog | RawMaterialCatalog[] | null;
   description?: string | null;
   image_url?: string | null;
   is_active?: boolean | null;
@@ -145,12 +154,17 @@ export function mapWebsiteProductMasterRow(row: RawMaster): WebsiteProductMaster
   const imageUrl =
     primaryImageUrl(images, row.image_url?.trim() || null) ?? null;
 
+  const materialJoin = pickJoin(row.materials);
+  const materialName = materialJoin?.name?.trim() || null;
+
   return {
     id: row.id,
     cleanName: row.clean_name,
     category: row.category,
     subcategory: row.subcategory?.trim() || null,
     qualityGrade: row.quality_grade?.trim() || null,
+    materialId: row.material_id ?? materialJoin?.id ?? null,
+    materialName,
     material: row.material?.trim() || null,
     description: row.description?.trim() || null,
     imageUrl,

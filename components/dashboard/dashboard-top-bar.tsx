@@ -37,6 +37,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   users: "Χρήστες",
   settings: "Ρυθμίσεις",
   colors: "Χρώματα",
+  materials: "Υλικά",
   vehicles: "Οχήματα",
   drivers: "Οδηγοί",
   trips: "Δρομολόγια",

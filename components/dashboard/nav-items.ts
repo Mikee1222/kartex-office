@@ -3,6 +3,7 @@ import {
   Bot,
   Calendar,
   FileQuestion,
+  Layers,
   LayoutDashboard,
   LayoutGrid,
   LineChart,
@@ -166,6 +167,12 @@ export const navSections: NavSection[] = [
         label: "Χρώματα",
         href: "/settings/colors",
         icon: Palette,
+        permission: "canManageUsers",
+      },
+      {
+        label: "Υλικά",
+        href: "/settings/materials",
+        icon: Layers,
         permission: "canManageUsers",
       },
       {

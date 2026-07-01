@@ -1,0 +1,634 @@
+[
+  {
+    "master_id": "1f908d3a-2a90-4703-aef7-d8af3a446b9e",
+    "clean_name": "Κάλυμμα Stool/Καρέκλας/Τραπεζιού",
+    "original_material": "100% Polyester Spandex",
+    "classified_primary": "Spandex",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Polyester Spandex"
+  },
+  {
+    "master_id": "e7e2c6ab-51b3-4d92-88d2-33bce27e425e",
+    "clean_name": "Κουβέρτα Ακρυλική Δίχρωμη",
+    "original_material": "570gsm",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: 570gsm"
+  },
+  {
+    "master_id": "28b3a9c6-7a80-4d2c-a866-1729c55c9c92",
+    "clean_name": "Κουβέρτα Πικέ Ζακάρ Soft Touch",
+    "original_material": "CVC Πορτογαλίας (Serrana/Nieves/Margarita/Meander/Oia)",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Πορτογαλίας (Serrana/Nieves/Margarita/Meander/Oia)"
+  },
+  {
+    "master_id": "511d3dc9-9e8c-4b20-9fc8-6b60d040b9c6",
+    "clean_name": "Κουβέρτα Πικέ Προδιαγραφών Υπουργείου",
+    "original_material": "345gsm",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: 345gsm"
+  },
+  {
+    "master_id": "8d72e210-8913-4f50-9dd3-ffbecdc3ae17",
+    "clean_name": "Μαξιλάρι με Κέλυφος P/C",
+    "original_material": "Filling 7D Microfiber",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: Filling 7D Microfiber"
+  },
+  {
+    "master_id": "436cd937-0561-4fa6-a5be-0ca7876a18ec",
+    "clean_name": "Μαξιλάρι Πούπουλο",
+    "original_material": "100% Cotton down proof Percale T233, 50%WDD/50% 3D Nanofiber",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton down proof Percale T233, 50%WDD/50% 3D Nanofiber"
+  },
+  {
+    "master_id": "6aec10b2-7d43-4d1e-9da4-91017c19e9ef",
+    "clean_name": "Μαξιλάρι TC233 Εισαγωγής",
+    "original_material": "100% Cotton down proof Percale T233, Filling 3D Nanofiber",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton down proof Percale T233, Filling 3D Nanofiber"
+  },
+  {
+    "master_id": "0bfb5280-0ccf-4476-99e0-ef9f8878166e",
+    "clean_name": "Μαξιλάρι TC233 Ελληνικής Κατασκευής",
+    "original_material": "100% Cotton down proof Percale T233, Filling 3D Nanofiber",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton down proof Percale T233, Filling 3D Nanofiber"
+  },
+  {
+    "master_id": "79c20fd2-95c6-4831-89df-fb4dca22a232",
+    "clean_name": "Μαξιλαροθήκη",
+    "original_material": "Polyester/Cotton",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Polyester/Cotton"
+  },
+  {
+    "master_id": "5229ebb0-270e-45a2-977e-4b3f9d3dd9f7",
+    "clean_name": "Μαξιλαροθήκη Karim P/C",
+    "original_material": "P/C T144",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: P/C T144"
+  },
+  {
+    "master_id": "b3e93fcd-7118-4b24-bc3b-47aee1f79617",
+    "clean_name": "Μαξιλαροθήκη Laura",
+    "original_material": "100% Cotton Percale T200",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton Percale T200"
+  },
+  {
+    "master_id": "9f40eab6-4551-44b7-978b-fb75097b3f07",
+    "clean_name": "Μαξιλαροθήκη Lux Diamond",
+    "original_material": "100% Cotton T260",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T260"
+  },
+  {
+    "master_id": "ad41d137-30ba-4042-83d8-5be0cd640fcb",
+    "clean_name": "Μαξιλαροθήκη Lux Satin Plain",
+    "original_material": "100% Cotton T300",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T300"
+  },
+  {
+    "master_id": "2ea391b4-11d7-42d7-abe5-a5c13014b151",
+    "clean_name": "Μαξιλαροθήκη Oxford 4 Side",
+    "original_material": "70% Cotton - 30% Polyester",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: 70% Cotton - 30% Polyester"
+  },
+  {
+    "master_id": "afae3642-35b9-4986-a7e0-450f5ca9cbed",
+    "clean_name": "Μαξιλαροθήκη Satin Plain",
+    "original_material": "100% Cotton T250",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T250"
+  },
+  {
+    "master_id": "f8386e96-3bf2-4284-b53a-4b63c565f4c0",
+    "clean_name": "Μαξιλαροθήκη Satin Stripe 1cm",
+    "original_material": "CVC Satin Stripe 1cm TC240",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 1cm TC240"
+  },
+  {
+    "master_id": "302aff32-56c8-4c2c-b6c5-cdbec262b004",
+    "clean_name": "Μαξιλαροθήκη Satin Stripe 4mm",
+    "original_material": "CVC Satin Stripe 4mm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 4mm TC260"
+  },
+  {
+    "master_id": "ac4fad7a-4fe1-4694-bae6-34e7037e8710",
+    "clean_name": "Μαξιλαροθήκη Satin Stripe 5cm",
+    "original_material": "CVC Satin Stripe 5cm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 5cm TC260"
+  },
+  {
+    "master_id": "911d93a8-742d-4c5b-9dcf-91908184f0a2",
+    "clean_name": "Μαξιλαροθήκη Xenia Percale CVC",
+    "original_material": "Percale T200 CVC",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Percale T200 CVC"
+  },
+  {
+    "master_id": "0b375707-24bf-4fae-bb83-a71f7de38d93",
+    "clean_name": "Μπουρνούζι Λευκό Πετσετέ",
+    "original_material": "100% Cotton 430gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 430gsm"
+  },
+  {
+    "master_id": "4b1a0c21-44f1-4c69-8b36-757a18820903",
+    "clean_name": "Μπουρνούζι Λευκό Πικέ",
+    "original_material": "ΠΙΚΕ 100% Cotton 280gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: ΠΙΚΕ 100% Cotton 280gsm"
+  },
+  {
+    "master_id": "1b3bae4c-dda2-4a5f-ab40-b6bf62bd89be",
+    "clean_name": "Μπουρνούζι Λευκό Velour",
+    "original_material": "100% Cotton 360gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 360gsm"
+  },
+  {
+    "master_id": "b20087cd-bf4f-4180-81bd-c201227d11c7",
+    "clean_name": "Μπουρνούζι Spa",
+    "original_material": "100% Cotton 450gsm Πενιέ",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 450gsm Πενιέ"
+  },
+  {
+    "master_id": "97c14b3a-6423-45ab-973f-8b9c2b8189cc",
+    "clean_name": "Μπουρνούζι Velour Stripe",
+    "original_material": "100% Cotton 350gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 350gsm"
+  },
+  {
+    "master_id": "05f9bb92-b0fb-4aa6-a237-eaf2740dd203",
+    "clean_name": "Μπουρνούζι Waffle",
+    "original_material": "100% Cotton 450gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 450gsm"
+  },
+  {
+    "master_id": "eea24ab1-2176-4869-856a-14291f124929",
+    "clean_name": "Μπουρνούζι Waffle+Terry",
+    "original_material": "100% Cotton 420gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton 420gsm"
+  },
+  {
+    "master_id": "545392a7-8de7-4ef5-9b0f-5e5fcdd778a2",
+    "clean_name": "Ναπερόν",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "553b216a-4846-4adc-8c0f-9968adfc8a1a",
+    "clean_name": "Παντόφλα Κλειστή",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "2c4d6f16-65ed-4672-9581-cf3468a32622",
+    "clean_name": "Πάπλωμα 4 Season Microfiber",
+    "original_material": "Microfiber 90gsm shell, Filling 200gsm 3D Siliconized Microfiber",
+    "classified_primary": "Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Microfiber 90gsm shell, Filling 200gsm 3D Siliconized Microfiber"
+  },
+  {
+    "master_id": "1091e3ef-3a3a-489d-b00d-175c95e858de",
+    "clean_name": "Πάπλωμα 4 Season Nanofiber Golden",
+    "original_material": "100% Cotton down proof Percale T233, Filling 50%WDD/50% 0.9D Nanofiber",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton down proof Percale T233, Filling 50%WDD/50% 0.9D Nanofiber"
+  },
+  {
+    "master_id": "f05de26f-85c0-4654-858f-0f163bbadee4",
+    "clean_name": "Πάπλωμα 4 Season Nanofiber Silver",
+    "original_material": "100% Cotton down proof Percale T233, Filling 200gsm 0.9D Nanofiber",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton down proof Percale T233, Filling 200gsm 0.9D Nanofiber"
+  },
+  {
+    "master_id": "74de5506-b2d8-4d9c-bf74-0cd8719e9d6b",
+    "clean_name": "Παπλωματοθήκη Alpha P/C",
+    "original_material": "P/C T170",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: P/C T170"
+  },
+  {
+    "master_id": "05460568-2fde-4697-bf71-e9f5344a27d7",
+    "clean_name": "Παπλωματοθήκη Karim P/C",
+    "original_material": "P/C T144",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: P/C T144"
+  },
+  {
+    "master_id": "4ca7f453-83dd-4078-a7cc-e5c2101b6dba",
+    "clean_name": "Παπλωματοθήκη Laura",
+    "original_material": "100% Cotton Percale T200",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton Percale T200"
+  },
+  {
+    "master_id": "ebcba1b7-d3e1-4da6-b6ac-3dca51a67f9f",
+    "clean_name": "Παπλωματοθήκη Lux Diamond",
+    "original_material": "100% Cotton T260",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T260"
+  },
+  {
+    "master_id": "3dca43e7-0f8c-43ad-810e-f2e675c9ef56",
+    "clean_name": "Παπλωματοθήκη Lux Satin Plain",
+    "original_material": "100% Cotton T300",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T300"
+  },
+  {
+    "master_id": "ab4bb9da-7551-43d2-a430-47e13bbc30ec",
+    "clean_name": "Παπλωματοθήκη Satin Plain",
+    "original_material": "100% Cotton T250",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T250"
+  },
+  {
+    "master_id": "c33ab973-15d1-4651-ab66-f2dafc900cba",
+    "clean_name": "Παπλωματοθήκη Satin Stripe 1cm",
+    "original_material": "CVC Satin Stripe 1cm TC240",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 1cm TC240"
+  },
+  {
+    "master_id": "fdcb14a4-ee75-483b-8974-0a72a5cd0679",
+    "clean_name": "Παπλωματοθήκη Satin Stripe 4mm",
+    "original_material": "CVC Satin Stripe 4mm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 4mm TC260"
+  },
+  {
+    "master_id": "0b783167-cbfc-4e0e-af5b-da9b259041c5",
+    "clean_name": "Παπλωματοθήκη Satin Stripe 5cm",
+    "original_material": "CVC Satin Stripe 5cm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 5cm TC260"
+  },
+  {
+    "master_id": "902fad0f-f576-4e9c-abc3-2f49fa69d219",
+    "clean_name": "Παπλωματοθήκη Xenia Percale CVC",
+    "original_material": "Percale T200 CVC",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Percale T200 CVC"
+  },
+  {
+    "master_id": "b1cfd1a5-2f43-4544-bebb-4888a9b96013",
+    "clean_name": "Πατάκι Bedmat",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "f2381e47-b334-465a-b318-6979b00a2e12",
+    "clean_name": "Πατάκι Bicolor",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "66a6f974-5416-4e3d-94bf-06b35a388942",
+    "clean_name": "Πατάκι Diamond",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "94fdbe22-7ec7-4a5c-a3ed-bf938e257e8d",
+    "clean_name": "Πατάκι Frame",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "65373b53-d9db-4d51-85a9-2f33b49c7dd8",
+    "clean_name": "Πατάκι Frame Royal",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "c72205f5-dfdf-46d9-8073-0c0414632ec8",
+    "clean_name": "Πατάκι Sofia",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "9a76aa89-117c-4c7d-aa3c-8c9a1990e0fa",
+    "clean_name": "Πετσέτα",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "03944f82-247b-494f-a3b4-eea0a5fe64e8",
+    "clean_name": "Πετσέτα Πισίνας",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "ab5a91c8-6cb7-4671-a541-1d6ff115b512",
+    "clean_name": "Πετσέτα Φαγητού",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "4a082a22-f63e-404d-a28d-34834996152e",
+    "clean_name": "Πετσέτα Φαγητού Chloe",
+    "original_material": "Chloe 240gsm White",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: Chloe 240gsm White"
+  },
+  {
+    "master_id": "fd57c9be-6303-4e63-b015-87e4f04c66bc",
+    "clean_name": "Πετσέτα Cleopatra",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "e281a0d2-1597-4ef1-aa33-9fba684ae83e",
+    "clean_name": "Πετσέτα Giza",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "bb8535c6-4c99-4c9e-af05-f770047e801a",
+    "clean_name": "Πετσέτα Inter",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "4f34b5ae-9544-4303-bd32-ee0a28c60f61",
+    "clean_name": "Πετσέτα Inter RFID",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "fbde3f8b-cbe0-4ba5-80ca-96ee599fdd47",
+    "clean_name": "Πετσέτα Luxor",
+    "original_material": "100% Cotton",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton"
+  },
+  {
+    "master_id": "67308958-85da-4607-a519-b6c33e725e66",
+    "clean_name": "Πετσέτα Meander",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "c88b5cae-a20e-4b26-a0d6-071594ec18b4",
+    "clean_name": "Πετσέτα Nara",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "fb381037-38b9-4c4d-a818-e9b0c1684479",
+    "clean_name": "Πετσέτα Siva",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "90d31c23-9e82-46ee-a5dd-38b5262965e5",
+    "clean_name": "Ποτηρόπανο",
+    "original_material": "100% Βαμβάκι Ψαροκόκκαλο 220gsm",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Βαμβάκι Ψαροκόκκαλο 220gsm"
+  },
+  {
+    "master_id": "a01a91a9-93ec-429c-89fe-636f20837057",
+    "clean_name": "Προστατευτικό Καπιτονέ Λάστιχα 4 Γωνιών",
+    "original_material": "Καπιτονέ P/C",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Καπιτονέ P/C"
+  },
+  {
+    "master_id": "8892f521-ca06-4094-b359-0486d7b591cb",
+    "clean_name": "Προστατευτικό Πετσετέ Λάστιχα 4 Γωνιών",
+    "original_material": "Πετσετέ + PU Coated",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: Πετσετέ + PU Coated"
+  },
+  {
+    "master_id": "0631e77d-8af4-46c3-806b-07f96e3264ff",
+    "clean_name": "Προστατευτικό Πετσετέ Περιμετρική Φάσα",
+    "original_material": "Πετσετέ + PU Coated",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: Πετσετέ + PU Coated"
+  },
+  {
+    "master_id": "c60d728d-e8ba-4307-9cba-a23e0ed97910",
+    "clean_name": "Προστατευτικό Jersey Περιμετρική Φάσα",
+    "original_material": "Jersey 100% Cotton + PU Coated",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: Jersey 100% Cotton + PU Coated"
+  },
+  {
+    "master_id": "3e93a71f-f4cb-4dcb-b5ac-a7ef98887d5e",
+    "clean_name": "Σεντόνι",
+    "original_material": "50% Cotton - 50% Polyester",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: 50% Cotton - 50% Polyester"
+  },
+  {
+    "master_id": "796ba35c-b520-4eee-92a1-4e2c9ebbcf60",
+    "clean_name": "Σεντόνι Karim P/C",
+    "original_material": "P/C T144",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: P/C T144"
+  },
+  {
+    "master_id": "1e7daae7-1421-470f-9baa-5fcad140d744",
+    "clean_name": "Σεντόνι Lux Diamond",
+    "original_material": "100% Cotton T260",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T260"
+  },
+  {
+    "master_id": "77d9e58a-23b9-4cb6-a91c-1c3db1917d88",
+    "clean_name": "Σεντόνι Lux Satin Plain",
+    "original_material": "100% Cotton T300",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T300"
+  },
+  {
+    "master_id": "7a87e351-867b-4253-9181-b41dc42a5d2b",
+    "clean_name": "Σεντόνι Satin Plain",
+    "original_material": "100% Cotton T250",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton T250"
+  },
+  {
+    "master_id": "624d3cdd-4903-4e1a-bcd3-4d5e291da35a",
+    "clean_name": "Σεντόνι Satin Stripe 1cm",
+    "original_material": "CVC Satin Stripe 1cm TC240",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 1cm TC240"
+  },
+  {
+    "master_id": "1a28b6dc-a1f3-480e-9118-5a737c92535c",
+    "clean_name": "Σεντόνι Satin Stripe 4mm",
+    "original_material": "CVC Satin Stripe 4mm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 4mm TC260"
+  },
+  {
+    "master_id": "32959824-d58e-476e-b74e-b53d099ec67a",
+    "clean_name": "Σεντόνι Satin Stripe 5cm",
+    "original_material": "CVC Satin Stripe 5cm TC260",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe 5cm TC260"
+  },
+  {
+    "master_id": "57ad05af-b9c6-478c-ae88-6f050db1fe63",
+    "clean_name": "Σεντόνι Xenia Percale CVC",
+    "original_material": "Percale T200 CVC",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: Percale T200 CVC"
+  },
+  {
+    "master_id": "a389e0a3-d568-4d4e-8a41-c59543339d5f",
+    "clean_name": "Τραπεζομάντηλο",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "8e48cabd-90a9-4a29-8f1d-1fde15e4eed0",
+    "clean_name": "Τραπεζομάντηλο Chloe",
+    "original_material": "Chloe 240gsm White",
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": "Σύνθεση: Chloe 240gsm White"
+  },
+  {
+    "master_id": "24433fa2-83fb-45bb-97cd-73469f439930",
+    "clean_name": "Ύφασμα",
+    "original_material": "100% Cotton",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton"
+  },
+  {
+    "master_id": "2001352f-2b3f-4611-b74e-8a3847ac3b40",
+    "clean_name": "Ύφασμα Satin",
+    "original_material": "100% Cotton",
+    "classified_primary": "Βαμβάκι",
+    "description_before": null,
+    "description_after": "Σύνθεση: 100% Cotton"
+  },
+  {
+    "master_id": "ca576b36-a73d-4663-a961-8cbd74c4ad22",
+    "clean_name": "Ύφασμα Satin Plain",
+    "original_material": null,
+    "classified_primary": "Άλλο/Άγνωστο",
+    "description_before": null,
+    "description_after": null
+  },
+  {
+    "master_id": "ad933c4c-222e-4f56-a4ff-6f562f78f447",
+    "clean_name": "Ύφασμα Satin Stripe",
+    "original_material": "CVC Satin Stripe",
+    "classified_primary": "Μικτό Βαμβάκι-Πολυεστέρας",
+    "description_before": null,
+    "description_after": "Σύνθεση: CVC Satin Stripe"
+  }
+]

@@ -183,7 +183,8 @@ export function ProductDetailStatCard({
 
 type ProductQualityMaterialCardProps = {
   qualityGrade?: string | null;
-  material?: string | null;
+  materialName?: string | null;
+  materialSpec?: string | null;
   subcategory?: string | null;
   category?: string | null;
   description?: string | null;
@@ -192,7 +193,8 @@ type ProductQualityMaterialCardProps = {
 
 export function ProductQualityMaterialCard({
   qualityGrade,
-  material,
+  materialName,
+  materialSpec,
   subcategory,
   category,
   description,
@@ -226,11 +228,21 @@ export function ProductQualityMaterialCard({
             </div>
           </div>
         ) : null}
-        {material ? (
+        {materialName ? (
+          <div>
+            <div className="mb-1.5 text-xs text-gray-400">Υλικό</div>
+            <div className="inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-gold-500/10 px-3 py-2">
+              <span className="text-sm font-bold text-navy-900">{materialName}</span>
+            </div>
+            {materialSpec?.trim() ? (
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{materialSpec.trim()}</p>
+            ) : null}
+          </div>
+        ) : materialSpec?.trim() ? (
           <div>
             <div className="mb-1.5 text-xs text-gray-400">Υλικό</div>
             <div className="rounded-xl bg-navy-900/5 px-3 py-2 text-sm font-medium text-navy-900">
-              {material}
+              {materialSpec.trim()}
             </div>
           </div>
         ) : null}
@@ -254,7 +266,7 @@ export function ProductQualityMaterialCard({
             <p className="text-sm leading-relaxed text-gray-600">{description.trim()}</p>
           </div>
         ) : null}
-        {!qualityGrade && !material && !subcategory && !description?.trim() ? (
+        {!qualityGrade && !materialName && !materialSpec?.trim() && !subcategory && !description?.trim() ? (
           <p className="text-sm text-gray-400">Δεν έχουν οριστεί στοιχεία ποιότητας</p>
         ) : null}
       </div>

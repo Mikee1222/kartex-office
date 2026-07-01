@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Palette, Truck } from "lucide-react";
+import { ExternalLink, Layers, Palette, Truck } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -13,7 +13,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import type { CustomerTypeOptionRow, LookupRow } from "@/lib/settings/lookups";
 import {
   fetchCustomerTypeOptions,
-  fetchMaterials,
   fetchPaymentTermOptions,
   fetchProductCategories,
   fetchQualityGrades,
@@ -23,19 +22,16 @@ import { createClient } from "@/lib/supabase/client";
 
 export function SettingsHubPage() {
   const [categories, setCategories] = React.useState<LookupRow[]>([]);
-  const [materials, setMaterials] = React.useState<LookupRow[]>([]);
   const [qualityGrades, setQualityGrades] = React.useState<LookupRow[]>([]);
   const [paymentTerms, setPaymentTerms] = React.useState<LookupRow[]>([]);
   const [customerTypes, setCustomerTypes] = React.useState<CustomerTypeOptionRow[]>([]);
 
   const [categoriesLoading, setCategoriesLoading] = React.useState(true);
-  const [materialsLoading, setMaterialsLoading] = React.useState(true);
   const [qualityLoading, setQualityLoading] = React.useState(true);
   const [paymentLoading, setPaymentLoading] = React.useState(true);
   const [customerTypesLoading, setCustomerTypesLoading] = React.useState(true);
 
   const [categoriesError, setCategoriesError] = React.useState<string | null>(null);
-  const [materialsError, setMaterialsError] = React.useState<string | null>(null);
   const [qualityError, setQualityError] = React.useState<string | null>(null);
   const [paymentError, setPaymentError] = React.useState<string | null>(null);
   const [customerTypesError, setCustomerTypesError] = React.useState<string | null>(null);
@@ -50,16 +46,6 @@ export function SettingsHubPage() {
     setCategories(result.items);
     setCategoriesError(result.error);
     setCategoriesLoading(false);
-  }, []);
-
-  const loadMaterials = React.useCallback(async () => {
-    setMaterialsLoading(true);
-    setMaterialsError(null);
-    const supabase = createClient();
-    const result = await fetchMaterials(supabase, false);
-    setMaterials(result.items);
-    setMaterialsError(result.error);
-    setMaterialsLoading(false);
   }, []);
 
   const loadQualityGrades = React.useCallback(async () => {
@@ -94,13 +80,11 @@ export function SettingsHubPage() {
 
   React.useEffect(() => {
     void loadCategories();
-    void loadMaterials();
     void loadQualityGrades();
     void loadPaymentTerms();
     void loadCustomerTypes();
   }, [
     loadCategories,
-    loadMaterials,
     loadQualityGrades,
     loadPaymentTerms,
     loadCustomerTypes,
@@ -124,15 +108,25 @@ export function SettingsHubPage() {
         onRefresh={() => void loadCategories()}
       />
 
-      <LookupListSection
-        title="Υλικά"
-        description="Σύνθεση υφάσματος στη φόρμα προϊόντος."
-        table="materials"
-        items={materials}
-        loading={materialsLoading}
-        error={materialsError}
-        onRefresh={() => void loadMaterials()}
-      />
+      <Card className={premiumCard}>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg text-navy-900">
+              <Layers className="size-5 text-gold-500" aria-hidden />
+              Υλικά
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Κατάλογος υλικών (βαμβάκι, πολυεστέρας, μίγματα) για product masters.
+            </p>
+          </div>
+          <Button asChild className={premiumGoldButton}>
+            <Link href="/settings/materials">
+              Διαχείριση υλικών
+              <ExternalLink className="size-4" />
+            </Link>
+          </Button>
+        </CardHeader>
+      </Card>
 
       <LookupListSection
         title="Ποιότητες"

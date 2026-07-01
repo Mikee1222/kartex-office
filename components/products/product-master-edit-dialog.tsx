@@ -7,6 +7,7 @@ import {
   ProductCategorySelect,
   ProductSubcategorySelect,
 } from "@/components/products/product-category-select";
+import { MaterialIdSelect } from "@/components/settings/material-id-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,8 @@ export type ProductMasterEditFormValues = {
   category: string;
   subcategory: string;
   qualityGrade: string;
-  material: string;
+  materialId: string | null;
+  materialName: string | null;
   description: string;
 };
 
@@ -96,14 +98,13 @@ export function ProductMasterEditDialog({
                 onChange={(event) => patch({ qualityGrade: event.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="master-edit-material">Υλικό</Label>
-              <Input
-                id="master-edit-material"
-                value={values.material}
-                onChange={(event) => patch({ material: event.target.value })}
-              />
-            </div>
+            <MaterialIdSelect
+              value={values.materialId ?? ""}
+              onChange={(materialId, materialName) =>
+                patch({ materialId: materialId || null, materialName })
+              }
+              disabled={saving}
+            />
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="master-edit-description">{descriptionLabel}</Label>
               <textarea

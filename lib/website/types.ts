@@ -84,6 +84,8 @@ export type WebsiteProductMasterRow = {
   category: string;
   subcategory: string | null;
   qualityGrade: string | null;
+  materialId: string | null;
+  materialName: string | null;
   material: string | null;
   description: string | null;
   imageUrl: string | null;
