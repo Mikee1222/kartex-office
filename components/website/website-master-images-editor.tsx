@@ -32,8 +32,45 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  MAX_RAW_UPLOAD_BYTES,
+  UPLOAD_MIME_ERROR_EL,
+  UPLOAD_SIZE_ERROR_EL,
+} from "@/lib/website/constants";
+import {
+  isAllowedProductImageFile,
+  mapUploadStatusToGreekError,
+  readUploadJsonResponse,
+} from "@/lib/website/product-image-upload";
+import { sortImages } from "@/lib/website/product-master-images";
 import type { ProductMasterImageRow } from "@/lib/website/types";
 import { cn } from "@/lib/utils";
+
+type UploadResponsePayload = {
+  master?: { images: ProductMasterImageRow[]; imageUrl: string | null };
+  image?: ProductMasterImageRow;
+  error?: string;
+};
+
+function applyUploadedImage(
+  payload: UploadResponsePayload,
+  currentImages: ProductMasterImageRow[],
+  onImagesChange: (images: ProductMasterImageRow[], imageUrl: string | null) => void,
+): ProductMasterImageRow[] {
+  if (payload.master?.images) {
+    onImagesChange(payload.master.images, payload.master.imageUrl ?? null);
+    return payload.master.images;
+  }
+
+  if (payload.image) {
+    const nextImages = sortImages([...currentImages, payload.image]);
+    const imageUrl = nextImages[0]?.url ?? null;
+    onImagesChange(nextImages, imageUrl);
+    return nextImages;
+  }
+
+  throw new Error(payload.error ?? mapUploadStatusToGreekError(500));
+}
 
 type UploadProgress = {
   id: string;
@@ -229,15 +266,44 @@ export function WebsiteMasterImagesEditor({
 
   async function uploadFiles(fileList: FileList | File[]) {
     const files = Array.from(fileList).filter((file) =>
-      file.type.startsWith("image/"),
+      file.type.startsWith("image/") || isAllowedProductImageFile(file),
     );
     if (files.length === 0) {
       toast.error("Επιλέξτε αρχεία εικόνας.");
       return;
     }
 
+    let rollingImages = localImages;
+
     for (const file of files) {
       const uploadId = crypto.randomUUID();
+
+      if (!isAllowedProductImageFile(file)) {
+        setUploads((current) => [
+          ...current,
+          {
+            id: uploadId,
+            name: file.name,
+            status: "error",
+            error: UPLOAD_MIME_ERROR_EL,
+          },
+        ]);
+        continue;
+      }
+
+      if (file.size > MAX_RAW_UPLOAD_BYTES) {
+        setUploads((current) => [
+          ...current,
+          {
+            id: uploadId,
+            name: file.name,
+            status: "error",
+            error: UPLOAD_SIZE_ERROR_EL,
+          },
+        ]);
+        continue;
+      }
+
       setUploads((current) => [
         ...current,
         { id: uploadId, name: file.name, status: "uploading" },
@@ -251,17 +317,17 @@ export function WebsiteMasterImagesEditor({
           `/api/website/product-masters/${masterId}/images`,
           { method: "POST", body: formData },
         );
-        const payload = (await response.json()) as {
-          master?: { images: ProductMasterImageRow[]; imageUrl: string | null };
-          error?: string;
-        };
+        const payload = await readUploadJsonResponse<UploadResponsePayload>(response);
 
-        if (!response.ok || !payload.master) {
-          throw new Error(payload.error ?? "Upload failed");
+        if (!response.ok) {
+          throw new Error(
+            payload.error ?? mapUploadStatusToGreekError(response.status),
+          );
         }
 
-        setLocalImages(payload.master.images);
-        onChange(payload.master.images, payload.master.imageUrl);
+        const nextImages = applyUploadedImage(payload, rollingImages, onChange);
+        rollingImages = nextImages;
+        setLocalImages(nextImages);
         setUploads((current) =>
           current.map((item) =>
             item.id === uploadId ? { ...item, status: "done" } : item,
@@ -275,7 +341,9 @@ export function WebsiteMasterImagesEditor({
                   ...item,
                   status: "error",
                   error:
-                    error instanceof Error ? error.message : "Upload failed",
+                    error instanceof Error
+                      ? error.message
+                      : mapUploadStatusToGreekError(500),
                 }
               : item,
           ),
