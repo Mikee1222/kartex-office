@@ -32,6 +32,9 @@ type WebsiteMasterVariantsPanelProps = {
   setBusyId: (id: string | null) => void;
   onVariantsChange: (variants: WebsiteProductMasterVariantRow[]) => void;
   showAddButton?: boolean;
+  showInternalPrice?: boolean;
+  variantDetailHrefPrefix?: string;
+  addVariantMode?: "website" | "products";
 };
 
 export function WebsiteMasterVariantsPanel({
@@ -40,6 +43,9 @@ export function WebsiteMasterVariantsPanel({
   setBusyId,
   onVariantsChange,
   showAddButton = true,
+  showInternalPrice = true,
+  variantDetailHrefPrefix,
+  addVariantMode = "website",
 }: WebsiteMasterVariantsPanelProps) {
   const [addVariantOpen, setAddVariantOpen] = React.useState(false);
   const [busyVariantId, setBusyVariantId] = React.useState<string | null>(null);
@@ -84,6 +90,8 @@ export function WebsiteMasterVariantsPanel({
         category={master.category}
         variants={master.variants}
         isBusy={isBusy}
+        showInternalPrice={showInternalPrice}
+        variantDetailHrefPrefix={variantDetailHrefPrefix}
         onInternalPriceSave={(variantId, value) =>
           saveVariantInternalPrice(variantSaveContext(), variantId, value)
         }
@@ -122,7 +130,7 @@ export function WebsiteMasterVariantsPanel({
       ) : null}
       <AddMasterVariantDialog
         master={websiteMasterToVariantMaster(master)}
-        mode="website"
+        mode={addVariantMode}
         open={addVariantOpen}
         onOpenChange={setAddVariantOpen}
         onCreated={(variant) => handleVariantCreated(createdVariantToWebsiteRow(variant))}
