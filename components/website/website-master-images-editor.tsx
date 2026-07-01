@@ -84,6 +84,8 @@ type WebsiteMasterImagesEditorProps = {
   cleanName: string;
   images: ProductMasterImageRow[];
   disabled?: boolean;
+  /** API base path for image CRUD (default: website admin routes). */
+  apiBasePath?: string;
   onChange: (images: ProductMasterImageRow[], imageUrl: string | null) => void;
 };
 
@@ -205,8 +207,10 @@ export function WebsiteMasterImagesEditor({
   cleanName,
   images,
   disabled,
+  apiBasePath = "/api/website/product-masters",
   onChange,
 }: WebsiteMasterImagesEditorProps) {
+  const imagesApiBase = `${apiBasePath}/${masterId}/images`;
   const [localImages, setLocalImages] = React.useState(images);
   const [uploads, setUploads] = React.useState<UploadProgress[]>([]);
   const [dragOver, setDragOver] = React.useState(false);
@@ -226,7 +230,7 @@ export function WebsiteMasterImagesEditor({
   async function persistReorder(nextImages: ProductMasterImageRow[]) {
     setBusy(true);
     const response = await fetch(
-      `/api/website/product-masters/${masterId}/images/reorder`,
+      `${imagesApiBase}/reorder`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -313,10 +317,10 @@ export function WebsiteMasterImagesEditor({
       formData.append("file", file);
 
       try {
-        const response = await fetch(
-          `/api/website/product-masters/${masterId}/images`,
-          { method: "POST", body: formData },
-        );
+        const response = await fetch(imagesApiBase, {
+          method: "POST",
+          body: formData,
+        });
         const payload = await readUploadJsonResponse<UploadResponsePayload>(response);
 
         if (!response.ok) {
@@ -358,14 +362,11 @@ export function WebsiteMasterImagesEditor({
 
   async function handleSetPrimary(imageId: string) {
     setBusy(true);
-    const response = await fetch(
-      `/api/website/product-masters/${masterId}/images/${imageId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ setPrimary: true }),
-      },
-    );
+    const response = await fetch(`${imagesApiBase}/${imageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ setPrimary: true }),
+    });
     const payload = (await response.json()) as {
       master?: { images: ProductMasterImageRow[]; imageUrl: string | null };
       error?: string;
@@ -386,10 +387,9 @@ export function WebsiteMasterImagesEditor({
     if (!window.confirm("Διαγραφή αυτής της εικόνας;")) return;
 
     setBusy(true);
-    const response = await fetch(
-      `/api/website/product-masters/${masterId}/images/${imageId}`,
-      { method: "DELETE" },
-    );
+    const response = await fetch(`${imagesApiBase}/${imageId}`, {
+      method: "DELETE",
+    });
     const payload = (await response.json()) as {
       master?: { images: ProductMasterImageRow[]; imageUrl: string | null };
       error?: string;
@@ -407,14 +407,11 @@ export function WebsiteMasterImagesEditor({
   }
 
   async function handleAltTextSave(imageId: string, altText: string) {
-    const response = await fetch(
-      `/api/website/product-masters/${masterId}/images/${imageId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ altText }),
-      },
-    );
+    const response = await fetch(`${imagesApiBase}/${imageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ altText }),
+    });
     const payload = (await response.json()) as {
       image?: ProductMasterImageRow;
       error?: string;

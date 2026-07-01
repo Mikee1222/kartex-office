@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
@@ -247,6 +248,8 @@ type WebsiteMasterVariantsTableProps = {
   category: string;
   variants: WebsiteProductMasterVariantRow[];
   isBusy: boolean;
+  showInternalPrice?: boolean;
+  variantDetailHrefPrefix?: string;
   onInternalPriceSave: (
     variantId: string,
     value: number | null,
@@ -268,6 +271,8 @@ export function WebsiteMasterVariantsTable({
   category,
   variants,
   isBusy,
+  showInternalPrice = true,
+  variantDetailHrefPrefix,
   onInternalPriceSave,
   onDimensionsSave,
   onColorSave,
@@ -314,7 +319,12 @@ export function WebsiteMasterVariantsTable({
             <th className="px-3 py-2 text-left">SKU</th>
             <th className="px-3 py-2 text-right">Απόθεμα</th>
             <th className="px-3 py-2 text-left">Υποκατηγορία</th>
-            <th className="px-3 py-2 text-right">Εσωτ. τιμή (€)</th>
+            {showInternalPrice ? (
+              <th className="px-3 py-2 text-right">Εσωτ. τιμή (€)</th>
+            ) : null}
+            {variantDetailHrefPrefix ? (
+              <th className="px-3 py-2 text-right">Τιμολόγηση</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -360,14 +370,26 @@ export function WebsiteMasterVariantsTable({
                 <td className="px-3 py-2 text-gray-600">
                   {variant.subcategory ?? "—"}
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <InternalPriceCell
-                    variantId={variant.id}
-                    value={variant.internalPriceEur}
-                    disabled={isBusy}
-                    onSave={onInternalPriceSave}
-                  />
-                </td>
+                {showInternalPrice ? (
+                  <td className="px-3 py-2 text-right">
+                    <InternalPriceCell
+                      variantId={variant.id}
+                      value={variant.internalPriceEur}
+                      disabled={isBusy}
+                      onSave={onInternalPriceSave}
+                    />
+                  </td>
+                ) : null}
+                {variantDetailHrefPrefix ? (
+                  <td className="px-3 py-2 text-right">
+                    <Link
+                      href={`${variantDetailHrefPrefix}/${variant.id}`}
+                      className="text-xs font-semibold text-gold-600 hover:text-gold-700 hover:underline"
+                    >
+                      Λεπτομέρειες Τιμολόγησης
+                    </Link>
+                  </td>
+                ) : null}
               </tr>
             );
           })}

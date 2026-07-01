@@ -322,12 +322,15 @@ export function ProductsList() {
                     onToggle={() =>
                       setExpandedKey(expandedKey === key ? null : key)
                     }
+                    onMasterOpen={(masterId) =>
+                      router.push(`/products/masters/${masterId}`)
+                    }
                     onVariantClick={(variantId) =>
                       router.push(`/products/${variantId}`)
                     }
                     onVariantEdit={(variantId, event) => {
                       event.stopPropagation();
-                      router.push(`/products/${variantId}/edit`);
+                      router.push(`/products/${variantId}`);
                     }}
                     onVariantCreated={(variant) =>
                       void handleVariantCreated(group, variant)

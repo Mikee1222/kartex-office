@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowUpRight,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -214,6 +215,7 @@ type ProductMasterGroupCardProps = {
   isExpanded: boolean;
   variantsByProduct: Map<string, ProductColorVariant[]>;
   onToggle: () => void;
+  onMasterOpen?: (masterId: string) => void;
   onVariantClick: (variantId: string) => void;
   onVariantEdit: (variantId: string, event: React.MouseEvent) => void;
   onVariantCreated?: (variant: CreatedMasterVariantRow) => void;
@@ -224,6 +226,7 @@ export function ProductMasterGroupCard({
   isExpanded,
   variantsByProduct,
   onToggle,
+  onMasterOpen,
   onVariantClick,
   onVariantEdit,
   onVariantCreated,
@@ -242,6 +245,8 @@ export function ProductMasterGroupCard({
     100,
   );
 
+  const canOpenMaster = group.masterId != null && onMasterOpen != null;
+
   return (
     <article
       className={cn(
@@ -250,12 +255,7 @@ export function ProductMasterGroupCard({
         "flex flex-col overflow-hidden",
       )}
     >
-      <button
-        type="button"
-        className="flex flex-1 flex-col gap-3 p-4 text-left transition-colors hover:bg-gray-50/60"
-        onClick={onToggle}
-        aria-expanded={isExpanded}
-      >
+      <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div
             className={cn(
@@ -265,17 +265,35 @@ export function ProductMasterGroupCard({
           >
             <Package size={18} aria-hidden />
           </div>
-          {isExpanded ? (
-            <ChevronUp size={16} className="shrink-0 text-gray-400" aria-hidden />
-          ) : (
-            <ChevronDown size={16} className="shrink-0 text-gray-400" aria-hidden />
-          )}
+          <button
+            type="button"
+            onClick={onToggle}
+            className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Σύμπτυξη παραλλαγών" : "Ανάπτυξη παραλλαγών"}
+          >
+            {isExpanded ? (
+              <ChevronUp size={16} aria-hidden />
+            ) : (
+              <ChevronDown size={16} aria-hidden />
+            )}
+          </button>
         </div>
 
         <div className="min-w-0 space-y-1.5">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-navy-900">
-            {group.cleanName}
-          </h3>
+          {canOpenMaster ? (
+            <button
+              type="button"
+              onClick={() => onMasterOpen!(group.masterId!)}
+              className="group/title line-clamp-2 text-left text-sm font-semibold leading-snug text-navy-900 transition-colors hover:text-gold-600"
+            >
+              {group.cleanName}
+            </button>
+          ) : (
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-navy-900">
+              {group.cleanName}
+            </h3>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             {group.qualityGrade ? (
               <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[10px] font-semibold text-navy-900">
@@ -284,9 +302,23 @@ export function ProductMasterGroupCard({
             ) : null}
             <CategoryBadge category={group.category} />
           </div>
+          {canOpenMaster ? (
+            <button
+              type="button"
+              onClick={() => onMasterOpen!(group.masterId!)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold-600 transition-colors hover:text-gold-700"
+            >
+              Λεπτομέρειες Προϊόντος
+              <ArrowUpRight size={12} aria-hidden />
+            </button>
+          ) : null}
         </div>
 
-        <div className="space-y-2">
+        <button
+          type="button"
+          className="space-y-2 text-left transition-colors hover:opacity-90"
+          onClick={onToggle}
+        >
           <div className="flex items-end justify-between gap-2">
             <div>
               <p className={premiumLabel}>Συνολικό απόθεμα</p>
@@ -352,8 +384,8 @@ export function ProductMasterGroupCard({
               ) : null}
             </div>
           ) : null}
-        </div>
-      </button>
+        </button>
+      </div>
 
       {isExpanded ? (
         <div className="border-t border-gray-100 bg-gray-50/50">
@@ -364,21 +396,16 @@ export function ProductMasterGroupCard({
             return (
               <div
                 key={variant.id}
-                role="button"
-                tabIndex={0}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-white/80",
+                  "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/80",
                   index < group.variants.length - 1 && "border-b border-gray-100/80",
                 )}
-                onClick={() => onVariantClick(variant.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onVariantClick(variant.id);
-                  }
-                }}
               >
-                <div className="min-w-0 flex-1 space-y-1.5">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 space-y-1.5 text-left"
+                  onClick={() => onVariantClick(variant.id)}
+                >
                   <VariantDimensionBadges variant={variant} />
                   <VariantColorStockBars
                     productId={variant.id}
@@ -399,7 +426,7 @@ export function ProductMasterGroupCard({
                       {variant.sku}
                     </span>
                   </div>
-                </div>
+                </button>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <StockStatusIcon stock={variant.stock} minStock={variant.minStock} />
                   <span
@@ -418,7 +445,7 @@ export function ProductMasterGroupCard({
                     type="button"
                     onClick={(event) => onVariantEdit(variant.id, event)}
                     className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gold-500/10 hover:text-gold-500"
-                    aria-label="Επεξεργασία παραλλαγής"
+                    aria-label="Λεπτομέρειες τιμολόγησης"
                   >
                     <Pencil size={13} />
                   </button>
