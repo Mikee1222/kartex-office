@@ -59,7 +59,7 @@ export function ProductsList() {
       const supabase = createClient();
       const { data, error: fetchError } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_masters(clean_name, category)")
         .eq("is_active", true)
         .order("clean_name", { ascending: true });
 

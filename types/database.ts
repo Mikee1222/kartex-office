@@ -29,6 +29,11 @@ export type CustomerRow = {
   updated_at?: string;
 };
 
+export type ProductMasterJoin = {
+  clean_name: string;
+  category: string;
+};
+
 export type ProductRow = {
   id: string;
   name: string;
@@ -38,6 +43,7 @@ export type ProductRow = {
   category: string | null;
   subcategory?: string | null;
   master_id?: string | null;
+  product_masters?: ProductMasterJoin | ProductMasterJoin[] | null;
   purchase_price: number | string;
   sale_price: number | string;
   internal_price_eur?: number | string | null;
@@ -222,16 +228,33 @@ export function normalizeProductCategory(
   return ProductCategory.Other;
 }
 
+function pickProductMasterJoin(
+  value: ProductMasterJoin | ProductMasterJoin[] | null | undefined,
+): ProductMasterJoin | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
 export function mapProductRow(row: ProductRow): Product {
   const stock = row.stock ?? 0;
   const reservedStock = row.reserved_stock ?? 0;
+  const master = pickProductMasterJoin(row.product_masters);
+  const masterId = row.master_id ?? undefined;
+  const masterCleanName = master?.clean_name?.trim() || undefined;
+  const masterCategory = master?.category?.trim() || undefined;
+
   return {
     id: row.id,
     name: row.name,
-    cleanName: row.clean_name ?? undefined,
+    cleanName: row.clean_name?.trim() || undefined,
+    masterCleanName,
+    masterCategory,
     sku: row.sku,
     barcode: row.barcode?.trim() || "—",
-    category: normalizeProductCategory(row.category),
+    category:
+      masterId && masterCategory
+        ? masterCategory
+        : normalizeProductCategory(row.category),
     subcategory: row.subcategory ?? undefined,
     masterId: row.master_id ?? undefined,
     stock,

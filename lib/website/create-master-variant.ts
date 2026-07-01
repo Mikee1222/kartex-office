@@ -182,6 +182,12 @@ export async function createWebsiteMasterVariant(
   if (!colorId.trim()) {
     return { error: "Επιλέξτε χρώμα." };
   }
+  if (!master.cleanName.trim()) {
+    return { error: "Το master προϊόν δεν έχει όνομα (clean_name)." };
+  }
+  if (!master.category.trim()) {
+    return { error: "Το master προϊόν δεν έχει κατηγορία." };
+  }
 
   const isDuplicate = await findDuplicateMasterVariant(
     supabase,

@@ -47,6 +47,26 @@ export function resolveMasterGroupKey(group: MasterGroup): string {
   return getMasterGroupKey(group.cleanName, group.category);
 }
 
+function resolveProductGroupDisplay(product: Product): {
+  cleanName: string;
+  category: string;
+} {
+  if (product.masterId != null) {
+    const cleanName =
+      product.masterCleanName?.trim() ||
+      product.cleanName?.trim() ||
+      product.name;
+    const category =
+      product.masterCategory?.trim() || product.category;
+    return { cleanName, category };
+  }
+
+  return {
+    cleanName: product.cleanName || product.name,
+    category: product.category,
+  };
+}
+
 export function productToVariant(product: Product): ProductVariant {
   return {
     id: product.id,
@@ -73,17 +93,17 @@ export function buildMasterGroups(products: Product[]): MasterGroup[] {
   const map = new Map<string, MasterGroup>();
 
   for (const product of products) {
-    const cleanName = product.cleanName || product.name;
+    const { cleanName, category } = resolveProductGroupDisplay(product);
     const key =
       product.masterId != null
         ? `master:${product.masterId}`
-        : getMasterGroupKey(cleanName, product.category);
+        : getMasterGroupKey(cleanName, category);
 
     if (!map.has(key)) {
       map.set(key, {
         masterId: product.masterId ?? null,
         cleanName,
-        category: product.category,
+        category,
         subcategory: product.subcategory,
         qualityGrade: product.qualityGrade,
         material: product.material,

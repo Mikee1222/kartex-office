@@ -6,6 +6,12 @@ export const ProductCategory = {
   Bathmats: "Πατάκια",
   Tablecloths: "Τραπεζομάντηλα",
   Fabrics: "Υφάσματα",
+  Blankets: "Κουβέρτες",
+  Pillows: "Μαξιλάρια",
+  Bathrobes: "Μπουρνούζια",
+  Slippers: "Παντόφλες",
+  Duvets: "Παπλώματα",
+  Protective: "Προστατευτικά",
   Other: "Άλλο",
 } as const;
 
@@ -22,6 +28,8 @@ export type Product = {
   id: string;
   name: string;
   cleanName?: string;
+  masterCleanName?: string;
+  masterCategory?: string;
   sku: string;
   barcode: string;
   category: string;

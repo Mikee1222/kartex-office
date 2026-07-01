@@ -213,7 +213,7 @@ export function InventoryPage() {
       const supabase = createClient();
       const { data, error: fetchError } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_masters(clean_name, category)")
         .order("clean_name", { ascending: true });
 
       if (cancelled) return;

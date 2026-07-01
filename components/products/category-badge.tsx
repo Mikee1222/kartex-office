@@ -9,6 +9,12 @@ const categoryStyles: Record<ProductCategoryType, string> = {
   [ProductCategory.Bathmats]: "bg-cyan-100 text-cyan-800",
   [ProductCategory.Tablecloths]: "bg-amber-100 text-amber-900",
   [ProductCategory.Fabrics]: "bg-rose-100 text-rose-800",
+  [ProductCategory.Blankets]: "bg-orange-100 text-orange-800",
+  [ProductCategory.Pillows]: "bg-lime-100 text-lime-900",
+  [ProductCategory.Bathrobes]: "bg-sky-100 text-sky-800",
+  [ProductCategory.Slippers]: "bg-stone-100 text-stone-800",
+  [ProductCategory.Duvets]: "bg-purple-100 text-purple-800",
+  [ProductCategory.Protective]: "bg-emerald-100 text-emerald-800",
   [ProductCategory.Other]: "bg-slate-100 text-slate-800",
 };
 
@@ -20,6 +26,12 @@ const categoryIconStyles: Record<ProductCategoryType, string> = {
   [ProductCategory.Bathmats]: "border-cyan-200 bg-cyan-50 text-cyan-600",
   [ProductCategory.Tablecloths]: "border-amber-200 bg-amber-50 text-amber-700",
   [ProductCategory.Fabrics]: "border-rose-200 bg-rose-50 text-rose-600",
+  [ProductCategory.Blankets]: "border-orange-200 bg-orange-50 text-orange-600",
+  [ProductCategory.Pillows]: "border-lime-200 bg-lime-50 text-lime-700",
+  [ProductCategory.Bathrobes]: "border-sky-200 bg-sky-50 text-sky-600",
+  [ProductCategory.Slippers]: "border-stone-200 bg-stone-50 text-stone-600",
+  [ProductCategory.Duvets]: "border-purple-200 bg-purple-50 text-purple-600",
+  [ProductCategory.Protective]: "border-emerald-200 bg-emerald-50 text-emerald-600",
   [ProductCategory.Other]: "border-slate-200 bg-slate-50 text-slate-600",
 };
 
