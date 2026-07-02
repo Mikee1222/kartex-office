@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input";
 import { FIELD_TOOLTIPS } from "@/lib/forms/field-tooltips";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { CustomerSource, CustomerType } from "@/components/customers/types";
+import { CustomerSourceSelect } from "@/components/settings/customer-source-select";
 import { CustomerTypeSelect } from "@/components/settings/customer-type-select";
 import { PaymentTermsSelect } from "@/components/settings/payment-terms-select";
 import { useCustomerTypeOptions } from "@/lib/settings/use-lookup-options";
-import { mapUiCustomerTypeToDb } from "@/types/database";
+import { mapUiCustomerSourceToDb, mapUiCustomerTypeToDb } from "@/types/database";
 import {
   premiumFormCard,
   premiumFormGrid,
@@ -32,6 +34,7 @@ export function NewCustomerForm() {
 
   const [companyName, setCompanyName] = React.useState("");
   const [type, setType] = React.useState("");
+  const [source, setSource] = React.useState<CustomerSource>(CustomerSource.Manual);
   const [vatNumber, setVatNumber] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -82,6 +85,7 @@ export function NewCustomerForm() {
     const payload = {
       name: companyName.trim(),
       type: dbType,
+      source: mapUiCustomerSourceToDb(source),
       vat: vatNumber.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -158,6 +162,13 @@ export function NewCustomerForm() {
               <CustomerTypeSelect
                 value={type}
                 onChange={setType}
+                disabled={pending}
+                required
+              />
+
+              <CustomerSourceSelect
+                value={source}
+                onChange={setSource}
                 disabled={pending}
                 required
               />

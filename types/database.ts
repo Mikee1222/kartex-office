@@ -1,4 +1,10 @@
-import { CustomerType, type Customer } from "@/components/customers/types";
+import {
+  CustomerSource,
+  CustomerType,
+  CUSTOMER_SOURCE_OPTIONS,
+  type Customer,
+  type DbCustomerSource,
+} from "@/components/customers/types";
 import {
   OrderStatus,
   type Order,
@@ -17,6 +23,7 @@ export type CustomerRow = {
   id: string;
   name: string;
   type: DbCustomerType;
+  source?: DbCustomerSource | null;
   vat: string | null;
   phone: string | null;
   email: string | null;
@@ -29,6 +36,18 @@ export type CustomerRow = {
   created_at: string;
   updated_at?: string;
 };
+
+export function mapDbCustomerSource(
+  source: DbCustomerSource | string | null | undefined,
+): CustomerSource {
+  const match = CUSTOMER_SOURCE_OPTIONS.find((option) => option.value === source);
+  return match?.label ?? CustomerSource.Manual;
+}
+
+export function mapUiCustomerSourceToDb(label: CustomerSource): DbCustomerSource {
+  const match = CUSTOMER_SOURCE_OPTIONS.find((option) => option.label === label);
+  return match?.value ?? "manual";
+}
 
 export type ProductMasterJoin = {
   clean_name: string;
@@ -205,6 +224,7 @@ export function mapCustomerRow(
     id: row.id,
     company: row.name,
     type: mapDbCustomerType(row.type),
+    source: mapDbCustomerSource(row.source),
     phone: row.phone?.trim() || "—",
     city: row.city?.trim() || "—",
     lastOrderDate: stats?.lastOrderDate
@@ -371,6 +391,7 @@ export function countItemsByOrder(
 export type CustomerEditInitial = {
   name: string;
   typeLabel: string;
+  sourceLabel: CustomerSource;
   vat: string;
   phone: string;
   email: string;
@@ -391,6 +412,7 @@ export function mapCustomerRowToEditInitial(row: CustomerRow): CustomerEditIniti
   return {
     name: row.name,
     typeLabel: mapDbCustomerType(row.type),
+    sourceLabel: mapDbCustomerSource(row.source),
     vat: row.vat?.trim() ?? "",
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim() ?? "",

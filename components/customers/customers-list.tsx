@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { CustomerRowActions } from "@/components/customers/customer-row-actions";
+import { CustomerSourceBadge } from "@/components/customers/customer-source-badge";
 import { CustomerTypeBadge } from "@/components/customers/customer-type-badge";
 import {
   CUSTOMER_FILTER_TABS,
+  CUSTOMER_SOURCE_FILTER_TABS,
   type Customer,
   type CustomerFilterTab,
+  type CustomerSourceFilterTab,
 } from "@/components/customers/types";
 import { DataError } from "@/components/dashboard/data-error";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -70,6 +73,8 @@ export function CustomersList() {
   const router = useRouter();
   const [search, setSearch] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<CustomerFilterTab>("all");
+  const [activeSourceTab, setActiveSourceTab] =
+    React.useState<CustomerSourceFilterTab>("all");
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -124,9 +129,11 @@ export function CustomersList() {
   const filtered = React.useMemo(() => {
     return customers.filter((customer) => {
       const tabMatch = activeTab === "all" || customer.type === activeTab;
-      return tabMatch && matchesSearch(customer, search);
+      const sourceMatch =
+        activeSourceTab === "all" || customer.source === activeSourceTab;
+      return tabMatch && sourceMatch && matchesSearch(customer, search);
     });
-  }, [customers, search, activeTab]);
+  }, [customers, search, activeTab, activeSourceTab]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -184,6 +191,30 @@ export function CustomersList() {
             );
           })}
         </div>
+
+        <div
+          className="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Φίλτρο πηγής πελάτη"
+        >
+          {CUSTOMER_SOURCE_FILTER_TABS.map((tab) => {
+            const isActive = activeSourceTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveSourceTab(tab.id)}
+                className={cn(
+                  isActive ? premiumFilterTabActive : premiumFilterTabInactive,
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {error ? (
@@ -195,11 +226,12 @@ export function CustomersList() {
       {!loading && !error ? (
         <Card className={premiumTableWrap}>
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className={premiumTableHead}>
                   <th className="px-4 py-3 sm:px-6">Εταιρεία</th>
                   <th className="px-4 py-3">Τύπος</th>
+                  <th className="px-4 py-3">Πηγή</th>
                   <th className="px-4 py-3">Τηλέφωνο</th>
                   <th className="px-4 py-3">Πόλη</th>
                   <th className="px-4 py-3">Τελευταία Παραγγελία</th>
@@ -210,7 +242,7 @@ export function CustomersList() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-0">
+                    <td colSpan={8} className="p-0">
                       <EmptyState
                         icon={Users}
                         title={
@@ -248,6 +280,9 @@ export function CustomersList() {
                       </td>
                       <td className="px-4 py-3">
                         <CustomerTypeBadge type={customer.type} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <CustomerSourceBadge source={customer.source} />
                       </td>
                       <td className="px-4 py-3 text-foreground">{customer.phone}</td>
                       <td className="px-4 py-3 text-muted-foreground">

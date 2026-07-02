@@ -1,6 +1,7 @@
 import { ArrowLeft, Pencil, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 
+import { CustomerSourceBadge } from "@/components/customers/customer-source-badge";
 import { CustomerTypeBadge } from "@/components/customers/customer-type-badge";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 import {
   formatCurrencyEl,
   formatDateEl,
+  mapDbCustomerSource,
   mapDbCustomerType,
   normalizeOrderStatus,
   type CustomerRow,
@@ -73,6 +75,7 @@ function DetailField({
 export function CustomerDetailView({ customerId, data }: CustomerDetailViewProps) {
   const { customer, orders, stats } = data;
   const typeLabel = mapDbCustomerType(customer.type);
+  const sourceLabel = mapDbCustomerSource(customer.source);
   const creditLimit = toNumber(customer.credit_limit);
 
   return (
@@ -90,7 +93,10 @@ export function CustomerDetailView({ customerId, data }: CustomerDetailViewProps
           <h1 className="text-2xl font-semibold tracking-tight text-kartex-navy">
             {customer.name}
           </h1>
-          <CustomerTypeBadge type={typeLabel} />
+          <div className="flex flex-wrap items-center gap-2">
+            <CustomerTypeBadge type={typeLabel} />
+            <CustomerSourceBadge source={sourceLabel} />
+          </div>
         </div>
         <Button
           asChild

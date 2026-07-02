@@ -20,10 +20,13 @@ import {
   premiumInputFocus,
 } from "@/lib/ui/premium-styles";
 import { premiumSelect, premiumTextarea } from "@/lib/ui/form-styles";
+import { CustomerSource } from "@/components/customers/types";
+import { CustomerSourceSelect } from "@/components/settings/customer-source-select";
 import { CustomerTypeSelect } from "@/components/settings/customer-type-select";
 import { PaymentTermsSelect } from "@/components/settings/payment-terms-select";
 import { useCustomerTypeOptions } from "@/lib/settings/use-lookup-options";
 import {
+  mapUiCustomerSourceToDb,
   mapUiCustomerTypeToDb,
   type CustomerEditInitial,
 } from "@/types/database";
@@ -40,6 +43,7 @@ export function CustomerEditForm({ customerId, initial }: CustomerEditFormProps)
 
   const [companyName, setCompanyName] = React.useState(initial.name);
   const [type, setType] = React.useState(initial.typeLabel);
+  const [source, setSource] = React.useState(initial.sourceLabel);
   const { dbKeyForLabel } = useCustomerTypeOptions();
   const [vatNumber, setVatNumber] = React.useState(initial.vat);
   const [phone, setPhone] = React.useState(initial.phone);
@@ -76,6 +80,7 @@ export function CustomerEditForm({ customerId, initial }: CustomerEditFormProps)
     const payload = {
       name: companyName.trim(),
       type: dbType,
+      source: mapUiCustomerSourceToDb(source),
       vat: vatNumber.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -153,6 +158,12 @@ export function CustomerEditForm({ customerId, initial }: CustomerEditFormProps)
                 disabled={pending}
                 required
                 extraOption={initial.typeLabel}
+              />
+              <CustomerSourceSelect
+                value={source}
+                onChange={setSource}
+                disabled={pending}
+                required
               />
               <div className="space-y-2">
                 <FormFieldLabel htmlFor="vat" tooltip={FIELD_TOOLTIPS.vat}>ΑΦΜ</FormFieldLabel>
