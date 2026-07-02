@@ -210,6 +210,8 @@ export function buildTripsListRows(
       kind: "trip",
       date: trip.tripDate,
       tripId: trip.id,
+      tripNumber: trip.tripNumber,
+      orderCount: trip.orderCount,
       orderNumber: `Δρομολόγιο #${trip.tripNumber}`,
       customerName: trip.driverName,
       driverName: trip.driverName,

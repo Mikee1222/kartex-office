@@ -48,6 +48,8 @@ export type TripsListRow = {
   date: string;
   orderId?: string;
   tripId?: string;
+  tripNumber?: number;
+  orderCount?: number;
   orderNumber: string;
   customerName: string;
   driverName: string | null;

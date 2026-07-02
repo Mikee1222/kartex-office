@@ -5,6 +5,7 @@ import { GripVertical, Package, X } from "lucide-react";
 import * as React from "react";
 
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { DeleteTripButton } from "@/components/trips/delete-trip-button";
 import { TripStatusBadge } from "@/components/trips/trip-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,21 +37,25 @@ function TripActionBar({
   canEdit,
   canStart,
   canComplete,
+  canDelete,
   busy,
   onAddOrder,
   onStart,
   onComplete,
+  deleteButton,
 }: {
   canEdit: boolean;
   canStart: boolean;
   canComplete: boolean;
+  canDelete: boolean;
   busy: string | null;
   onAddOrder: () => void;
   onStart: () => void;
   onComplete: () => void;
+  deleteButton?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+    <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
       {canEdit ? (
         <Button
           type="button"
@@ -92,6 +97,9 @@ function TripActionBar({
           {busy === "complete" ? "Επιστροφή…" : "Επιστροφή"}
         </Button>
       ) : null}
+      {canDelete && deleteButton ? (
+        <div className="ml-auto">{deleteButton}</div>
+      ) : null}
     </div>
   );
 }
@@ -118,6 +126,18 @@ export function TripDetail({
   const canRemove = trip.status === "pending";
   const canStart = trip.status === "pending" && orders.length > 0;
   const canComplete = trip.status === "in_progress";
+  const canDelete = true;
+
+  const deleteButton = (
+    <DeleteTripButton
+      tripId={trip.id}
+      tripNumber={trip.tripNumber}
+      status={trip.status}
+      orderCount={orders.length}
+      onDeleted={onRefresh}
+      disabled={busy != null}
+    />
+  );
 
   async function handleStart() {
     setBusy("start");
@@ -216,7 +236,10 @@ export function TripDetail({
             />
           </div>
         </div>
-        <span className="text-xs text-gray-400">{expanded ? "▲" : "▼"}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          {canDelete ? deleteButton : null}
+          <span className="text-xs text-gray-400">{expanded ? "▲" : "▼"}</span>
+        </div>
       </button>
 
       {!expanded ? (
@@ -224,10 +247,12 @@ export function TripDetail({
           canEdit={canEdit}
           canStart={canStart}
           canComplete={false}
+          canDelete={canDelete}
           busy={busy}
           onAddOrder={onAddOrder}
           onStart={() => void handleStart()}
           onComplete={() => void handleComplete()}
+          deleteButton={deleteButton}
         />
       ) : null}
 
@@ -333,10 +358,12 @@ export function TripDetail({
             canEdit={canEdit}
             canStart={canStart}
             canComplete={canComplete}
+            canDelete={canDelete}
             busy={busy}
             onAddOrder={onAddOrder}
             onStart={() => void handleStart()}
             onComplete={() => void handleComplete()}
+            deleteButton={deleteButton}
           />
         </div>
       ) : null}

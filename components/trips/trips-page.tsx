@@ -346,7 +346,12 @@ export function TripsPage() {
                                   id === trip.id ? null : trip.id,
                                 )
                               }
-                              onRefresh={() => void load()}
+                              onRefresh={() => {
+                                setExpandedTripId((current) =>
+                                  current === trip.id ? null : current,
+                                );
+                                void load();
+                              }}
                               onAddOrder={() => setAddOrderTrip(trip)}
                             />
                           ))
@@ -413,6 +418,7 @@ export function TripsPage() {
             filterDate={filterDate}
             onTripClick={navigateToTrip}
             onUnassignedDeliveryClick={handleUnassignedDeliveryClick}
+            onTripDeleted={() => void load()}
           />
         )
       ) : null}

@@ -429,3 +429,61 @@ export async function reorderTripOrders(
 
   return { error: null };
 }
+
+export async function deleteDeliveryTrip(input: {
+  tripId: string;
+  changedByEmail: string;
+}): Promise<{ error: string | null; detachedOrderCount?: number }> {
+  const admin = createAdminClient();
+  const { trip, error: tripError } = await loadTrip(input.tripId);
+
+  if (tripError || !trip) {
+    return { error: tripError ?? "Δεν βρέθηκε το δρομολόγιο." };
+  }
+
+  if (trip.status !== "pending") {
+    if (trip.status === "in_progress") {
+      return {
+        error:
+          "Δεν μπορείτε να διαγράψετε δρομολόγιο σε εξέλιξη — περιέχει ιστορικό GPS και ενεργές παραδόσεις.",
+      };
+    }
+    return {
+      error:
+        "Δεν μπορείτε να διαγράψετε ολοκληρωμένο δρομολόγιο — το ιστορικό παράδοσης διατηρείται.",
+    };
+  }
+
+  const { data: tripOrders, error: ordersError } = await admin
+    .from("orders")
+    .select("id")
+    .eq("trip_id", input.tripId);
+
+  if (ordersError) {
+    return { error: ordersError.message };
+  }
+
+  const orderIds = (tripOrders ?? []).map((row) => row.id);
+
+  for (const orderId of orderIds) {
+    const { error } = await removeOrderFromTrip({
+      tripId: input.tripId,
+      orderId,
+      changedByEmail: input.changedByEmail,
+    });
+    if (error) {
+      return { error };
+    }
+  }
+
+  const { error: deleteError } = await admin
+    .from("delivery_trips")
+    .delete()
+    .eq("id", input.tripId);
+
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  return { error: null, detachedOrderCount: orderIds.length };
+}

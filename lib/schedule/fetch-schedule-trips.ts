@@ -12,6 +12,21 @@ export async function fetchScheduleTrips(): Promise<ScheduleTrip[]> {
 
   if (error || !data) return [];
 
+  const tripIds = data.map((row) => row.id);
+  const countByTrip = new Map<string, number>();
+
+  if (tripIds.length > 0) {
+    const { data: orderRows } = await supabase
+      .from("orders")
+      .select("trip_id")
+      .in("trip_id", tripIds);
+
+    for (const row of orderRows ?? []) {
+      if (!row.trip_id) continue;
+      countByTrip.set(row.trip_id, (countByTrip.get(row.trip_id) ?? 0) + 1);
+    }
+  }
+
   return data.map((row) => ({
     id: row.id,
     tripNumber: row.trip_number,
@@ -20,6 +35,7 @@ export async function fetchScheduleTrips(): Promise<ScheduleTrip[]> {
     driverName: row.driver_name?.trim() || "—",
     status: row.status,
     totalBoxes: row.total_boxes ?? 0,
+    orderCount: countByTrip.get(row.id) ?? 0,
     departedAt: row.departed_at,
   }));
 }

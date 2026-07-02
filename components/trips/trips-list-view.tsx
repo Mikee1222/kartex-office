@@ -4,6 +4,7 @@ import { Package } from "lucide-react";
 import * as React from "react";
 
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { DeleteTripButton } from "@/components/trips/delete-trip-button";
 import {
   ORDER_FILTER_TABS,
   type OrderStatus as OrderStatusType,
@@ -30,6 +31,7 @@ import {
   premiumTableWrap,
 } from "@/lib/ui/premium-styles";
 import { formatDateEl, normalizeOrderStatus } from "@/types/database";
+import type { TripStatus } from "@/lib/trips/types";
 import { cn } from "@/lib/utils";
 
 type TripsListFilterType = "all" | "unassigned-picking" | "unassigned-delivery" | "trips";
@@ -41,6 +43,7 @@ type TripsListViewProps = {
   filterDate?: string | null;
   onTripClick: (trip: ScheduleTrip) => void;
   onUnassignedDeliveryClick: (order: TripsCalendarOrder) => void;
+  onTripDeleted?: () => void;
 };
 
 const TYPE_TABS: { id: TripsListFilterType; label: string }[] = [
@@ -57,6 +60,7 @@ export function TripsListView({
   filterDate,
   onTripClick,
   onUnassignedDeliveryClick,
+  onTripDeleted,
 }: TripsListViewProps) {
   const [dateFrom, setDateFrom] = React.useState(filterDate ?? "");
   const [dateTo, setDateTo] = React.useState(filterDate ?? "");
@@ -192,13 +196,14 @@ export function TripsListView({
                 <th className="px-4 py-3">Κιβώτια</th>
                 <th className="px-4 py-3">Κατάσταση</th>
                 <th className="px-4 py-3">Ημέρες απομένουν</th>
+                <th className="px-4 py-3 text-right">Ενέργειες</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-muted-foreground"
                   >
                     Δεν βρέθηκαν εγγραφές με τα τρέχοντα φίλτρα.
@@ -267,6 +272,17 @@ export function TripsListView({
                         ) : (
                           "—"
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {row.kind === "trip" && row.tripId && row.tripNumber != null ? (
+                          <DeleteTripButton
+                            tripId={row.tripId}
+                            tripNumber={row.tripNumber}
+                            status={row.status as TripStatus}
+                            orderCount={row.orderCount ?? 0}
+                            onDeleted={() => onTripDeleted?.()}
+                          />
+                        ) : null}
                       </td>
                     </tr>
                   );

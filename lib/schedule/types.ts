@@ -23,6 +23,7 @@ export type ScheduleTrip = {
   driverName: string;
   status: string;
   totalBoxes: number;
+  orderCount: number;
   departedAt: string | null;
 };
 
