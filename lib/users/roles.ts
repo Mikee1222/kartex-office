@@ -19,7 +19,7 @@ export const USER_ROLE_LABELS: Record<UserRoleKey, string> = {
   driver: "Οδηγός",
 };
 
-export function normalizeUserRole(value: unknown): UserRoleKey {
+export function normalizeUserRole(value: unknown): UserRoleKey | null {
   return normalizeAppRole(value);
 }
 

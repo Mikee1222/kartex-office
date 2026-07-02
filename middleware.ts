@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { resolveStaffRole } from "@/lib/auth/roles";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const PUBLIC_PREFIXES = ["/login"];
@@ -20,28 +21,48 @@ function forwardCookies(from: NextResponse, to: NextResponse) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const { response, user } = await updateSession(request);
+  const { response, user, supabase } = await updateSession(request);
 
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    const redirect = NextResponse.redirect(url);
-    return forwardCookies(response, redirect);
+  if (user) {
+    const role = await resolveStaffRole(supabase, user);
+
+    if (!role) {
+      await supabase.auth.signOut();
+
+      if (!isPublicPath(pathname)) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("error", "forbidden");
+        const redirect = NextResponse.redirect(url);
+        return forwardCookies(response, redirect);
+      }
+
+      return response;
+    }
+
+    if (pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      const redirect = NextResponse.redirect(url);
+      return forwardCookies(response, redirect);
+    }
+
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      const redirect = NextResponse.redirect(url);
+      return forwardCookies(response, redirect);
+    }
+
+    return response;
   }
 
-  if (!user && !isPublicPath(pathname)) {
+  if (!isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     if (pathname && pathname !== "/") {
       url.searchParams.set("next", pathname);
     }
-    const redirect = NextResponse.redirect(url);
-    return forwardCookies(response, redirect);
-  }
-
-  if (user && pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
     const redirect = NextResponse.redirect(url);
     return forwardCookies(response, redirect);
   }

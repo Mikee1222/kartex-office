@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!USER_ROLE_KEYS.includes(role)) {
+  if (!role || !USER_ROLE_KEYS.includes(role)) {
     return NextResponse.json({ error: "Μη έγκυρος ρόλος." }, { status: 400 });
   }
 

@@ -90,16 +90,26 @@ export const ALL_PERMISSION_KEYS = Object.keys(
   PERMISSIONS.admin,
 ) as PermissionKey[];
 
-export function normalizeAppRole(value: unknown): AppRole {
-  if (value === "admin" || value === "salesperson" || value === "warehouse" || value === "driver") {
+export function normalizeAppRole(value: unknown): AppRole | null {
+  if (
+    value === "admin" ||
+    value === "salesperson" ||
+    value === "warehouse" ||
+    value === "driver"
+  ) {
     return value;
   }
   if (value === "sales") return "salesperson";
-  return "salesperson";
+  return null;
 }
+
+const DENIED_PERMISSIONS = Object.fromEntries(
+  ALL_PERMISSION_KEYS.map((key) => [key, false]),
+) as Record<PermissionKey, boolean>;
 
 export function getRolePermissions(role: string) {
   const key = normalizeAppRole(role);
+  if (!key) return { ...DENIED_PERMISSIONS };
   return { ...PERMISSIONS[key] };
 }
 

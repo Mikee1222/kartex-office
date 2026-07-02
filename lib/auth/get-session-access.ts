@@ -1,14 +1,13 @@
 import {
+  roleFromBootstrapOrRow,
+} from "@/lib/auth/roles";
+import {
   hasPermission,
-  normalizeAppRole,
   type AppRole,
   type PermissionKey,
 } from "@/lib/permissions";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { parseCustomPermissions } from "@/lib/users/roles";
 import { createClient } from "@/lib/supabase/server";
-
-const BOOTSTRAP_ADMIN_EMAIL = "admin@karalis.gr";
 
 export type SessionAccess = {
   userId: string;
@@ -16,10 +15,6 @@ export type SessionAccess = {
   role: AppRole;
   customPermissions?: Partial<Record<PermissionKey, boolean>>;
 };
-
-function isBootstrapAdminEmail(email: string | undefined) {
-  return email?.trim().toLowerCase() === BOOTSTRAP_ADMIN_EMAIL;
-}
 
 export async function getSessionAccess(): Promise<SessionAccess | null> {
   const supabase = await createClient();
@@ -32,28 +27,14 @@ export async function getSessionAccess(): Promise<SessionAccess | null> {
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const customPermissions = parseCustomPermissions(metadata?.custom_permissions);
 
-  let role: AppRole;
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  try {
-    const admin = createAdminClient();
-    const { data: roleData } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (roleData?.role) {
-      role = normalizeAppRole(roleData.role);
-    } else if (isBootstrapAdminEmail(user.email)) {
-      role = "admin";
-    } else {
-      role = normalizeAppRole(metadata?.role);
-    }
-  } catch {
-    role = isBootstrapAdminEmail(user.email)
-      ? "admin"
-      : normalizeAppRole(metadata?.role);
-  }
+  const role = roleFromBootstrapOrRow(user.email, roleData?.role ?? null);
+  if (!role) return null;
 
   return {
     userId: user.id,

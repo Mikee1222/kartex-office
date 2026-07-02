@@ -42,18 +42,21 @@ export async function loadManagedUsers(): Promise<{
       (roleRows ?? []).map((row) => [row.user_id, normalizeAppRole(row.role)]),
     );
 
-    const users = (authData.users ?? []).map((u) => {
+    const users = (authData.users ?? []).flatMap((u) => {
       const metadata = u.user_metadata as Record<string, unknown> | undefined;
       const role = normalizeUserRole(roleByUserId.get(u.id) ?? metadata?.role);
+      if (!role) return [];
 
-      return {
-        id: u.id,
-        email: u.email ?? "—",
-        role,
-        active: isUserActive(metadata),
-        createdAt: formatDateEl(u.created_at),
-        customPermissions: parseCustomPermissions(metadata?.custom_permissions),
-      };
+      return [
+        {
+          id: u.id,
+          email: u.email ?? "—",
+          role,
+          active: isUserActive(metadata),
+          createdAt: formatDateEl(u.created_at),
+          customPermissions: parseCustomPermissions(metadata?.custom_permissions),
+        },
+      ];
     });
 
     return { users, error: null };

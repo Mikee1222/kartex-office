@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { ALL_PERMISSION_KEYS, normalizeAppRole } from "@/lib/permissions";
 import { requireManageUsers } from "@/lib/auth/get-session-access";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { USER_ROLE_KEYS } from "@/lib/users/roles";
 
 export const runtime = "nodejs";
 
@@ -46,7 +45,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const role = body.role ? normalizeAppRole(body.role) : undefined;
-  if (role && !USER_ROLE_KEYS.includes(role)) {
+  if (body.role && !role) {
     return NextResponse.json({ error: "Μη έγκυρος ρόλος." }, { status: 400 });
   }
 

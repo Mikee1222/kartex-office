@@ -19,8 +19,11 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";
+  const forbidden = searchParams.get("error") === "forbidden";
 
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(
+    forbidden ? "Δεν έχετε πρόσβαση στο Kartex Office" : null,
+  );
   const [pending, setPending] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
 
