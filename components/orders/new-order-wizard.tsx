@@ -15,6 +15,10 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
+import {
+  DocumentTypePicker,
+  documentTypeLabel,
+} from "@/components/orders/document-type-picker";
 import { OrderStatus } from "@/components/orders/types";
 import { CategoryBadge } from "@/components/products/category-badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +44,10 @@ import {
   premiumCard,
 } from "@/lib/ui/premium-styles";
 import { masterGroupGridClass } from "@/components/products/master-group-ui";
-import { computeOrderVatSummary } from "@/lib/orders/order-vat";
+import {
+  computeOrderVatSummary,
+  type OrderDocumentType,
+} from "@/lib/orders/order-vat";
 import { PaymentTermsSelect } from "@/components/settings/payment-terms-select";
 import { usePaymentTermOptions } from "@/lib/settings/use-lookup-options";
 import { createClient } from "@/lib/supabase/client";
@@ -83,6 +90,7 @@ type WizardCustomer = {
   city: string | null;
   postal_code: string | null;
   payment_terms: string | null;
+  vat: string | null;
 };
 
 const premiumTextarea =
@@ -135,6 +143,7 @@ export function NewOrderWizard() {
   const { names: paymentTermNames } = usePaymentTermOptions();
   const [priority, setPriority] = React.useState("normal");
   const [notes, setNotes] = React.useState("");
+  const [documentType, setDocumentType] = React.useState<OrderDocumentType>("receipt");
   const [isReservedOrder, setIsReservedOrder] = React.useState(false);
   const [reservedUntil, setReservedUntil] = React.useState("");
 
@@ -163,7 +172,7 @@ export function NewOrderWizard() {
       const { data, error } = await supabase
         .from("customers")
         .select(
-          "id, name, type, phone, email, address, city, postal_code, payment_terms",
+          "id, name, type, phone, email, address, city, postal_code, payment_terms, vat",
         )
         .order("name");
 
@@ -184,6 +193,7 @@ export function NewOrderWizard() {
             city: row.city,
             postal_code: row.postal_code,
             payment_terms: row.payment_terms,
+            vat: row.vat,
           })),
         );
       }
@@ -256,9 +266,9 @@ export function NewOrderWizard() {
     () =>
       computeOrderVatSummary({
         subtotal: orderTotal,
-        documentType: "receipt",
+        documentType,
       }),
-    [orderTotal],
+    [orderTotal, documentType],
   );
 
   function masterGroupKey(group: MasterGroup) {
@@ -409,6 +419,11 @@ export function NewOrderWizard() {
         deliveryMethod === "address" ? deliveryPostalCode.trim() || null : null,
       pickup_agency:
         deliveryMethod === "pickup" ? pickupAgency.trim() || null : null,
+      document_type: documentType === "invoice" ? "invoice" : "receipt",
+      vat_number:
+        documentType === "invoice"
+          ? selectedCustomer?.vat?.trim() || null
+          : null,
     };
 
     const { data: order, error: orderError } = await supabase
@@ -480,6 +495,7 @@ export function NewOrderWizard() {
     setDeliveryAddress(customer.address?.trim() || "");
     setDeliveryCity(customer.city?.trim() || "");
     setDeliveryPostalCode(customer.postal_code?.trim() || "");
+    setDocumentType(customer.vat?.trim() ? "invoice" : "receipt");
   }
 
   return (
@@ -986,6 +1002,11 @@ export function NewOrderWizard() {
                     </div>
                   </div>
                 </div>
+                <DocumentTypePicker
+                  className="sm:col-span-2"
+                  value={documentType}
+                  onChange={setDocumentType}
+                />
                 <PaymentTermsSelect
                   value={paymentTerms}
                   onChange={setPaymentTerms}
@@ -1100,7 +1121,7 @@ export function NewOrderWizard() {
                     {pickingDate.trim()
                       ? `Picking ${pickingDate}, παράδοση ${deliveryDate || "—"}, ειδοποίηση ${reminderDays} ημ. πριν`
                       : "Άμεση εκτέλεση"}{" "}
-                    ·{" "}
+                    · {documentTypeLabel(documentType)} ·{" "}
                     {paymentTerms || "—"} ·{" "}
                     {PRIORITIES.find((p) => p.value === priority)?.label}
                   </p>
@@ -1171,7 +1192,7 @@ export function NewOrderWizard() {
                   <span className="tabular-nums">{formatEur(orderVat.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>ΦΠΑ 24%</span>
+                  <span>{orderVat.vatApplies ? "ΦΠΑ 24%" : "ΦΠΑ"}</span>
                   <span className="tabular-nums">{formatEur(orderVat.vatAmount)}</span>
                 </div>
               </div>
@@ -1194,7 +1215,9 @@ export function NewOrderWizard() {
                 </div>
               ) : null}
               <div className="border-t border-white/10 pt-2 text-xs text-white/30">
-                ΦΠΑ υπολογίζεται στην τιμολόγηση
+                {orderVat.vatApplies
+                  ? "Απόδειξη — με ΦΠΑ 24%"
+                  : "Τιμολόγιο — χωρίς ΦΠΑ"}
               </div>
             </CardContent>
           </Card>
