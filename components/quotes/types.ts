@@ -98,6 +98,21 @@ export function matchesQuoteFilterTab(
   }
 }
 
+export function quoteDisplayNames(quote: {
+  companyName: string;
+  contactName: string;
+}): {
+  primary: string;
+  contact: string;
+  showContact: boolean;
+} {
+  const company = quote.companyName?.trim() || "—";
+  const contact = quote.contactName?.trim() || "—";
+  const primary = company !== "—" ? company : contact;
+  const showContact = contact !== "—" && contact !== company;
+  return { primary, contact, showContact };
+}
+
 export function normalizeQuoteStatus(status: string): QuoteRequestStatus {
   const values: QuoteRequestStatus[] = [
     "pending",

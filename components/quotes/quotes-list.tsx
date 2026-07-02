@@ -22,6 +22,7 @@ import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import {
   matchesQuoteFilterTab,
   QUOTE_FILTER_TABS,
+  quoteDisplayNames,
   type QuoteFilterTab,
   type QuoteListItem,
   type QuoteRequestStatus,
@@ -31,6 +32,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotificationsStore } from "@/lib/notifications-store";
 import { createClient } from "@/lib/supabase/client";
+import {
+  premiumFilterTabActive,
+  premiumFilterTabActiveGold,
+  premiumFilterTabInactive,
+  premiumPageSubtitle,
+  premiumStatCard,
+} from "@/lib/ui/premium-styles";
 import { mapQuoteRequestRow, type QuoteRequestRow } from "@/types/database";
 import { cn } from "@/lib/utils";
 
@@ -40,36 +48,45 @@ type QuotesListProps = {
   initialQuotes: QuoteListItem[];
 };
 
-function statusColor(status: QuoteRequestStatus) {
+function quoteInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function statusAccent(status: QuoteRequestStatus): {
+  icon: React.ReactNode;
+  avatarClass: string;
+} {
   switch (status) {
     case "pending":
     case "reviewing":
       return {
-        border: "#FCD34D",
-        bg: "#FFFBEB",
-        icon: <Clock size={14} className="text-amber-500" />,
+        icon: <Clock size={14} className="text-amber-500" aria-hidden />,
+        avatarClass: "bg-amber-50 text-amber-700",
       };
     case "quoted":
       return {
-        border: "#93C5FD",
-        bg: "#EFF6FF",
-        icon: <MessageSquare size={14} className="text-blue-500" />,
+        icon: <MessageSquare size={14} className="text-blue-500" aria-hidden />,
+        avatarClass: "bg-blue-50 text-blue-700",
       };
     case "accepted":
       return {
-        border: "#6EE7B7",
-        bg: "#ECFDF5",
-        icon: <CheckCircle2 size={14} className="text-emerald-500" />,
+        icon: <CheckCircle2 size={14} className="text-emerald-500" aria-hidden />,
+        avatarClass: "bg-emerald-50 text-emerald-700",
       };
     case "rejected":
     case "cancelled":
       return {
-        border: "#FCA5A5",
-        bg: "#FEF2F2",
-        icon: <XCircle size={14} className="text-red-400" />,
+        icon: <XCircle size={14} className="text-red-400" aria-hidden />,
+        avatarClass: "bg-red-50 text-red-600",
       };
     default:
-      return { border: "#E5E7EB", bg: "#F9FAFB", icon: null };
+      return {
+        icon: null,
+        avatarClass: "bg-gray-50 text-gray-600",
+      };
   }
 }
 
@@ -247,45 +264,65 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
     toast.success("Αίτημα διαγράφηκε");
   }
 
+  const statCards = [
+    {
+      label: "Εκκρεμή",
+      value: pendingCount,
+      icon: Clock,
+      tone: "text-amber-600",
+      border: "border-amber-200/60",
+    },
+    {
+      label: "Απεστάλησαν",
+      value: quotedCount,
+      icon: MessageSquare,
+      tone: "text-blue-600",
+      border: "border-blue-200/60",
+    },
+    {
+      label: "Αποδεκτά",
+      value: acceptedCount,
+      icon: CheckCircle2,
+      tone: "text-emerald-600",
+      border: "border-emerald-200/60",
+    },
+  ] as const;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader
         title="Αιτήματα Προσφοράς"
-        subtitle="Αιτήματα από το B2B portal — προσθέστε τιμές και απαντήστε στους πελάτες."
+        subtitle={
+          <span className={premiumPageSubtitle}>
+            Αιτήματα από το B2B portal — προσθέστε τιμές και απαντήστε στους πελάτες.
+          </span>
+        }
       />
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <Clock size={22} className="shrink-0 text-amber-500" />
-          <div>
-            <div className="text-2xl font-bold text-amber-700">
-              {pendingCount}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {statCards.map((stat) => (
+          <article
+            key={stat.label}
+            className={cn(premiumStatCard, "flex items-center gap-4 p-5", stat.border)}
+          >
+            <span
+              className={cn(
+                "flex size-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm",
+                stat.tone,
+              )}
+            >
+              <stat.icon size={20} aria-hidden />
+            </span>
+            <div>
+              <p className={cn("text-3xl font-semibold tabular-nums leading-none", stat.tone)}>
+                {stat.value}
+              </p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                {stat.label}
+              </p>
             </div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-amber-500">
-              Εκκρεμή
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-          <MessageSquare size={22} className="shrink-0 text-blue-500" />
-          <div>
-            <div className="text-2xl font-bold text-blue-700">{quotedCount}</div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-blue-500">
-              Απεστάλησαν
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <CheckCircle2 size={22} className="shrink-0 text-emerald-500" />
-          <div>
-            <div className="text-2xl font-bold text-emerald-700">
-              {acceptedCount}
-            </div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-500">
-              Αποδεκτά
-            </div>
-          </div>
-        </div>
+          </article>
+        ))}
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist">
@@ -306,19 +343,23 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                "inline-flex items-center gap-2",
                 isActive
-                  ? "bg-kartex-gold text-white shadow-sm"
-                  : "border border-border text-muted-foreground hover:bg-muted",
+                  ? tab.id === "all"
+                    ? premiumFilterTabActive
+                    : premiumFilterTabActiveGold
+                  : premiumFilterTabInactive,
               )}
             >
               {tab.label}
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-xs font-bold",
+                  "rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums",
                   isActive
-                    ? "bg-white/20 text-white"
-                    : "bg-muted text-muted-foreground",
+                    ? tab.id === "all"
+                      ? "bg-white/15 text-white"
+                      : "bg-gold-500/10 text-gold-600"
+                    : "bg-gray-100 text-gray-500",
                 )}
               >
                 {count}
@@ -333,23 +374,24 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
       ) : null}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-36 rounded-2xl" />
+            <Skeleton key={index} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card p-12 text-center">
+        <div className={cn(premiumStatCard, "px-8 py-12 text-center")}>
           <FileQuestion
             size={40}
-            className="mx-auto mb-3 text-muted-foreground/40"
+            className="mx-auto mb-3 text-gray-300"
+            aria-hidden
           />
-          <p className="font-medium text-muted-foreground">
+          <p className="font-semibold text-navy-900">
             {quotes.length === 0
               ? "Δεν υπάρχουν αιτήματα προσφοράς"
               : "Δεν βρέθηκαν αποτελέσματα"}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground/60">
+          <p className="mt-1 text-sm text-gray-400">
             {quotes.length === 0
               ? "Όταν ένας πελάτης υποβάλει αίτημα από το portal, θα εμφανιστεί εδώ."
               : "Δοκιμάστε άλλο φίλτρο."}
@@ -357,9 +399,10 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-3">
             {paginated.map((quote) => {
-              const { border, bg, icon } = statusColor(quote.status);
+              const { primary, showContact, contact } = quoteDisplayNames(quote);
+              const { icon, avatarClass } = statusAccent(quote.status);
               const isHighlighted = highlightedIds.has(quote.id);
               const isAccepted = acceptedHighlightIds.has(quote.id);
 
@@ -367,48 +410,48 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                 <div
                   key={quote.id}
                   className={cn(
-                    "cursor-pointer overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:shadow-md",
-                    isHighlighted && "ring-2 ring-amber-400",
-                    isAccepted && "ring-2 ring-emerald-400",
+                    "group cursor-pointer rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:border-gold-500/30 hover:shadow-md",
+                    isHighlighted && "border-amber-300 ring-2 ring-amber-400/60",
+                    isAccepted && "border-emerald-300 ring-2 ring-emerald-400/60",
                   )}
-                  style={{ borderColor: border }}
                   onClick={() => router.push(`/quotes/${quote.id}`)}
                 >
-                  <div className="px-5 py-4" style={{ background: bg }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {icon}
-                        <QuoteStatusBadge status={quote.status} />
-                      </div>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        #{quote.shortId}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <span
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition-colors group-hover:bg-gold-500/10",
+                          avatarClass,
+                        )}
+                      >
+                        {quoteInitials(primary)}
                       </span>
-                    </div>
-                  </div>
 
-                  <div className="px-5 py-4">
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-base font-bold leading-tight text-foreground">
-                          {quote.companyName || "—"}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-gold-600">
+                            #{quote.shortId}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            {icon}
+                            <QuoteStatusBadge status={quote.status} />
+                          </span>
                         </div>
-                        <div className="mt-0.5 text-sm text-muted-foreground">
-                          {quote.contactName || "—"}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-xs text-muted-foreground">
-                          {quote.date}
-                        </div>
-                        <div className="mt-0.5 text-sm font-semibold text-kartex-navy">
-                          {quote.itemCount}{" "}
+                        <p className="mt-1 text-base font-semibold leading-tight text-navy-900">
+                          {primary}
+                        </p>
+                        {showContact ? (
+                          <p className="mt-0.5 text-sm text-gray-500">{contact}</p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-gray-400">
+                          {quote.date} · {quote.itemCount}{" "}
                           {quote.itemCount === 1 ? "προϊόν" : "προϊόντα"}
-                        </div>
+                        </p>
                       </div>
                     </div>
 
                     <div
-                      className="flex items-center gap-2 border-t border-border/50 pt-3"
+                      className="flex shrink-0 items-center gap-2"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {quote.status === "accepted" && quote.orderId ? (
@@ -417,11 +460,11 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                           size="sm"
                           variant="outline"
                           asChild
-                          className="h-8 flex-1 border-emerald-200 text-xs text-emerald-700 hover:bg-emerald-50"
+                          className="hidden h-8 border-emerald-200 text-xs text-emerald-700 hover:bg-emerald-50 sm:inline-flex"
                         >
                           <Link href={`/orders/${quote.orderId}`}>
                             <Package size={13} className="mr-1" />
-                            Δείτε Παραγγελία
+                            Παραγγελία
                           </Link>
                         </Button>
                       ) : null}
@@ -430,7 +473,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                         size="sm"
                         variant="outline"
                         asChild
-                        className="h-8 flex-1 border-kartex-gold/30 text-xs text-kartex-navy hover:bg-kartex-gold/5"
+                        className="h-8 border-gold-500/30 text-xs text-navy-900 hover:bg-gold-500/5"
                       >
                         <Link href={`/quotes/${quote.id}`}>
                           <Eye size={13} className="mr-1" />
@@ -458,7 +501,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
 
           {totalPages > 1 ? (
             <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-gray-400">
                 Εμφάνιση {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
                 {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} από{" "}
                 {filtered.length}
@@ -485,7 +528,7 @@ export function QuotesList({ initialQuotes }: QuotesListProps) {
                       className={cn(
                         "h-8 w-8 p-0 text-xs",
                         currentPage === page &&
-                          "border-kartex-gold bg-kartex-gold text-white hover:bg-kartex-gold/90",
+                          "border-gold-500 bg-gold-500 text-navy-900 hover:bg-gold-400",
                       )}
                     >
                       {page}

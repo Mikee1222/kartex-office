@@ -1,21 +1,34 @@
 "use client";
 
-import { ArrowLeft, Package, Trash2 } from "lucide-react";
+import { FileQuestion, Package, Trash2, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
-import type { QuoteDetail, QuoteDetailItem, QuoteRequestStatus } from "@/components/quotes/types";
+import {
+  quoteDisplayNames,
+  type QuoteDetail,
+  type QuoteDetailItem,
+  type QuoteRequestStatus,
+} from "@/components/quotes/types";
+import {
+  ProductDetailBackLink,
+  ProductDetailHero,
+} from "@/components/products/product-detail-ui";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNotificationsStore } from "@/lib/notifications-store";
 import { createClient } from "@/lib/supabase/client";
 import {
+  premiumCard,
+  premiumDangerButton,
+  premiumFormCard,
   premiumGoldButton,
+  premiumLabel,
+  premiumSecondaryButton,
   premiumTableHead,
   premiumTableRow,
   premiumTableWrap,
@@ -70,6 +83,9 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
       return sum + price * item.quantity;
     }, 0);
   }, [quote.items, itemPrices]);
+
+  const { primary: displayName, contact: contactSubtitle, showContact } =
+    quoteDisplayNames(quote);
 
   async function updateStatus(targetStatus: QuoteRequestStatus) {
     if (targetStatus === "quoted") {
@@ -175,100 +191,118 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
     quote.status === "cancelled";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Link
-        href="/quotes"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-kartex-navy"
-      >
-        <ArrowLeft className="size-4" />
-        Πίσω στα αιτήματα
-      </Link>
+    <div className="mx-auto max-w-5xl space-y-6 pb-12">
+      <ProductDetailBackLink href="/quotes" label="Πίσω στα αιτήματα" />
 
-      <div className="rounded-2xl bg-gradient-to-br from-navy-900 to-navy-950 p-6 text-white shadow-lg sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-gold-400">
-              Αίτημα #{quote.shortId}
-            </p>
-            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
-              {quote.companyName}
-            </h1>
-            <p className="mt-1 text-white/70">{quote.contactName}</p>
-          </div>
-          <div className="flex items-center gap-2">
+      <ProductDetailHero
+        title={displayName}
+        icon={<FileQuestion className="size-7" aria-hidden />}
+        badges={
+          <>
+            <span className="rounded-md bg-gold-500/15 px-2.5 py-1 font-mono text-sm font-semibold text-gold-300 ring-1 ring-gold-500/25 backdrop-blur-sm">
+              #{quote.shortId}
+            </span>
             <QuoteStatusBadge
               status={quote.status}
-              className="bg-white/10 text-white ring-white/20"
+              className="bg-gold-500/15 text-gold-200 ring-1 ring-gold-500/25"
             />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void handleDelete()}
-              className="h-8 w-8 border-red-200/50 bg-white/5 p-0 text-red-300 hover:bg-red-500/20 hover:text-red-200"
-            >
-              <Trash2 size={14} />
-            </Button>
-          </div>
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          </>
+        }
+        action={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleDelete()}
+            className="h-9 w-9 border-red-300/40 bg-white/5 p-0 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+          >
+            <Trash2 size={15} />
+          </Button>
+        }
+      />
+
+      <div className={cn(premiumCard, "p-5 sm:p-6")}>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {showContact ? (
+            <div>
+              <p className={premiumLabel}>Υπεύθυνος</p>
+              <p className="mt-1 text-sm font-medium text-navy-900">{contactSubtitle}</p>
+            </div>
+          ) : null}
           <div>
-            <p className="text-xs uppercase tracking-wide text-white/50">Email</p>
-            <p className="mt-1 text-sm">{quote.email}</p>
+            <p className={premiumLabel}>Email</p>
+            <p className="mt-1 text-sm font-medium text-navy-900">{quote.email}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-white/50">Τηλέφωνο</p>
-            <p className="mt-1 text-sm">{quote.phone ?? "—"}</p>
+            <p className={premiumLabel}>Τηλέφωνο</p>
+            <p className="mt-1 text-sm font-medium text-navy-900">
+              {quote.phone ?? "—"}
+            </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-white/50">Ημερομηνία</p>
-            <p className="mt-1 text-sm">{formatDateEl(quote.createdAt)}</p>
+            <p className={premiumLabel}>Ημερομηνία</p>
+            <p className="mt-1 text-sm font-medium text-navy-900">
+              {formatDateEl(quote.createdAt)}
+            </p>
           </div>
           {quote.quotedAt ? (
             <div>
-              <p className="text-xs uppercase tracking-wide text-white/50">Προσφορά</p>
-              <p className="mt-1 text-sm">{formatDateEl(quote.quotedAt)}</p>
+              <p className={premiumLabel}>Προσφορά</p>
+              <p className="mt-1 text-sm font-medium text-navy-900">
+                {formatDateEl(quote.quotedAt)}
+              </p>
             </div>
           ) : null}
         </div>
         {quote.clientNotes ? (
-          <div className="mt-4 rounded-xl bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Σημειώσεις πελάτη
+          <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50/60 p-4">
+            <p className={premiumLabel}>Σημειώσεις πελάτη</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-gray-700">
+              {quote.clientNotes}
             </p>
-            <p className="mt-1 text-sm text-white/90">{quote.clientNotes}</p>
           </div>
         ) : null}
-        {quote.deliveryMethod ? (
-          <div className="mt-4 rounded-xl bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Παράδοση
-            </p>
+      </div>
+
+      {quote.deliveryMethod ? (
+        <div className={cn(premiumCard, "p-5 sm:p-6")}>
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-navy-900">
+            <Truck size={16} className="text-gold-500" aria-hidden />
+            Παράδοση
+          </h3>
+          <div className="space-y-2 text-sm leading-relaxed text-gray-700">
             {quote.deliveryRecipientName ? (
-              <p className="mt-1 text-sm text-white/90">
-                Παραλήπτης: {quote.deliveryRecipientName}
+              <p>
+                <span className="font-medium text-navy-900">Παραλήπτης:</span>{" "}
+                {quote.deliveryRecipientName}
               </p>
             ) : null}
             {quote.deliveryMethod === "pickup" ? (
-              <p className="mt-1 text-sm text-white/90">
-                Παραλαβή από πρακτορείο: {quote.pickupAgency ?? "—"}
+              <p>
+                <span className="font-medium text-navy-900">Παραλαβή από πρακτορείο:</span>{" "}
+                {quote.pickupAgency ?? "—"}
               </p>
             ) : (
-              <p className="mt-1 text-sm text-white/90">
+              <p>
+                <span className="font-medium text-navy-900">Διεύθυνση:</span>{" "}
                 {[quote.deliveryAddress, quote.deliveryCity, quote.deliveryPostalCode]
                   .filter(Boolean)
                   .join(", ") || "—"}
               </p>
             )}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <Card className={premiumTableWrap}>
-        <CardHeader>
-          <CardTitle className="text-lg text-kartex-navy">Προϊόντα αιτήματος</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
+      <div className={premiumTableWrap}>
+        <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
+          <h2 className="text-sm font-bold text-navy-900">Προϊόντα αιτήματος</h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            {quote.items.length}{" "}
+            {quote.items.length === 1 ? "προϊόν" : "προϊόντα"}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className={premiumTableHead}>
@@ -283,20 +317,18 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
               {quote.items.map((item) => (
                 <tr key={item.id} className={premiumTableRow}>
                   <td className="px-4 py-3 sm:px-6">
-                    <p className="font-medium text-kartex-navy">{item.productName}</p>
+                    <p className="font-medium text-navy-900">{item.productName}</p>
                     {item.color || item.dimensions || item.material ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-gray-400">
                         {[item.color, item.dimensions, item.material]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">{item.quantity}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {item.notes || "—"}
-                  </td>
+                  <td className="px-4 py-3 tabular-nums text-navy-900">{item.quantity}</td>
+                  <td className="px-4 py-3 text-gray-500">{item.unit}</td>
+                  <td className="px-4 py-3 text-gray-500">{item.notes || "—"}</td>
                   <td className="px-4 py-3 sm:pr-6">
                     <Input
                       type="number"
@@ -319,25 +351,24 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
               ))}
             </tbody>
           </table>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border/80 shadow-sm">
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div>
-            <p className="text-sm text-muted-foreground">Σύνολο προσφοράς</p>
-            <p className="text-2xl font-bold tabular-nums text-kartex-navy">
-              {formatCurrencyEl(totalQuoted)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div
+        className={cn(
+          premiumCard,
+          "border-gold-500/25 bg-gradient-to-br from-gold-500/[0.07] via-white to-white p-6 sm:p-8",
+        )}
+      >
+        <p className={premiumLabel}>Σύνολο προσφοράς</p>
+        <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-gold-600 sm:text-4xl">
+          {formatCurrencyEl(totalQuoted)}
+        </p>
+      </div>
 
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-kartex-navy">Εσωτερικές σημειώσεις</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className={premiumFormCard}>
+        <h2 className="text-sm font-bold text-navy-900">Εσωτερικές σημειώσεις</h2>
+        <div className="mt-4">
           <Label htmlFor="internal-notes" className="sr-only">
             Εσωτερικές σημειώσεις
           </Label>
@@ -348,38 +379,37 @@ export function QuoteDetailView({ quote: initialQuote }: QuoteDetailViewProps) {
             onChange={(event) => setInternalNotes(event.target.value)}
             disabled={isFinal || saving !== null}
             placeholder="Σημειώσεις για την ομάδα…"
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {!isFinal ? (
         <div className="flex flex-wrap gap-3">
-          <Button
+          <button
             type="button"
-            variant="outline"
             disabled={saving !== null}
             onClick={() => void updateStatus("reviewing")}
+            className={cn(premiumSecondaryButton, "disabled:opacity-60")}
           >
             {saving === "reviewing" ? "Αποθήκευση…" : "Σε Εξέταση"}
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50"
             disabled={saving !== null}
             onClick={() => void updateStatus("rejected")}
+            className={cn(premiumDangerButton, "disabled:opacity-60")}
           >
             {saving === "rejected" ? "Αποθήκευση…" : "Απόρριψη"}
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            className={cn(premiumGoldButton)}
             disabled={saving !== null}
             onClick={() => void updateStatus("quoted")}
+            className={cn(premiumGoldButton, "disabled:opacity-60")}
           >
             {saving === "quoted" ? "Αποστολή…" : "Αποστολή Προσφοράς"}
-          </Button>
+          </button>
         </div>
       ) : quote.status === "accepted" && quote.orderId ? (
         <Button
