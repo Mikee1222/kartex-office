@@ -29,6 +29,8 @@ export type WebContentRow = {
   metadata?: Record<string, unknown> | null;
 };
 
+import type { BankAccount } from "@/lib/website/bank-accounts";
+
 export type SiteSettingsState = {
   showPrices: boolean;
   maintenanceMode: boolean;
@@ -37,9 +39,7 @@ export type SiteSettingsState = {
   contactAddress: string;
   facebook: string;
   instagram: string;
-  bankIban: string;
-  bankName: string;
-  bankBeneficiary: string;
+  bankAccounts: BankAccount[];
 };
 
 export type WebsiteProductRow = {

@@ -1,9 +1,10 @@
 "use client";
 
-import { CreditCard, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { BankAccountsEditor } from "@/components/website/bank-accounts-editor";
 import { ActiveToggle } from "@/components/website/active-toggle";
 import { DataError } from "@/components/dashboard/data-error";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  parseBankAccountsFromSettingsRows,
+  serializeBankAccounts,
+} from "@/lib/website/bank-accounts";
 import type { SiteSettingsState } from "@/lib/website/types";
 import { getWebsiteUrl } from "@/lib/website/site-url";
 import { premiumGoldButton } from "@/lib/ui/premium-styles";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 
 const DEFAULT_SETTINGS: SiteSettingsState = {
   showPrices: false,
@@ -26,9 +30,7 @@ const DEFAULT_SETTINGS: SiteSettingsState = {
   contactAddress: "Κορίνθου 15, Μεταμόρφωση 144 51",
   facebook: "",
   instagram: "",
-  bankIban: "",
-  bankName: "",
-  bankBeneficiary: "",
+  bankAccounts: [],
 };
 
 function settingsFromRows(
@@ -61,19 +63,12 @@ function settingsFromRows(
         next.instagram = links.instagram ?? "";
         break;
       }
-      case "bank_iban":
-        next.bankIban = String(row.value ?? "");
-        break;
-      case "bank_name":
-        next.bankName = String(row.value ?? "");
-        break;
-      case "bank_beneficiary":
-        next.bankBeneficiary = String(row.value ?? "");
-        break;
       default:
         break;
     }
   }
+
+  next.bankAccounts = parseBankAccountsFromSettingsRows(rows);
   return next;
 }
 
@@ -98,6 +93,7 @@ export function WebsiteSettingsPage() {
         "contact_phone",
         "contact_address",
         "social_links",
+        "bank_accounts",
         "bank_iban",
         "bank_name",
         "bank_beneficiary",
@@ -140,9 +136,10 @@ export function WebsiteSettingsPage() {
             instagram: settings.instagram,
           },
         },
-        { key: "bank_iban", value: settings.bankIban },
-        { key: "bank_name", value: settings.bankName },
-        { key: "bank_beneficiary", value: settings.bankBeneficiary },
+        {
+          key: "bank_accounts",
+          value: serializeBankAccounts(settings.bankAccounts),
+        },
       ],
       { onConflict: "key" },
     );
@@ -282,75 +279,19 @@ export function WebsiteSettingsPage() {
 
           <Card className="border-gray-200/80 shadow-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg text-navy-900">
-                <CreditCard className="size-5 text-kartex-gold" />
+              <CardTitle className="text-lg text-navy-900">
                 Τραπεζικά Στοιχεία Πληρωμής
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Εμφανίζονται στον πελάτη κατά την πληρωμή μέσω εμβάσματος.
+                Εμφανίζονται στον πελάτη κατά την πληρωμή μέσω εμβάσματος. Μπορείτε
+                να ορίσετε περισσότερους από έναν λογαριασμούς.
               </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="bank-beneficiary">Δικαιούχος</Label>
-                <Input
-                  id="bank-beneficiary"
-                  value={settings.bankBeneficiary}
-                  onChange={(event) =>
-                    updateSetting("bankBeneficiary", event.target.value)
-                  }
-                  placeholder="π.χ. Ν. ΚΑΡΑΛΗΣ & ΣΙΑ ΟΕ"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bank-name">Τράπεζα</Label>
-                <Input
-                  id="bank-name"
-                  value={settings.bankName}
-                  onChange={(event) => updateSetting("bankName", event.target.value)}
-                  placeholder="π.χ. Τράπεζα Πειραιώς"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bank-iban">IBAN</Label>
-                <Input
-                  id="bank-iban"
-                  value={settings.bankIban}
-                  onChange={(event) => updateSetting("bankIban", event.target.value)}
-                  placeholder="π.χ. GR12 0000 0000 0000 0000 0000 000"
-                  className="font-mono"
-                />
-              </div>
-
-              {settings.bankIban || settings.bankName || settings.bankBeneficiary ? (
-                <div className="space-y-2 rounded-xl border border-kartex-gold/20 bg-kartex-gold/5 p-4">
-                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-kartex-gold">
-                    Προεπισκόπηση
-                  </div>
-                  {[
-                    { label: "Δικαιούχος", value: settings.bankBeneficiary },
-                    { label: "Τράπεζα", value: settings.bankName },
-                    { label: "IBAN", value: settings.bankIban, mono: true },
-                  ].map((item) =>
-                    item.value ? (
-                      <div
-                        key={item.label}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-muted-foreground">{item.label}</span>
-                        <span
-                          className={cn(
-                            "font-semibold text-navy-900",
-                            item.mono && "font-mono",
-                          )}
-                        >
-                          {item.value}
-                        </span>
-                      </div>
-                    ) : null,
-                  )}
-                </div>
-              ) : null}
+            <CardContent>
+              <BankAccountsEditor
+                accounts={settings.bankAccounts}
+                onChange={(bankAccounts) => updateSetting("bankAccounts", bankAccounts)}
+              />
             </CardContent>
           </Card>
 
