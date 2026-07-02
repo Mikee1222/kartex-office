@@ -5,6 +5,7 @@ import {
   type OrderStatus as OrderStatusType,
   type PaymentStatus,
 } from "@/components/orders/types";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import { ProductCategory, type Product } from "@/components/products/types";
 
 /** All dashboard “today” / calendar filters use Europe/Athens. */
@@ -92,7 +93,8 @@ export type OrderQuoteRequestJoin = {
 export type OrderRow = {
   id: string;
   order_number: string;
-  customer_id: string;
+  customer_id: string | null;
+  customer_name?: string | null;
   quote_request_id?: string | null;
   status: string;
   total: number | string;
@@ -320,17 +322,12 @@ export function mapOrderRow(
   itemCount = 0,
 ): Order {
   const customerRecord = pickOne(row.customers);
-  const quoteRequest = pickOne(row.quote_request);
-  const customerName =
-    customerRecord?.name?.trim() ||
-    quoteRequest?.company_name?.trim() ||
-    quoteRequest?.contact_name?.trim() ||
-    null;
+  const resolvedName = resolveCustomerName(row);
   const customerCity = customerRecord?.city?.trim();
   const customerLabel =
-    customerName && customerCity
-      ? `${customerName} (${customerCity})`
-      : customerName || "—";
+    resolvedName !== "—" && customerCity
+      ? `${resolvedName} (${customerCity})`
+      : resolvedName;
 
   const embeddedCount = row.order_items?.[0]?.count;
   const count =

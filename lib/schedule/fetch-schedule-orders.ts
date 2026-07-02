@@ -1,5 +1,6 @@
 import { normalizeOrderStatus } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import { type ScheduleOrder } from "@/lib/schedule/types";
 
 type ScheduleOrderRow = {
@@ -11,23 +12,20 @@ type ScheduleOrderRow = {
   reminder_days: number | null;
   assigned_driver_name: string | null;
   boxes_count: number | null;
+  customer_name?: string | null;
   customers?:
     | { name: string }
     | { name: string }[]
+    | null;
+  quote_request?:
+    | { contact_name: string }
+    | { contact_name: string }[]
     | null;
   vehicles?:
     | { plate: string }
     | { plate: string }[]
     | null;
 };
-
-function pickCustomerName(
-  customers: ScheduleOrderRow["customers"],
-): string {
-  if (!customers) return "—";
-  const row = Array.isArray(customers) ? customers[0] : customers;
-  return row?.name?.trim() || "—";
-}
 
 function pickVehiclePlate(
   vehicles: ScheduleOrderRow["vehicles"],
@@ -41,7 +39,7 @@ function mapRow(row: ScheduleOrderRow): ScheduleOrder {
   return {
     id: row.id,
     orderNumber: row.order_number,
-    customerName: pickCustomerName(row.customers),
+    customerName: resolveCustomerName(row),
     status: normalizeOrderStatus(row.status),
     pickingDate: row.picking_date,
     deliveryDate: row.delivery_date,
@@ -61,7 +59,9 @@ const SCHEDULE_SELECT = `
   reminder_days,
   assigned_driver_name,
   boxes_count,
+  customer_name,
   customers ( name ),
+  quote_request:quote_request_id ( contact_name ),
   vehicles ( plate )
 `;
 

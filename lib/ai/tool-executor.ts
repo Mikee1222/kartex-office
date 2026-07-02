@@ -5,6 +5,7 @@ import { getAthensDateString, isIsoInAthensMonth, isIsoOnAthensDay } from "@/lib
 import { submitZReport } from "@/lib/mydata/mydata-service";
 import { issueReport, updateMydataStatus } from "@/lib/z-report/z-report-service";
 import { assignDriverToOrder } from "@/lib/orders/assign-driver-to-order";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import {
   appendStatusHistory,
   type StatusHistoryEntry,
@@ -114,13 +115,9 @@ export async function executeTool(
       let rows = data ?? [];
       if (input.customer_name) {
         const needle = String(input.customer_name).toLowerCase();
-        rows = rows.filter((row) => {
-          const customer = row.customers;
-          const name = Array.isArray(customer)
-            ? customer[0]?.name
-            : customer?.name;
-          return name?.toLowerCase().includes(needle);
-        });
+        rows = rows.filter((row) =>
+          resolveCustomerName(row).toLowerCase().includes(needle),
+        );
       }
 
       return JSON.stringify(rows);

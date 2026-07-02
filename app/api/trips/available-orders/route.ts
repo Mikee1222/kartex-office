@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { OrderStatus } from "@/components/orders/types";
 import { getSessionAccess } from "@/lib/auth/get-session-access";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AvailableTripOrder } from "@/lib/trips/types";
 
@@ -20,7 +21,9 @@ export async function GET() {
       order_number,
       boxes_count,
       delivery_date,
-      customers ( name, address )
+      customer_name,
+      customers ( name, address ),
+      quote_request:quote_request_id ( contact_name )
     `,
     )
     .eq("status", OrderStatus.ReadyForShipment)
@@ -37,7 +40,7 @@ export async function GET() {
     return {
       id: row.id,
       orderNumber: row.order_number,
-      customerName: customerRow?.name?.trim() || "—",
+      customerName: resolveCustomerName(row),
       address: customerRow?.address?.trim() || "—",
       boxesCount: row.boxes_count ?? 0,
       deliveryDate: row.delivery_date,

@@ -224,7 +224,7 @@ export function ReportsView() {
       supabase
         .from("orders")
         .select(
-          "id, order_number, customer_id, status, total, created_at, updated_at, delivery_date, status_history, assigned_driver_id, trip_id, customers(id, name, type, city)",
+          "id, order_number, customer_id, customer_name, status, total, created_at, updated_at, delivery_date, status_history, assigned_driver_id, trip_id, customers(id, name, type, city), quote_request:quote_request_id(contact_name)",
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select(PRODUCT_SELECT),

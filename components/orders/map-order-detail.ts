@@ -9,6 +9,10 @@ import {
   computeOrderVatSummary,
   computeSubtotalFromLines,
 } from "@/lib/orders/order-vat";
+import {
+  pickOne,
+  resolveCustomerName,
+} from "@/lib/orders/resolve-customer-name";
 import { parseStatusHistory } from "@/lib/orders/status-timeline";
 import { formatDeliveryDisplay, formatDateEl, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
 import type { TripStatus } from "@/lib/trips/types";
@@ -83,7 +87,9 @@ export const ORDER_DETAIL_SELECT = `
       id,
       order_number,
       delivery_sequence,
-      customers ( name )
+      customer_name,
+      customers ( name ),
+      quote_request:quote_request_id ( contact_name )
     )
   ),
   quote_request:quote_request_id (
@@ -105,9 +111,14 @@ type TripOrderJoin = {
   id: string;
   order_number: string;
   delivery_sequence: number | null;
+  customer_name?: string | null;
   customers?:
     | { name: string }
     | { name: string }[]
+    | null;
+  quote_request?:
+    | { contact_name: string }
+    | { contact_name: string }[]
     | null;
 };
 
@@ -181,15 +192,12 @@ export type OrderDetailQueryRow = {
 
 function mapTripStops(orders: TripOrderJoin[] | null | undefined): OrderTripStop[] {
   return (orders ?? [])
-    .map((row) => {
-      const customer = pickOne(row.customers);
-      return {
-        id: row.id,
-        orderNumber: row.order_number,
-        customerName: customer?.name?.trim() || "—",
-        deliverySequence: row.delivery_sequence,
-      };
-    })
+    .map((row) => ({
+      id: row.id,
+      orderNumber: row.order_number,
+      customerName: resolveCustomerName(row),
+      deliverySequence: row.delivery_sequence,
+    }))
     .sort((a, b) => {
       const seqA = a.deliverySequence ?? Number.MAX_SAFE_INTEGER;
       const seqB = b.deliverySequence ?? Number.MAX_SAFE_INTEGER;
@@ -225,11 +233,6 @@ function toNumber(value: number | string | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const n = typeof value === "number" ? value : Number.parseFloat(String(value));
   return Number.isFinite(n) ? n : 0;
-}
-
-function pickOne<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) return null;
-  return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
 function formatCustomerAddress(customer: CustomerJoin): string {
@@ -297,8 +300,7 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     null;
   const companyName = row.company_name?.trim() || null;
 
-  const resolvedCustomerName =
-    customerName || quoteRequest?.contactName || quoteRequest?.companyName || "—";
+  const resolvedCustomerName = resolveCustomerName(row);
   const resolvedCustomerPhone = customerPhone || quoteRequest?.phone || "—";
   const resolvedCustomerEmail = customerEmail || quoteRequest?.email || "—";
   const resolvedCustomerAddress =

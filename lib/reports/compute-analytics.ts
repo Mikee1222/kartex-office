@@ -2,6 +2,7 @@ import { CustomerType } from "@/components/customers/types";
 import { OrderStatus } from "@/components/orders/types";
 import { ProductCategory, getStockStatus } from "@/components/products/types";
 import { getAthensDateString, getAthensYearMonth } from "@/lib/datetime";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import {
   getLast12AthensMonths,
   getPreviousPeriod,
@@ -11,6 +12,7 @@ import {
   type ReportDateRange,
 } from "@/lib/reports/date-range";
 import {
+  customerGroupKey,
   normalizeJoin,
   toNumber,
   type ReportOrderItemRow,
@@ -488,9 +490,9 @@ function computeProfitability(data: ReportRawData, range: ReportDateRange): Prof
     const unitPrice = toNumber(item.unit_price);
     const lineRevenue = item.quantity * unitPrice;
     const lineCost = item.quantity * purchase;
-    const prev = customerProfit.get(order.customer_id);
-    customerProfit.set(order.customer_id, {
-      name: customer?.name ?? prev?.name ?? "—",
+    const prev = customerProfit.get(customerGroupKey(order));
+    customerProfit.set(customerGroupKey(order), {
+      name: resolveCustomerName(order),
       type: customer?.type ?? prev?.type ?? "walk-in",
       revenue: (prev?.revenue ?? 0) + lineRevenue,
       cost: (prev?.cost ?? 0) + lineCost,
@@ -636,16 +638,13 @@ function computeSales(data: ReportRawData, range: ReportDateRange): SalesAnalyti
   const topOrders = [...ordersInRange]
     .sort((a, b) => toNumber(b.total) - toNumber(a.total))
     .slice(0, 10)
-    .map((order) => {
-      const customer = normalizeJoin(order.customers);
-      return {
-        orderNumber: order.order_number ?? order.id.slice(0, 8).toUpperCase(),
-        customer: customer?.name ?? "—",
-        status: order.status,
-        total: Math.round(toNumber(order.total) * 100) / 100,
-        date: getAthensDateString(new Date(order.created_at)),
-      };
-    });
+    .map((order) => ({
+      orderNumber: order.order_number ?? order.id.slice(0, 8).toUpperCase(),
+      customer: resolveCustomerName(order),
+      status: order.status,
+      total: Math.round(toNumber(order.total) * 100) / 100,
+      date: getAthensDateString(new Date(order.created_at)),
+    }));
 
   return {
     kpis: [
@@ -831,9 +830,9 @@ function computeCustomers(data: ReportRawData, range: ReportDateRange): Customer
 
   for (const order of ordersInRange) {
     const customer = normalizeJoin(order.customers);
-    const prev = spendByCustomer.get(order.customer_id);
-    spendByCustomer.set(order.customer_id, {
-      name: customer?.name ?? prev?.name ?? "—",
+    const prev = spendByCustomer.get(customerGroupKey(order));
+    spendByCustomer.set(customerGroupKey(order), {
+      name: resolveCustomerName(order),
       type: customer?.type ?? prev?.type ?? "walk-in",
       orders: (prev?.orders ?? 0) + 1,
       total: (prev?.total ?? 0) + toNumber(order.total),

@@ -209,7 +209,9 @@ export function DashboardView({ userEmail }: DashboardViewProps) {
       const [ordersResult, productsResult] = await Promise.all([
         supabase
           .from("orders")
-          .select("*, customers(name)")
+          .select(
+            "*, customers(name), quote_request:quote_request_id(contact_name)",
+          )
           .order("created_at", { ascending: false })
           .limit(200),
         supabase.from("products").select("id, stock, min_stock"),

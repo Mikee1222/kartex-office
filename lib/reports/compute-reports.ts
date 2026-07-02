@@ -1,7 +1,8 @@
 export type ReportOrderRow = {
   id: string;
   order_number?: string;
-  customer_id: string;
+  customer_id: string | null;
+  customer_name?: string | null;
   status: string;
   total: number | string;
   created_at: string;
@@ -13,6 +14,10 @@ export type ReportOrderRow = {
   customers?:
     | { id?: string; name: string; type: string }
     | { id?: string; name: string; type: string }[]
+    | null;
+  quote_request?:
+    | { contact_name: string }
+    | { contact_name: string }[]
     | null;
 };
 
@@ -65,4 +70,9 @@ export function toNumber(value: number | string | null | undefined): number {
 export function normalizeJoin<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+/** Group key for analytics when customer_id may be null (quote-converted orders). */
+export function customerGroupKey(order: Pick<ReportOrderRow, "id" | "customer_id">): string {
+  return order.customer_id ?? order.id;
 }

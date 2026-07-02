@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import { loadDriversWithVehicles } from "@/lib/users/load-drivers-with-vehicles";
 import type {
   DeliveryTrip,
@@ -33,30 +34,26 @@ type OrderDbRow = {
   status: string;
   boxes_count: number | null;
   delivery_sequence: number | null;
+  customer_name?: string | null;
   customers?:
     | { name: string; address: string | null }
     | { name: string; address: string | null }[]
     | null;
+  quote_request?:
+    | { contact_name: string }
+    | { contact_name: string }[]
+    | null;
 };
 
-function pickCustomer(
-  customers: OrderDbRow["customers"],
-): { name: string; address: string } {
-  if (!customers) return { name: "—", address: "—" };
-  const row = Array.isArray(customers) ? customers[0] : customers;
-  return {
-    name: row?.name?.trim() || "—",
-    address: row?.address?.trim() || "—",
-  };
-}
-
 function mapOrder(row: OrderDbRow): TripOrderRow {
-  const customer = pickCustomer(row.customers);
+  const customerJoin = Array.isArray(row.customers)
+    ? row.customers[0]
+    : row.customers;
   return {
     id: row.id,
     orderNumber: row.order_number,
-    customerName: customer.name,
-    address: customer.address,
+    customerName: resolveCustomerName(row),
+    address: customerJoin?.address?.trim() || "—",
     boxesCount: row.boxes_count ?? 0,
     status: row.status,
     deliverySequence: row.delivery_sequence,
@@ -114,7 +111,9 @@ export async function loadTripsForDate(tripDate: string): Promise<{
         status,
         boxes_count,
         delivery_sequence,
-        customers ( name, address )
+        customer_name,
+        customers ( name, address ),
+        quote_request:quote_request_id ( contact_name )
       `,
       )
       .in("trip_id", tripIds)

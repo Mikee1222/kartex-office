@@ -10,7 +10,12 @@ export type GlobalSearchResults = {
     order_number: string;
     status: string;
     total: number | string;
+    customer_name?: string | null;
     customers: { name: string } | { name: string }[] | null;
+    quote_request?:
+      | { contact_name: string }
+      | { contact_name: string }[]
+      | null;
   }[];
   customers: {
     id: string;
@@ -41,7 +46,9 @@ export async function searchAll(
   const [orders, customers, products] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, order_number, status, total, customers(name)")
+      .select(
+        "id, order_number, status, total, customer_name, customers(name), quote_request:quote_request_id(contact_name)",
+      )
       .ilike("order_number", pattern)
       .order("created_at", { ascending: false })
       .limit(5),

@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { Input } from "@/components/ui/input";
 import { searchAll } from "@/lib/dashboard/search-all";
+import { resolveCustomerName } from "@/lib/orders/resolve-customer-name";
 import { createClient } from "@/lib/supabase/client";
 import { mapDbCustomerType, formatCurrencyEl } from "@/types/database";
 import { cn } from "@/lib/utils";
@@ -76,10 +77,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           nextGroups.push({
             title: "ΠΑΡΑΓΓΕΛΙΕΣ",
             items: orders.map((order) => {
-              const customerJoin = order.customers;
-              const customerName = Array.isArray(customerJoin)
-                ? customerJoin[0]?.name
-                : customerJoin?.name;
+              const customerName = resolveCustomerName(order);
               const total =
                 typeof order.total === "number"
                   ? order.total
@@ -90,7 +88,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               return {
                 id: order.id,
                 href: `/orders/${order.id}`,
-                label: `${order.order_number} — ${customerName?.trim() || "—"} — ${totalLabel}`,
+                label: `${order.order_number} — ${customerName} — ${totalLabel}`,
               };
             }),
           });
