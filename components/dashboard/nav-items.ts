@@ -1,7 +1,6 @@
 import {
   BarChart3,
   Bot,
-  Calendar,
   FileQuestion,
   Layers,
   LayoutDashboard,
@@ -71,12 +70,6 @@ export const navSections: NavSection[] = [
         pendingQuotesBadge: true,
       },
       {
-        label: "Πρόγραμμα",
-        href: "/schedule",
-        icon: Calendar,
-        permission: "canViewOrders",
-      },
-      {
         label: "Οχήματα",
         href: "/vehicles",
         icon: Truck,
@@ -96,7 +89,7 @@ export const navSections: NavSection[] = [
       },
       {
         label: "Δρομολόγια",
-        href: "/trips",
+        href: "/trips?view=month",
         icon: Route,
         permission: "canViewOrders",
       },

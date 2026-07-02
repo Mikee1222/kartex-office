@@ -17,25 +17,14 @@ export type AssignDriverPayload = {
   changedByEmail: string;
 };
 
+/**
+ * Legacy direct driver assignment (without delivery_trips).
+ * Capacity is tracked via delivery_trips — driver_schedules is no longer written here.
+ */
 export async function assignDriverToOrder(
   payload: AssignDriverPayload,
 ): Promise<{ error: string | null }> {
   const admin = createAdminClient();
-  const scheduleDate = resolveScheduleDate(payload.deliveryDate);
-
-  const { data: scheduleRow, error: scheduleReadError } = await admin
-    .from("driver_schedules")
-    .select("total_boxes")
-    .eq("driver_id", payload.driverId)
-    .eq("schedule_date", scheduleDate)
-    .maybeSingle();
-
-  if (scheduleReadError) {
-    return { error: scheduleReadError.message };
-  }
-
-  const currentBoxes = scheduleRow?.total_boxes ?? 0;
-  const nextBoxes = currentBoxes + payload.orderBoxes;
 
   const nextHistory = appendStatusHistory(
     payload.statusHistory,
@@ -56,21 +45,6 @@ export async function assignDriverToOrder(
 
   if (orderError) {
     return { error: orderError.message };
-  }
-
-  const { error: upsertError } = await admin.from("driver_schedules").upsert(
-    {
-      driver_id: payload.driverId,
-      vehicle_id: payload.vehicleId,
-      schedule_date: scheduleDate,
-      total_boxes: nextBoxes,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "driver_id,schedule_date" },
-  );
-
-  if (upsertError) {
-    return { error: upsertError.message };
   }
 
   return { error: null };
@@ -122,30 +96,33 @@ export async function getDriverCapacityForAssign(
     };
   }
 
-  const { data: scheduleRow, error: scheduleError } = await admin
-    .from("driver_schedules")
+  const { data: tripRows, error: tripsError } = await admin
+    .from("delivery_trips")
     .select("total_boxes")
     .eq("driver_id", driverId)
-    .eq("schedule_date", scheduleDate)
-    .maybeSingle();
+    .eq("trip_date", scheduleDate)
+    .neq("status", "completed");
 
-  if (scheduleError) {
+  if (tripsError) {
     return {
       vehicleId: vehicleRow.id,
       plate: vehicleRow.plate,
       model: vehicleRow.model,
       maxBoxes: vehicleRow.max_boxes,
       currentBoxes: 0,
-      error: scheduleError.message,
+      error: tripsError.message,
     };
   }
+
+  const currentBoxes =
+    tripRows?.reduce((sum, row) => sum + (row.total_boxes ?? 0), 0) ?? 0;
 
   return {
     vehicleId: vehicleRow.id,
     plate: vehicleRow.plate,
     model: vehicleRow.model,
     maxBoxes: vehicleRow.max_boxes,
-    currentBoxes: scheduleRow?.total_boxes ?? 0,
+    currentBoxes,
     error: null,
   };
 }

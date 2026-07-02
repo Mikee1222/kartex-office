@@ -53,7 +53,7 @@ export function ScheduleBell({ variant = "light" }: ScheduleBellProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-2 py-1.5">
-          <p className="text-sm font-semibold text-kartex-navy">Πρόγραμμα</p>
+          <p className="text-sm font-semibold text-kartex-navy">Δρομολόγια</p>
           {unreadCount > 0 ? (
             <button
               type="button"

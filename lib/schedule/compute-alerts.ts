@@ -46,7 +46,7 @@ export function computeScheduleAlerts(orders: ScheduleOrder[]): ScheduleAlert[] 
   if (pickingToday > 0) {
     alerts.push({
       id: "aggregate-picking-today",
-      href: `/schedule?view=list&date=${today}`,
+      href: `/trips?view=list&listDate=${today}`,
       message: `🏭 Σήμερα για picking: ${pickingToday} ${pickingToday === 1 ? "παραγγελία" : "παραγγελίες"}`,
       kind: "picking-today",
       read: false,
@@ -57,7 +57,7 @@ export function computeScheduleAlerts(orders: ScheduleOrder[]): ScheduleAlert[] 
   if (deliveryTomorrow > 0) {
     alerts.push({
       id: "aggregate-delivery-tomorrow",
-      href: `/schedule?view=list&date=${tomorrow}`,
+      href: `/trips?view=list&listDate=${tomorrow}`,
       message: `🚛 Αύριο παράδοση: ${deliveryTomorrow} ${deliveryTomorrow === 1 ? "παραγγελία" : "παραγγελίες"}`,
       kind: "delivery-tomorrow",
       read: false,
@@ -68,7 +68,7 @@ export function computeScheduleAlerts(orders: ScheduleOrder[]): ScheduleAlert[] 
   if (overdue > 0) {
     alerts.push({
       id: "aggregate-overdue",
-      href: "/schedule?view=list",
+      href: "/trips?view=list",
       message: `⚠️ Καθυστερημένο: ${overdue} ${overdue === 1 ? "παραγγελία" : "παραγγελίες"}`,
       kind: "overdue",
       read: false,

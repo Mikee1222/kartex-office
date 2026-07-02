@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: "Πίνακας Ελέγχου",
   orders: "Παραγγελίες",
-  schedule: "Πρόγραμμα",
+  schedule: "Δρομολόγια",
   customers: "Πελάτες",
   products: "Προϊόντα",
   inventory: "Αποθήκη",

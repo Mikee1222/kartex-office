@@ -77,7 +77,7 @@ export function UpcomingOrdersWidget() {
           <p className="text-sm text-muted-foreground">Επόμενες 7 ημέρες</p>
         </div>
         <Link
-          href="/schedule"
+          href="/trips?view=month"
           className="text-sm font-medium text-kartex-gold hover:underline"
         >
           Πλήρες πρόγραμμα
@@ -91,7 +91,7 @@ export function UpcomingOrdersWidget() {
           {days.map((day) => (
             <Link
               key={day.date}
-              href={`/schedule?view=list&date=${day.date}`}
+              href={`/trips?view=list&listDate=${day.date}`}
               className={cn(
                 "flex min-w-[5.5rem] shrink-0 flex-col items-center rounded-lg border px-3 py-2.5 text-center transition-colors",
                 day.isToday

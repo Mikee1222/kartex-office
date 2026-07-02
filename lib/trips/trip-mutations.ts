@@ -373,6 +373,32 @@ export async function completeTrip(tripId: string): Promise<{ error: string | nu
   return { error: error?.message ?? null };
 }
 
+export async function updateTripDate(
+  tripId: string,
+  tripDate: string,
+): Promise<{ error: string | null }> {
+  const admin = createAdminClient();
+  const { trip, error: tripError } = await loadTrip(tripId);
+
+  if (tripError || !trip) {
+    return { error: tripError ?? "Δεν βρέθηκε το δρομολόγιο." };
+  }
+
+  if (trip.status === "completed") {
+    return { error: "Δεν μπορείτε να μετακινήσετε ολοκληρωμένο δρομολόγιο." };
+  }
+
+  const { error } = await admin
+    .from("delivery_trips")
+    .update({
+      trip_date: tripDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId);
+
+  return { error: error?.message ?? null };
+}
+
 export async function reorderTripOrders(
   tripId: string,
   orderIds: string[],

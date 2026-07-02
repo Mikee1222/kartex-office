@@ -1,12 +1,30 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { ScheduleView } from "@/components/schedule/schedule-view";
-import { Skeleton } from "@/components/ui/skeleton";
+type SchedulePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function SchedulePage() {
-  return (
-    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
-      <ScheduleView />
-    </Suspense>
-  );
+export default async function SchedulePage({ searchParams }: SchedulePageProps) {
+  const params = await searchParams;
+  const next = new URLSearchParams();
+
+  const view = params.view;
+  const date = params.date;
+
+  if (typeof view === "string") {
+    next.set("view", view);
+  } else {
+    next.set("view", "month");
+  }
+
+  if (typeof date === "string") {
+    if (view === "list") {
+      next.set("listDate", date);
+    } else {
+      next.set("date", date);
+    }
+  }
+
+  const query = next.toString();
+  redirect(query ? `/trips?${query}` : "/trips?view=month");
 }
