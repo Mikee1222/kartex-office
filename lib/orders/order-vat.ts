@@ -39,11 +39,15 @@ export function computeOrderVatSummary(input: {
       ? roundMoney(input.storedTotal)
       : null;
 
+  // Receipts (Απόδειξη) must always show subtotal + VAT. Legacy rows may store
+  // the net subtotal in orders.total — never let that override the gross total.
+  const grandTotal = vatApplies ? computedTotal : (storedTotal ?? computedTotal);
+
   return {
     subtotal,
     vatRate,
     vatAmount,
-    grandTotal: storedTotal ?? computedTotal,
+    grandTotal,
     vatApplies,
   };
 }
