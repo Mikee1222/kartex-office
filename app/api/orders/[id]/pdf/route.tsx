@@ -1,5 +1,6 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
+import QRCode from "qrcode";
 
 import {
   mapSupabaseOrderToPdf,
@@ -7,6 +8,7 @@ import {
   type OrderDetailQueryRow,
 } from "@/components/orders/map-order-detail";
 import { createOrderPdfDocument } from "@/components/orders/order-pdf";
+import { buildPortalOrderTrackingUrl } from "@/lib/orders/pdf-portal-url";
 import {
   formatBankAccountsForDocument,
   parseBankAccountsFromSettingsRows,
@@ -64,6 +66,14 @@ export async function GET(_request: Request, context: RouteContext) {
     order as OrderDetailQueryRow,
     bankLines,
   );
+  const portalTrackingUrl = buildPortalOrderTrackingUrl(id);
+  pdfData.portalTrackingUrl = portalTrackingUrl;
+  pdfData.qrDataUrl = await QRCode.toDataURL(portalTrackingUrl, {
+    width: 200,
+    margin: 1,
+    errorCorrectionLevel: "M",
+  });
+
   const buffer = await renderToBuffer(createOrderPdfDocument(pdfData));
 
   const filename = safePdfFilename(pdfData.orderNumber);

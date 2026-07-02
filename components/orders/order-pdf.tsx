@@ -2,6 +2,7 @@ import {
   Document,
   type DocumentProps,
   Font,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -163,6 +164,19 @@ const styles = StyleSheet.create({
     borderRightWidth: 0.5,
     borderRightColor: BORDER,
   },
+  cellCode: {
+    paddingVertical: 4,
+    paddingHorizontal: 5,
+    justifyContent: "center",
+    borderRightWidth: 0.5,
+    borderRightColor: BORDER,
+    flexShrink: 0,
+  },
+  cellCodeText: {
+    fontSize: 7,
+    lineHeight: 1.2,
+    color: NAVY,
+  },
   cellLast: {
     paddingVertical: 4,
     paddingHorizontal: 4,
@@ -258,6 +272,22 @@ const styles = StyleSheet.create({
     color: NAVY,
   },
   bankLine: { marginBottom: 1 },
+  qrRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  qrImage: {
+    width: 52,
+    height: 52,
+  },
+  qrCaption: {
+    fontSize: 6.5,
+    lineHeight: 1.35,
+    color: MUTED,
+    maxWidth: 120,
+  },
 });
 
 function formatAmount(value: number) {
@@ -278,24 +308,24 @@ type CellProps = {
   right?: boolean;
   center?: boolean;
   last?: boolean;
+  code?: boolean;
 };
 
-function Cell({ width, children, header, right, center, last }: CellProps) {
+function Cell({ width, children, header, right, center, last, code }: CellProps) {
+  const cellStyle = last ? styles.cellLast : code ? styles.cellCode : styles.cell;
+  const textStyle = code
+    ? styles.cellCodeText
+    : header
+      ? styles.headerCellText
+      : right
+        ? styles.cellTextRight
+        : center
+          ? styles.cellTextCenter
+          : styles.cellText;
+
   return (
-    <View style={[last ? styles.cellLast : styles.cell, { width }]}>
-      <Text
-        style={
-          header
-            ? styles.headerCellText
-            : right
-              ? styles.cellTextRight
-              : center
-                ? styles.cellTextCenter
-                : styles.cellText
-        }
-      >
-        {children}
-      </Text>
+    <View style={[cellStyle, { width }]}>
+      <Text style={textStyle}>{children}</Text>
     </View>
   );
 }
@@ -308,9 +338,10 @@ export function createOrderPdfDocument(
     .filter((line) => line && line !== "—")
     .join("\n");
 
+  // Code column sized for longest SKUs (e.g. IMP26-SS4-001, 0402-00001).
   const productCols = {
-    code: "9%",
-    desc: "28%",
+    code: "15%",
+    desc: "22%",
     unit: "7%",
     qty: "8%",
     price: "13%",
@@ -394,7 +425,7 @@ export function createOrderPdfDocument(
 
         <View style={styles.productsTable}>
           <View style={styles.productHeaderRow}>
-            <Cell width={productCols.code} header center>
+            <Cell width={productCols.code} header center code>
               ΚΩΔΙΚΟΣ
             </Cell>
             <Cell width={productCols.desc} header>
@@ -426,7 +457,7 @@ export function createOrderPdfDocument(
                 index === data.items.length - 1 ? { borderBottomWidth: 0 } : {},
               ]}
             >
-              <Cell width={productCols.code} center>
+              <Cell width={productCols.code} center code>
                 {item.sku}
               </Cell>
               <Cell width={productCols.desc}>{item.product}</Cell>
@@ -498,6 +529,15 @@ export function createOrderPdfDocument(
                 <Text style={styles.signatureLabel}>Ο ΠΑΡΑΛΑΒΩΝ</Text>
               </View>
             </View>
+
+            {data.qrDataUrl ? (
+              <View style={styles.qrRow}>
+                <Image src={data.qrDataUrl} style={styles.qrImage} />
+                <Text style={styles.qrCaption}>
+                  Σκανάρετε για online παρακολούθηση παραγγελίας
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 

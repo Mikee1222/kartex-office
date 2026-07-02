@@ -428,6 +428,9 @@ export function customerTypeLabel(dbType: string): string {
 }
 
 export type OrderPdfData = {
+  orderId: string;
+  portalTrackingUrl: string;
+  qrDataUrl?: string;
   orderNumber: string;
   date: string;
   deliveryDate: string;
@@ -534,6 +537,8 @@ export function mapSupabaseOrderToPdf(
   const isInvoice = row.document_type === "invoice";
 
   return {
+    orderId: row.id,
+    portalTrackingUrl: "",
     orderNumber: detail.orderNumber,
     date: detail.date,
     deliveryDate: row.delivery_date
