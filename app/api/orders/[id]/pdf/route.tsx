@@ -7,6 +7,10 @@ import {
   type OrderDetailQueryRow,
 } from "@/components/orders/map-order-detail";
 import { createOrderPdfDocument } from "@/components/orders/order-pdf";
+import {
+  formatBankAccountsForDocument,
+  parseBankAccountsFromSettingsRows,
+} from "@/lib/website/bank-accounts";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -33,17 +37,33 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: order, error } = await supabase
-    .from("orders")
-    .select(ORDER_DETAIL_SELECT)
-    .eq("id", id)
-    .single();
+  const [orderResult, settingsResult] = await Promise.all([
+    supabase.from("orders").select(ORDER_DETAIL_SELECT).eq("id", id).single(),
+    supabase
+      .from("settings")
+      .select("key, value")
+      .in("key", [
+        "bank_accounts",
+        "bank_iban",
+        "bank_name",
+        "bank_beneficiary",
+      ]),
+  ]);
+
+  const order = orderResult.data;
+  const error = orderResult.error;
 
   if (error || !order) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const pdfData = mapSupabaseOrderToPdf(order as OrderDetailQueryRow);
+  const bankAccounts = parseBankAccountsFromSettingsRows(settingsResult.data ?? []);
+  const bankLines = formatBankAccountsForDocument(bankAccounts);
+
+  const pdfData = mapSupabaseOrderToPdf(
+    order as OrderDetailQueryRow,
+    bankLines,
+  );
   const buffer = await renderToBuffer(createOrderPdfDocument(pdfData));
 
   const filename = safePdfFilename(pdfData.orderNumber);

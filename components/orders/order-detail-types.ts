@@ -18,6 +18,7 @@ export type OrderLineItem = {
   quantity: number;
   quantityDelivered: number;
   quantityPending: number;
+  pickedAt?: string | null;
   unitPrice: number;
   total: number;
 };

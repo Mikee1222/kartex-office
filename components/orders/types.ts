@@ -46,5 +46,6 @@ export const ORDER_FILTER_TABS: { id: OrderFilterTab; label: string }[] = [
   { id: OrderStatus.PartialShipment, label: "Μερική Αποστολή" },
   { id: OrderStatus.Shipped, label: "Αποστολή" },
   { id: OrderStatus.Completed, label: "Ολοκληρώθηκε" },
+  { id: OrderStatus.PendingPayment, label: "Αναμονή πληρωμής" },
   { id: OrderStatus.Cancelled, label: "Ακυρώθηκε" },
 ];

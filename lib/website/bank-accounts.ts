@@ -102,3 +102,16 @@ export function createEmptyBankAccount(isPrimary: boolean): BankAccount {
 export function serializeBankAccounts(accounts: BankAccount[]): BankAccount[] {
   return sortBankAccounts(normalizePrimary(accounts));
 }
+
+export function formatBankAccountLine(account: BankAccount): string {
+  const bank = account.bank.trim();
+  const iban = account.iban.trim();
+  if (bank && iban) return `${bank}: ${iban}`;
+  return bank || iban;
+}
+
+export function formatBankAccountsForDocument(accounts: BankAccount[]): string[] {
+  const sorted = sortBankAccounts(accounts);
+  if (sorted.length === 0) return [];
+  return sorted.map(formatBankAccountLine).filter(Boolean);
+}

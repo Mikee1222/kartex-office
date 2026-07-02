@@ -4,8 +4,12 @@ import {
   type DeliveryMethod,
 } from "@/components/orders/order-detail-types";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
+import {
+  computeOrderVatSummary,
+  computeSubtotalFromLines,
+} from "@/lib/orders/order-vat";
 import { parseStatusHistory } from "@/lib/orders/status-timeline";
-import { formatDateEl, formatDeliveryDisplay, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
+import { formatDeliveryDisplay, formatDateEl, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
 
 type CustomerJoin = {
   id: string;
@@ -48,6 +52,7 @@ type OrderItemJoin = {
   product_name?: string | null;
   quantity: number;
   quantity_delivered?: number | null;
+  picked_at?: string | null;
   unit_price: number | string;
   products: ProductJoin | ProductJoin[] | null;
 };
@@ -61,8 +66,8 @@ export const ORDER_DETAIL_SELECT = `
     payment_terms, type
   ),
   order_items (
-    id, product_id, product_name, quantity, quantity_delivered, unit_price,
-    products (id, name, clean_name, unit)
+    id, product_id, product_name, quantity, quantity_delivered, unit_price, picked_at,
+    products (id, name, clean_name, unit, sku)
   ),
   delivery_trips (
     id,
@@ -270,6 +275,7 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
       product: productName || "—",
       productName,
       product_name: line.product_name?.trim() || null,
+      pickedAt: line.picked_at ?? null,
       products: product
         ? {
             id: product.id,
@@ -286,17 +292,13 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     };
   });
 
-  const subtotalFromLines = items.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0,
-  );
-  const subtotal = Math.round(subtotalFromLines * 100) / 100;
+  const subtotal = computeSubtotalFromLines(items);
   const total = toNumber(row.total);
-  const vatRate = 0.24;
-  const vatAmount =
-    subtotal > 0
-      ? Math.round(subtotal * vatRate * 100) / 100
-      : Math.round((total / (1 + vatRate)) * vatRate * 100) / 100;
+  const vatSummary = computeOrderVatSummary({
+    subtotal,
+    documentType: row.document_type,
+    storedTotal: total > 0 ? total : null,
+  });
 
   return {
     id: row.id,
@@ -316,9 +318,9 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     ...delivery,
     quoteRequest,
     items,
-    subtotal,
-    vatRate,
-    total: total > 0 ? total : Math.round((subtotal + vatAmount) * 100) / 100,
+    subtotal: vatSummary.subtotal,
+    vatRate: vatSummary.vatRate,
+    total: vatSummary.grandTotal,
     date: formatDateEl(row.created_at),
     seller: "—",
     paymentMethod: row.payment_terms?.trim() || "—",
@@ -380,6 +382,7 @@ export type OrderPdfData = {
   date: string;
   deliveryDate: string;
   documentType: string;
+  documentTypeKey: string;
   customer: {
     name: string;
     address: string;
@@ -388,6 +391,8 @@ export type OrderPdfData = {
     email: string;
     vat: string;
   };
+  deliveryLabel: string;
+  deliveryDestination: string;
   items: {
     sku: string;
     product: string;
@@ -403,12 +408,53 @@ export type OrderPdfData = {
   totalQuantity: number;
   paymentTerms: string;
   notes: string;
+  vatApplies: boolean;
+  bankLines: string[];
 };
 
-export function mapSupabaseOrderToPdf(row: OrderDetailQueryRow): OrderPdfData {
+function resolvePdfDelivery(row: OrderDetailQueryRow, detail: OrderDetail) {
+  const deliveryDisplay = formatDeliveryDisplay(row);
+  if (detail.deliveryMethod === "pickup") {
+    return {
+      deliveryLabel: "Παραλαβή",
+      deliveryDestination: deliveryDisplay || detail.pickupAgency || "—",
+    };
+  }
+  if (detail.deliveryMethod === "address") {
+    const line2 = [detail.deliveryCity, detail.deliveryPostalCode]
+      .filter(Boolean)
+      .join(" ");
+    const addressParts = [detail.deliveryAddress, line2].filter(Boolean);
+    return {
+      deliveryLabel: "Διεύθυνση παράδοσης",
+      deliveryDestination: addressParts.join(", ") || deliveryDisplay || "—",
+    };
+  }
+  const customer = pickOne(row.customers);
+  const cityLine = [customer?.city?.trim(), customer?.postal_code?.trim()]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    deliveryLabel: "Προορισμός",
+    deliveryDestination:
+      deliveryDisplay ||
+      [customer?.address?.trim(), cityLine].filter(Boolean).join(", ") ||
+      "—",
+  };
+}
+
+export function mapSupabaseOrderToPdf(
+  row: OrderDetailQueryRow,
+  bankLines: string[] = [],
+): OrderPdfData {
   const detail = mapSupabaseOrderToDetail(row);
   const customer = pickOne(row.customers);
-  const vatAmount = Math.round(detail.subtotal * detail.vatRate * 100) / 100;
+  const vatSummary = computeOrderVatSummary({
+    subtotal: detail.subtotal,
+    documentType: row.document_type,
+    storedTotal: detail.total,
+  });
+  const delivery = resolvePdfDelivery(row, detail);
 
   const cityLine = [customer?.city?.trim(), customer?.postal_code?.trim()]
     .filter(Boolean)
@@ -435,6 +481,7 @@ export function mapSupabaseOrderToPdf(row: OrderDetailQueryRow): OrderPdfData {
   });
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  const isInvoice = row.document_type === "invoice";
 
   return {
     orderNumber: detail.orderNumber,
@@ -442,22 +489,27 @@ export function mapSupabaseOrderToPdf(row: OrderDetailQueryRow): OrderPdfData {
     deliveryDate: row.delivery_date
       ? formatDateEl(`${row.delivery_date}T12:00:00Z`)
       : "—",
-    documentType: "Δελτίο Αποστολής",
+    documentType: isInvoice ? "Τιμολόγιο" : "Δελτίο Αποστολής",
+    documentTypeKey: row.document_type ?? "receipt",
     customer: {
       name: detail.customer.name,
       address: customer?.address?.trim() || "—",
       city: cityLine || "—",
       phone: detail.customer.phone,
       email: detail.customer.email,
-      vat: customer?.vat?.trim() || "—",
+      vat: customer?.vat?.trim() || row.vat_number?.trim() || "—",
     },
+    deliveryLabel: delivery.deliveryLabel,
+    deliveryDestination: delivery.deliveryDestination,
     items,
-    subtotal: detail.subtotal,
-    vatRate: detail.vatRate,
-    vatAmount,
-    total: detail.total,
+    subtotal: vatSummary.subtotal,
+    vatRate: vatSummary.vatRate,
+    vatAmount: vatSummary.vatAmount,
+    total: vatSummary.grandTotal,
     totalQuantity,
     paymentTerms: row.payment_terms?.trim() || detail.paymentMethod,
     notes: detail.notes.client?.trim() || "—",
+    vatApplies: vatSummary.vatApplies,
+    bankLines,
   };
 }

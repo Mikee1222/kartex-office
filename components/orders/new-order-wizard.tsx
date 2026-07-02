@@ -16,6 +16,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { OrderStatus } from "@/components/orders/types";
+import { CategoryBadge } from "@/components/products/category-badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,16 +29,23 @@ import { FormFieldLabel } from "@/components/ui/form-field-label";
 import { Input } from "@/components/ui/input";
 import { FIELD_TOOLTIPS } from "@/lib/forms/field-tooltips";
 import {
+  buildMasterGroups,
+  type MasterGroup,
+  variantLabel,
+} from "@/lib/products/master-groups";
+import {
   premiumFormCard,
   premiumFormGrid,
   premiumGoldButton,
-  premiumInputFocus,
+  premiumCard,
 } from "@/lib/ui/premium-styles";
+import { masterGroupGridClass } from "@/components/products/master-group-ui";
+import { computeOrderVatSummary } from "@/lib/orders/order-vat";
 import { PaymentTermsSelect } from "@/components/settings/payment-terms-select";
 import { usePaymentTermOptions } from "@/lib/settings/use-lookup-options";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { mapDbCustomerType, mapProductRow, type ProductRow } from "@/types/database";
+import { mapDbCustomerType, mapProductRow, type DeliveryMethod, type ProductRow } from "@/types/database";
 
 const STEPS = [
   { id: 1, label: "Πελάτης" },
@@ -60,18 +68,10 @@ type LineItem = {
   price: number;
 };
 
-type WizardProduct = {
-  id: string;
-  name: string;
-  cleanName?: string;
-  sku?: string;
-  gsm?: number | null;
-  widthCm?: number | null;
-  heightCm?: number | null;
-  price: number;
-  category?: string;
-};
-
+const DELIVERY_METHODS: { value: DeliveryMethod; label: string }[] = [
+  { value: "address", label: "Διεύθυνση παράδοσης" },
+  { value: "pickup", label: "Παραλαβή από πρακτορείο" },
+];
 
 type WizardCustomer = {
   id: string;
@@ -84,14 +84,6 @@ type WizardCustomer = {
   postal_code: string | null;
   payment_terms: string | null;
 };
-
-function buildDeliveryAddress(customer: WizardCustomer): string {
-  const line2 = [customer.city, customer.postal_code]
-    .filter((part) => part?.trim())
-    .join(" ");
-  const parts = [customer.address?.trim(), line2].filter(Boolean);
-  return parts.join(", ");
-}
 
 const premiumTextarea =
   "flex min-h-[88px] w-full rounded-md border border-kartex-border bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kartex-gold/30";
@@ -112,17 +104,25 @@ export function NewOrderWizard() {
   const [step, setStep] = React.useState(1);
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
-  const [productsCatalog, setProductsCatalog] = React.useState<WizardProduct[]>(
-    [],
-  );
+  const [productRows, setProductRows] = React.useState<ProductRow[]>([]);
   const [productsLoading, setProductsLoading] = React.useState(true);
+  const [expandedMasterKey, setExpandedMasterKey] = React.useState<string | null>(
+    null,
+  );
+  const [productCategory, setProductCategory] = React.useState("all");
 
   const [customers, setCustomers] = React.useState<WizardCustomer[]>([]);
   const [customerQuery, setCustomerQuery] = React.useState("");
   const [selectedCustomerId, setSelectedCustomerId] = React.useState<string | null>(
     null,
   );
+  const [deliveryMethod, setDeliveryMethod] = React.useState<DeliveryMethod | "">(
+    "",
+  );
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
+  const [deliveryCity, setDeliveryCity] = React.useState("");
+  const [deliveryPostalCode, setDeliveryPostalCode] = React.useState("");
+  const [pickupAgency, setPickupAgency] = React.useState("");
   const [specialInstructions, setSpecialInstructions] = React.useState("");
 
   const [productQuery, setProductQuery] = React.useState("");
@@ -199,74 +199,94 @@ export function NewOrderWizard() {
       const { data, error: fetchError } = await supabase
         .from("products")
         .select(
-          "id, name, clean_name, sku, gsm, width_cm, height_cm, sale_price, category",
+          "id, name, clean_name, sku, gsm, width_cm, height_cm, sale_price, category, subcategory, master_id, product_masters(clean_name, category, subcategory, quality_grade, material)",
         )
         .eq("is_active", true)
         .order("clean_name");
 
       if (fetchError) {
         console.error(fetchError);
-        setProductsCatalog([]);
+        setProductRows([]);
         setProductsLoading(false);
         return;
       }
 
-      setProductsCatalog(
-        (data as ProductRow[]).map((row) => {
-          const mapped = mapProductRow(row);
-          return {
-            id: mapped.id,
-            name: mapped.name,
-            cleanName: mapped.cleanName,
-            sku: mapped.sku,
-            gsm: mapped.gsm,
-            widthCm: mapped.widthCm,
-            heightCm: mapped.heightCm,
-            price: mapped.salePrice,
-            category: mapped.category,
-          };
-        }),
-      );
+      setProductRows((data ?? []) as unknown as ProductRow[]);
       setProductsLoading(false);
     };
 
     void fetchProducts();
   }, []);
 
-  const filteredProducts = React.useMemo(() => {
+  const masterGroups = React.useMemo(() => {
+    const mapped = productRows.map((row) => mapProductRow(row));
+    return buildMasterGroups(mapped);
+  }, [productRows]);
+
+  const productCategories = React.useMemo(
+    () =>
+      [...new Set(masterGroups.map((group) => group.category))].sort((a, b) =>
+        a.localeCompare(b, "el"),
+      ),
+    [masterGroups],
+  );
+
+  const filteredMasterGroups = React.useMemo(() => {
     const q = productQuery.trim().toLowerCase();
-    if (!q) return productsCatalog.slice(0, 8);
-    return productsCatalog.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.cleanName?.toLowerCase().includes(q) ?? false) ||
-        (p.sku?.toLowerCase().includes(q) ?? false) ||
-        p.id.toLowerCase().includes(q),
-    );
-  }, [productQuery, productsCatalog]);
+    return masterGroups.filter((group) => {
+      if (productCategory !== "all" && group.category !== productCategory) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        group.cleanName.toLowerCase().includes(q) ||
+        group.category.toLowerCase().includes(q) ||
+        group.variants.some(
+          (variant) =>
+            variant.sku.toLowerCase().includes(q) ||
+            variant.name.toLowerCase().includes(q),
+        )
+      );
+    });
+  }, [masterGroups, productQuery, productCategory]);
 
   const orderTotal = lineItems.reduce((sum, item) => sum + lineTotal(item), 0);
 
-  function addProduct(product: WizardProduct) {
+  const orderVat = React.useMemo(
+    () =>
+      computeOrderVatSummary({
+        subtotal: orderTotal,
+        documentType: "receipt",
+      }),
+    [orderTotal],
+  );
+
+  function masterGroupKey(group: MasterGroup) {
+    return group.masterId ? `master:${group.masterId}` : `${group.cleanName}__${group.category}`;
+  }
+
+  function addVariant(group: MasterGroup, variantId: string) {
+    const variant = group.variants.find((item) => item.id === variantId);
+    if (!variant) return;
+
     setLineItems((items) => {
-      const existing = items.find((i) => i.id === product.id);
+      const existing = items.find((i) => i.id === variant.id);
       if (existing) {
         return items.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i,
+          i.id === variant.id ? { ...i, quantity: i.quantity + 1 } : i,
         );
       }
       return [
         ...items,
         {
-          id: product.id,
-          name: product.name,
-          cleanName: product.cleanName,
+          id: variant.id,
+          name: variant.name,
+          cleanName: group.cleanName,
           quantity: 1,
-          price: product.price,
+          price: variant.salePrice,
         },
       ];
     });
-    setProductQuery("");
   }
 
   function updateLineItem(
@@ -286,9 +306,19 @@ export function NewOrderWizard() {
   }
 
   function validateStep(current: number): boolean {
-    if (current === 1 && !selectedCustomerId) {
-      setError("Επιλέξτε πελάτη για να συνεχίσετε.");
-      return false;
+    if (current === 1) {
+      if (!selectedCustomerId) {
+        setError("Επιλέξτε πελάτη για να συνεχίσετε.");
+        return false;
+      }
+      if (deliveryMethod === "address" && !deliveryAddress.trim()) {
+        setError("Συμπληρώστε διεύθυνση παράδοσης.");
+        return false;
+      }
+      if (deliveryMethod === "pickup" && !pickupAgency.trim()) {
+        setError("Συμπληρώστε πρακτορείο παραλαβής.");
+        return false;
+      }
     }
     if (current === 2 && lineItems.length === 0) {
       setError("Προσθέστε τουλάχιστον ένα προϊόν.");
@@ -359,7 +389,7 @@ export function NewOrderWizard() {
     const orderPayload = {
       customer_id: selectedCustomerId,
       status: orderStatus,
-      total: orderTotal,
+      total: orderVat.grandTotal,
       delivery_date: deliveryDate || null,
       picking_date: trimmedPickingDate || null,
       reminder_days: reminderDays,
@@ -370,6 +400,15 @@ export function NewOrderWizard() {
       created_by: session.user.id,
       is_reserved: reserveActive,
       reserved_until: reserveActive ? reservedUntil : null,
+      delivery_method: deliveryMethod || null,
+      delivery_address:
+        deliveryMethod === "address" ? deliveryAddress.trim() || null : null,
+      delivery_city:
+        deliveryMethod === "address" ? deliveryCity.trim() || null : null,
+      delivery_postal_code:
+        deliveryMethod === "address" ? deliveryPostalCode.trim() || null : null,
+      pickup_agency:
+        deliveryMethod === "pickup" ? pickupAgency.trim() || null : null,
     };
 
     const { data: order, error: orderError } = await supabase
@@ -391,6 +430,7 @@ export function NewOrderWizard() {
     const items = lineItems.map((item) => ({
       order_id: order.id,
       product_id: item.id,
+      product_name: item.cleanName || item.name,
       quantity: item.quantity,
       unit_price: item.price,
     }));
@@ -434,10 +474,12 @@ export function NewOrderWizard() {
 
   function handleSelectCustomer(customer: WizardCustomer) {
     setSelectedCustomerId(customer.id);
-    const formatted = buildDeliveryAddress(customer);
-    if (formatted) {
-      setDeliveryAddress(formatted);
+    if (!deliveryMethod) {
+      setDeliveryMethod("address");
     }
+    setDeliveryAddress(customer.address?.trim() || "");
+    setDeliveryCity(customer.city?.trim() || "");
+    setDeliveryPostalCode(customer.postal_code?.trim() || "");
   }
 
   return (
@@ -615,18 +657,76 @@ export function NewOrderWizard() {
                   </div>
                 ) : null}
 
-                <div className="space-y-2">
-                  <FormFieldLabel htmlFor="delivery-address" tooltip={FIELD_TOOLTIPS.deliveryAddress}>
-                    Διεύθυνση παράδοσης
+                <div className="space-y-3">
+                  <FormFieldLabel tooltip={FIELD_TOOLTIPS.deliveryAddress}>
+                    Τρόπος παράδοσης
                   </FormFieldLabel>
-                  <textarea
-                    id="delivery-address"
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    className={premiumTextarea}
-                    rows={3}
-                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {DELIVERY_METHODS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setDeliveryMethod(option.value)}
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors",
+                          deliveryMethod === option.value
+                            ? "border-kartex-gold bg-kartex-gold/10 text-kartex-navy"
+                            : "border-border bg-white text-muted-foreground hover:border-kartex-gold/40",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {deliveryMethod === "address" ? (
+                  <div className="space-y-3 rounded-xl border border-kartex-gold/20 bg-[#F8F9FC]/80 p-4">
+                    <div className="space-y-2">
+                      <FormFieldLabel htmlFor="delivery-address" tooltip={FIELD_TOOLTIPS.deliveryAddress}>
+                        Διεύθυνση
+                      </FormFieldLabel>
+                      <textarea
+                        id="delivery-address"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className={premiumTextarea}
+                        rows={2}
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <FormFieldLabel htmlFor="delivery-city">Πόλη</FormFieldLabel>
+                        <Input
+                          id="delivery-city"
+                          value={deliveryCity}
+                          onChange={(e) => setDeliveryCity(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <FormFieldLabel htmlFor="delivery-postal">Τ.Κ.</FormFieldLabel>
+                        <Input
+                          id="delivery-postal"
+                          value={deliveryPostalCode}
+                          onChange={(e) => setDeliveryPostalCode(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {deliveryMethod === "pickup" ? (
+                  <div className="space-y-2 rounded-xl border border-kartex-gold/20 bg-[#F8F9FC]/80 p-4">
+                    <FormFieldLabel htmlFor="pickup-agency">Πρακτορείο</FormFieldLabel>
+                    <Input
+                      id="pickup-agency"
+                      value={pickupAgency}
+                      onChange={(e) => setPickupAgency(e.target.value)}
+                      placeholder="π.χ. ACS Μεταμόρφωσης"
+                    />
+                  </div>
+                ) : null}
+
                 <div className="space-y-2">
                   <FormFieldLabel htmlFor="special-instructions" tooltip={FIELD_TOOLTIPS.specialInstructions}>
                     Ειδικές οδηγίες
@@ -651,62 +751,123 @@ export function NewOrderWizard() {
                 <CardDescription>Προσθέστε γραμμές παραγγελίας</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={productQuery}
-                    onChange={(e) => setProductQuery(e.target.value)}
-                    placeholder="Αναζήτηση προϊόντος…"
-                    className="pl-9"
-                  />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={productQuery}
+                      onChange={(e) => setProductQuery(e.target.value)}
+                      placeholder="Αναζήτηση master / SKU…"
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setProductCategory("all")}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-xs font-semibold",
+                        productCategory === "all"
+                          ? "bg-kartex-navy text-white"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      Όλα
+                    </button>
+                    {productCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setProductCategory(category)}
+                        className={cn(
+                          "rounded-full px-3 py-1.5 text-xs font-semibold",
+                          productCategory === category
+                            ? "bg-kartex-navy text-white"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {productsLoading ? (
                   <p className="text-sm text-muted-foreground">
                     Φόρτωση προϊόντων…
                   </p>
                 ) : null}
-                {!productsLoading && filteredProducts.length > 0 ? (
-                  <ul className="rounded-md border border-border">
-                    {filteredProducts.map((product) => (
-                      <li
-                        key={product.id}
-                        className="flex items-center justify-between border-b border-border/60 px-4 py-3 transition-colors last:border-0 hover:bg-muted/30"
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-kartex-navy">
-                            {product.cleanName || product.name}
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-2">
-                            {product.widthCm && product.heightCm ? (
-                              <span className="text-xs text-muted-foreground">
-                                {product.widthCm}×{product.heightCm}cm
-                              </span>
-                            ) : null}
-                            {product.gsm ? (
-                              <span className="text-xs text-muted-foreground">
-                                {product.gsm}gsm
-                              </span>
-                            ) : null}
-                            {product.sku ? (
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {product.sku}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0 border-kartex-gold/30 text-kartex-gold hover:bg-kartex-gold/10"
-                          onClick={() => addProduct(product)}
+                {!productsLoading && filteredMasterGroups.length > 0 ? (
+                  <div className={masterGroupGridClass}>
+                    {filteredMasterGroups.map((group) => {
+                      const groupKey = `${group.cleanName}__${group.category}`;
+                      const isExpanded = expandedMasterKey === groupKey;
+                      return (
+                        <div
+                          key={groupKey}
+                          className={cn(
+                            premiumCard,
+                            "border-l-[3px] border-l-kartex-gold/40 p-4",
+                          )}
                         >
-                          <Plus className="size-3.5" />
-                          Προσθήκη
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+                          <button
+                            type="button"
+                            className="flex w-full items-start justify-between gap-2 text-left"
+                            onClick={() =>
+                              setExpandedMasterKey(isExpanded ? null : groupKey)
+                            }
+                          >
+                            <div className="min-w-0">
+                              <div className="font-bold text-kartex-navy">
+                                {group.cleanName}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <CategoryBadge category={group.category} />
+                                <span className="text-xs text-muted-foreground">
+                                  {group.variants.length} παραλλαγές
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold text-kartex-gold">
+                              {isExpanded ? "Κλείσιμο" : "Επιλογή"}
+                            </span>
+                          </button>
+                          {isExpanded ? (
+                            <ul className="mt-3 space-y-2 border-t border-border/60 pt-3">
+                              {group.variants.map((variant) => (
+                                <li
+                                  key={variant.id}
+                                  className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-kartex-navy">
+                                      {variantLabel(variant)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {variant.sku} · {formatEur(variant.salePrice)}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 border-kartex-gold/30 text-kartex-gold hover:bg-kartex-gold/10"
+                                    onClick={() => addVariant(group, variant.id)}
+                                  >
+                                    <Plus className="size-3.5" />
+                                    Προσθήκη
+                                  </Button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : !productsLoading ? (
+                  <p className="text-sm text-muted-foreground">
+                    Δεν βρέθηκαν προϊόντα.
+                  </p>
                 ) : null}
                 {lineItems.length > 0 ? (
                   <div className="space-y-2">
@@ -905,7 +1066,16 @@ export function NewOrderWizard() {
                 <section>
                   <h3 className="font-medium text-kartex-navy">Πελάτης</h3>
                   <p>{selectedCustomer?.name ?? "—"}</p>
-                  <p className="text-muted-foreground">{deliveryAddress || "—"}</p>
+                  <p className="text-muted-foreground">
+                    {deliveryMethod === "pickup"
+                      ? `Παραλαβή: ${pickupAgency || "—"}`
+                      : [
+                          deliveryAddress,
+                          [deliveryCity, deliveryPostalCode].filter(Boolean).join(" "),
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "—"}
+                  </p>
                   {specialInstructions ? (
                     <p className="text-muted-foreground">{specialInstructions}</p>
                   ) : null}
@@ -993,7 +1163,17 @@ export function NewOrderWizard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-4xl font-black tabular-nums text-kartex-gold">
-                {formatEur(orderTotal)}
+                {formatEur(orderVat.grandTotal)}
+              </div>
+              <div className="space-y-1 text-xs text-white/50">
+                <div className="flex justify-between">
+                  <span>Υποσύνολο</span>
+                  <span className="tabular-nums">{formatEur(orderVat.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>ΦΠΑ 24%</span>
+                  <span className="tabular-nums">{formatEur(orderVat.vatAmount)}</span>
+                </div>
               </div>
               <div className="text-sm text-white/50">
                 {lineItems.length}{" "}

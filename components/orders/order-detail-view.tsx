@@ -30,11 +30,12 @@ import { OrderStatusTimeline } from "@/components/orders/order-status-timeline";
 import { WarehouseStatusCard } from "@/components/orders/warehouse-status-card";
 import { fetchOrderDetailById } from "@/lib/orders/fetch-order-detail-client";
 import { fetchBoxPhotos, type OrderBoxPhoto } from "@/lib/orders/order-photos";
+import { computeOrderVatSummary } from "@/lib/orders/order-vat";
 import { DriverAssignmentSection } from "@/components/orders/driver-assignment-section";
 import { updateOrderStatus } from "@/lib/orders/update-order-status";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { premiumCard, premiumGoldButton, premiumLabel } from "@/lib/ui/premium-styles";
+import { premiumCard, premiumGoldButton, premiumLabel, premiumTableWrap, premiumTableHead } from "@/lib/ui/premium-styles";
 import { premiumSelect } from "@/lib/ui/form-styles";
 import {
   Card,
@@ -201,9 +202,30 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
     toast.success("Η πληρωμή επιβεβαιώθηκε!");
   }
 
-  const subtotal = order.items.reduce((sum, item) => sum + item.total, 0);
-  const vat = Math.round(subtotal * 0.24 * 100) / 100;
-  const grandTotal = Math.round((subtotal + vat) * 100) / 100;
+  const vatSummary = React.useMemo(
+    () =>
+      computeOrderVatSummary({
+        subtotal: order.subtotal,
+        documentType: order.documentType,
+        storedTotal: order.total,
+      }),
+    [order.documentType, order.subtotal, order.total],
+  );
+
+  const hasPartialDelivery = React.useMemo(
+    () =>
+      order.items.some(
+        (item) => item.quantityDelivered > 0 && item.quantityPending > 0,
+      ) || order.status === OrderStatus.PartialShipment,
+    [order.items, order.status],
+  );
+
+  const wasScheduled = React.useMemo(
+    () =>
+      order.status === OrderStatus.Scheduled ||
+      order.statusHistory.some((entry) => entry.status === OrderStatus.Scheduled),
+    [order.status, order.statusHistory],
+  );
 
   async function handleCancelOrder() {
     if (
@@ -359,9 +381,11 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
           ) : null}
           <DeliverySection order={order} orderId={orderId} />
           <SummaryCard
-            subtotal={subtotal}
-            vatAmount={vat}
-            grandTotal={grandTotal}
+            subtotal={vatSummary.subtotal}
+            vatAmount={vatSummary.vatAmount}
+            vatRate={vatSummary.vatRate}
+            vatApplies={vatSummary.vatApplies}
+            grandTotal={vatSummary.grandTotal}
           />
         </div>
 
@@ -380,17 +404,14 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
             orderId={orderId}
             onUpdated={handleOrderUpdated}
           />
-          <Card className="border-border/80 shadow-sm print:hidden">
-            <CardHeader>
-              <CardTitle className="text-lg text-kartex-navy">
-                Χρονοδιάγραμμα
-              </CardTitle>
-              <CardDescription>Κατάσταση εκτέλεσης παραγγελίας</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Card className={cn(premiumCard, "overflow-hidden p-0 print:hidden")}>
+            <CardContent className="p-0">
               <OrderStatusTimeline
                 status={order.status}
                 statusHistory={order.statusHistory}
+                hasPartialDelivery={hasPartialDelivery}
+                wasReserved={order.isReserved}
+                wasScheduled={wasScheduled}
               />
             </CardContent>
           </Card>
@@ -488,44 +509,35 @@ function CustomerCard({ order }: { order: OrderDetail }) {
 
 function ItemsCard({ order }: { order: OrderDetail }) {
   return (
-    <Card className="border-border/80 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg text-kartex-navy">Προϊόντα</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-x-auto p-0 sm:p-6 sm:pt-0">
+    <div className={premiumTableWrap}>
+      <div className="border-b border-gray-100 px-5 py-4">
+        <h2 className="text-lg font-semibold text-kartex-navy">Προϊόντα</h2>
+      </div>
+      <div className="overflow-x-auto">
         {order.items.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground sm:px-6">
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">
             Δεν υπάρχουν γραμμές παραγγελίας.
           </p>
         ) : (
-          <table className="w-full min-w-[480px] text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/40 text-left">
-                <th className="px-4 py-3 font-medium text-muted-foreground sm:px-6">
-                  Προϊόν
-                </th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Ποσότητα
-                </th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Παραδόθηκε
-                </th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">
-                  Εκκρεμεί
-                </th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Τιμή</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground sm:pr-6">
-                  Σύνολο
-                </th>
+              <tr className={premiumTableHead}>
+                <th className="px-5 py-3">Προϊόν</th>
+                <th className="px-4 py-3">Ποσότητα</th>
+                <th className="px-4 py-3">Παραδόθηκε</th>
+                <th className="px-4 py-3">Εκκρεμεί</th>
+                <th className="px-4 py-3">Picked</th>
+                <th className="px-4 py-3">Τιμή</th>
+                <th className="px-5 py-3">Σύνολο</th>
               </tr>
             </thead>
             <tbody>
               {order.items.map((item) => (
                 <tr
                   key={item.id}
-                  className="border-b border-border/60 last:border-0"
+                  className="border-b border-gray-100/80 last:border-0 hover:bg-gray-50/60"
                 >
-                  <td className="px-4 py-3 sm:px-6">
+                  <td className="px-5 py-3 font-medium text-kartex-navy">
                     {item.products?.clean_name ||
                       item.products?.name ||
                       item.productName ||
@@ -539,10 +551,13 @@ function ItemsCard({ order }: { order: OrderDetail }) {
                   <td className="px-4 py-3 tabular-nums text-warning">
                     {item.quantityPending}
                   </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {item.pickedAt ? formatDateEl(item.pickedAt) : "—"}
+                  </td>
                   <td className="px-4 py-3 tabular-nums">
                     {formatEur(item.unitPrice)}
                   </td>
-                  <td className="px-4 py-3 font-medium tabular-nums sm:pr-6">
+                  <td className="px-5 py-3 font-semibold tabular-nums text-kartex-navy">
                     {formatEur(item.total)}
                   </td>
                 </tr>
@@ -550,38 +565,46 @@ function ItemsCard({ order }: { order: OrderDetail }) {
             </tbody>
           </table>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
 function SummaryCard({
   subtotal,
   vatAmount,
+  vatRate,
+  vatApplies,
   grandTotal,
 }: {
   subtotal: number;
   vatAmount: number;
+  vatRate: number;
+  vatApplies: boolean;
   grandTotal: number;
 }) {
-  const vatRate = 0.24;
-
   return (
-    <Card className="border-border/80 shadow-sm">
+    <Card className={cn(premiumCard, "overflow-hidden")}>
       <CardContent className="space-y-2 p-6">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Υποσύνολο</span>
+          <span className="text-muted-foreground">
+            {vatApplies ? "Υποσύνολο (χωρίς ΦΠΑ)" : "Καθαρή αξία"}
+          </span>
           <span className="tabular-nums">{formatEur(subtotal)}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
-            ΦΠΑ {Math.round(vatRate * 100)}%
-          </span>
-          <span className="tabular-nums">{formatEur(vatAmount)}</span>
-        </div>
-        <div className="flex justify-between border-t border-border pt-3 text-base font-semibold text-kartex-navy">
+        {vatApplies ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">
+              ΦΠΑ {Math.round(vatRate * 100)}%
+            </span>
+            <span className="tabular-nums">{formatEur(vatAmount)}</span>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Τιμολόγιο B2B — χωρίς ΦΠΑ</p>
+        )}
+        <div className="flex justify-between border-t border-kartex-gold/20 pt-3 text-base font-bold text-kartex-navy">
           <span>Σύνολο</span>
-          <span className="tabular-nums">{formatEur(grandTotal)}</span>
+          <span className="tabular-nums text-kartex-gold">{formatEur(grandTotal)}</span>
         </div>
       </CardContent>
     </Card>
@@ -590,7 +613,7 @@ function SummaryCard({
 
 function InfoCard({ order }: { order: OrderDetail }) {
   return (
-    <Card className="border-border/80 shadow-sm">
+    <Card className={premiumCard}>
       <CardHeader>
         <CardTitle className="text-lg text-kartex-navy">Πληροφορίες</CardTitle>
       </CardHeader>
