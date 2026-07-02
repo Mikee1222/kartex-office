@@ -30,7 +30,6 @@ import {
   getAthensDateString,
   getAthensYearMonth,
   getPreviousAthensYearMonth,
-  isDeliveryOnAthensDay,
   isIsoInAthensMonth,
   isIsoOnAthensDay,
 } from "@/lib/datetime";
@@ -206,7 +205,7 @@ export function DashboardView({ userEmail }: DashboardViewProps) {
       const supabase = createClient();
       const todayStr = getAthensDateString();
 
-      const [ordersResult, productsResult] = await Promise.all([
+      const [ordersResult, productsResult, todayTripsResult] = await Promise.all([
         supabase
           .from("orders")
           .select(
@@ -215,14 +214,19 @@ export function DashboardView({ userEmail }: DashboardViewProps) {
           .order("created_at", { ascending: false })
           .limit(200),
         supabase.from("products").select("id, stock, min_stock"),
+        supabase
+          .from("delivery_trips")
+          .select("id")
+          .eq("trip_date", todayStr),
       ]);
 
       if (cancelled) return;
 
-      if (ordersResult.error || productsResult.error) {
+      if (ordersResult.error || productsResult.error || todayTripsResult.error) {
         const message =
           ordersResult.error?.message ||
           productsResult.error?.message ||
+          todayTripsResult.error?.message ||
           "Αποτυχία φόρτωσης πίνακα ελέγχου.";
         setError(message);
         setLoading(false);
@@ -237,14 +241,20 @@ export function DashboardView({ userEmail }: DashboardViewProps) {
 
       let ordersToday = 0;
       let deliveriesToday = 0;
+      const todayTripIds = new Set(
+        (todayTripsResult.data ?? []).map((trip) => trip.id),
+      );
 
       for (const row of orders) {
         if (isIsoOnAthensDay(row.created_at, todayStr)) {
           ordersToday += 1;
         }
+        // Keep the dashboard aligned with Reports/Drivers:
+        // deliveries = completed orders assigned to trips scheduled for today.
         if (
-          row.status === OrderStatus.Shipped &&
-          isDeliveryOnAthensDay(row.delivery_date, todayStr)
+          row.status === OrderStatus.Completed &&
+          Boolean(row.trip_id) &&
+          todayTripIds.has(row.trip_id)
         ) {
           deliveriesToday += 1;
         }

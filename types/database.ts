@@ -121,6 +121,7 @@ export type OrderRow = {
   picking_date: string | null;
   reminder_days: number | null;
   payment_terms: string | null;
+  trip_id?: string | null;
   payment_status?: string | null;
   payment_proof_url?: string | null;
   payment_amount?: number | string | null;
