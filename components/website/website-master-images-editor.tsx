@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { postWebsiteImageUpload } from "@/lib/website/client-image-upload";
+import { collectImageFiles } from "@/lib/website/collect-image-files";
 import {
   MAX_RAW_UPLOAD_BYTES,
   UPLOAD_MIME_ERROR_EL,
@@ -78,6 +79,7 @@ type UploadProgress = {
   name: string;
   status: "uploading" | "done" | "error";
   error?: string;
+  previewUrl?: string;
 };
 
 type WebsiteMasterImagesEditorProps = {
@@ -216,9 +218,16 @@ export function WebsiteMasterImagesEditor({
   const [uploads, setUploads] = React.useState<UploadProgress[]>([]);
   const [dragOver, setDragOver] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [batchUploading, setBatchUploading] = React.useState(false);
+  const localImagesRef = React.useRef(localImages);
+  const batchUploadingRef = React.useRef(false);
+
+  localImagesRef.current = localImages;
 
   React.useEffect(() => {
-    setLocalImages(images);
+    if (!batchUploadingRef.current) {
+      setLocalImages(images);
+    }
   }, [images]);
 
   const sensors = useSensors(
@@ -269,21 +278,25 @@ export function WebsiteMasterImagesEditor({
     await persistReorder(reordered);
   }
 
-  async function uploadFiles(fileList: FileList | File[]) {
-    const files = Array.from(fileList).filter((file) =>
-      file.type.startsWith("image/") || isAllowedProductImageFile(file),
-    );
+  async function uploadFiles(fileList: FileList | File[] | DataTransfer) {
+    const files = collectImageFiles(fileList);
     if (files.length === 0) {
       toast.error("Επιλέξτε αρχεία εικόνας.");
       return;
     }
 
-    let rollingImages = localImages;
+    batchUploadingRef.current = true;
+    setBatchUploading(true);
+
+    let rollingImages = localImagesRef.current;
+    let successCount = 0;
+    let failCount = 0;
 
     for (const file of files) {
       const uploadId = crypto.randomUUID();
 
       if (!isAllowedProductImageFile(file)) {
+        failCount += 1;
         setUploads((current) => [
           ...current,
           {
@@ -297,6 +310,7 @@ export function WebsiteMasterImagesEditor({
       }
 
       if (file.size > MAX_RAW_UPLOAD_BYTES) {
+        failCount += 1;
         setUploads((current) => [
           ...current,
           {
@@ -309,9 +323,10 @@ export function WebsiteMasterImagesEditor({
         continue;
       }
 
+      const previewUrl = URL.createObjectURL(file);
       setUploads((current) => [
         ...current,
-        { id: uploadId, name: file.name, status: "uploading" },
+        { id: uploadId, name: file.name, status: "uploading", previewUrl },
       ]);
 
       try {
@@ -326,13 +341,16 @@ export function WebsiteMasterImagesEditor({
 
         const nextImages = applyUploadedImage(payload, rollingImages, onChange);
         rollingImages = nextImages;
+        localImagesRef.current = nextImages;
         setLocalImages(nextImages);
+        successCount += 1;
         setUploads((current) =>
           current.map((item) =>
             item.id === uploadId ? { ...item, status: "done" } : item,
           ),
         );
       } catch (error) {
+        failCount += 1;
         setUploads((current) =>
           current.map((item) =>
             item.id === uploadId
@@ -350,9 +368,50 @@ export function WebsiteMasterImagesEditor({
       }
     }
 
+    batchUploadingRef.current = false;
+    setBatchUploading(false);
+
+    if (files.length > 1) {
+      if (failCount === 0) {
+        toast.success(`${successCount} εικόνες ανέβηκαν.`);
+      } else if (successCount > 0) {
+        toast.info(`${successCount} από ${files.length} εικόνες ανέβηκαν.`);
+      } else {
+        toast.error("Καμία εικόνα δεν ανέβηκε.");
+      }
+    } else if (successCount === 1) {
+      toast.success("Η εικόνα ανέβηκε.");
+    }
+
     window.setTimeout(() => {
-      setUploads((current) => current.filter((item) => item.status === "uploading"));
-    }, 4000);
+      setUploads((current) => {
+        for (const item of current) {
+          if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+        }
+        return current.filter((item) => item.status === "uploading");
+      });
+    }, 5000);
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLDivElement>) {
+    const related = event.relatedTarget as Node | null;
+    if (related && event.currentTarget.contains(related)) return;
+    setDragOver(false);
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOver(false);
+    if (disabled || busy) return;
+    void uploadFiles(event.dataTransfer);
   }
 
   async function handleSetPrimary(imageId: string) {
@@ -422,29 +481,22 @@ export function WebsiteMasterImagesEditor({
     );
   }
 
-  const isDisabled = disabled || busy;
+  const isDropDisabled = disabled || busy;
+  const isGridDisabled = disabled || busy || batchUploading;
 
   return (
     <div className="space-y-4">
       <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragOver(false);
-          if (event.dataTransfer.files?.length) {
-            void uploadFiles(event.dataTransfer.files);
-          }
-        }}
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={cn(
           "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
           dragOver
             ? "border-gold-500 bg-gold-500/5"
             : "border-gray-200 bg-gray-50/50",
-          isDisabled && "pointer-events-none opacity-60",
+          isDropDisabled && "pointer-events-none opacity-60",
         )}
       >
         <Upload className="mb-3 size-8 text-gray-400" aria-hidden />
@@ -464,7 +516,7 @@ export function WebsiteMasterImagesEditor({
             accept="image/*"
             multiple
             className="sr-only"
-            disabled={isDisabled}
+            disabled={isDropDisabled}
             onChange={(event) => {
               if (event.target.files?.length) {
                 void uploadFiles(event.target.files);
@@ -478,11 +530,23 @@ export function WebsiteMasterImagesEditor({
       {uploads.length > 0 ? (
         <ul className="space-y-2 rounded-lg border border-gray-200 bg-white p-3 text-sm">
           {uploads.map((upload) => (
-            <li key={upload.id} className="flex items-center gap-2 text-gray-600">
-              {upload.status === "uploading" ? (
-                <Loader2 className="size-4 animate-spin text-gold-600" />
+            <li key={upload.id} className="flex items-center gap-3 text-gray-600">
+              {upload.previewUrl ? (
+                <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                  <Image
+                    src={upload.previewUrl}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="40px"
+                    unoptimized
+                  />
+                </div>
               ) : null}
-              <span className="truncate">{upload.name}</span>
+              {upload.status === "uploading" ? (
+                <Loader2 className="size-4 shrink-0 animate-spin text-gold-600" />
+              ) : null}
+              <span className="min-w-0 flex-1 truncate">{upload.name}</span>
               {upload.status === "error" ? (
                 <span className="text-xs text-red-600">{upload.error}</span>
               ) : null}
@@ -514,7 +578,7 @@ export function WebsiteMasterImagesEditor({
                   key={image.id}
                   image={image}
                   isPrimary={index === 0}
-                  disabled={isDisabled}
+                  disabled={isGridDisabled}
                   onSetPrimary={() => void handleSetPrimary(image.id)}
                   onDelete={() => void handleDelete(image.id)}
                   onAltTextSave={(altText) =>

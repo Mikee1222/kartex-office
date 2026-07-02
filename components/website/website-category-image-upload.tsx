@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { postWebsiteImageUpload } from "@/lib/website/client-image-upload";
+import { collectImageFiles } from "@/lib/website/collect-image-files";
 import {
   MAX_RAW_UPLOAD_BYTES,
   UPLOAD_MIME_ERROR_EL,
@@ -143,13 +144,15 @@ export function WebsiteCategoryImageUpload({
     }
   }
 
-  function handleFiles(fileList: FileList | File[]) {
-    const file = Array.from(fileList).find(
-      (item) => item.type.startsWith("image/") || isAllowedProductImageFile(item),
-    );
+  function handleFiles(fileList: FileList | File[] | DataTransfer) {
+    const files = collectImageFiles(fileList);
+    const file = files[0];
     if (!file) {
       toast.error("Επιλέξτε αρχείο εικόνας.");
       return;
+    }
+    if (files.length > 1) {
+      toast.info("Χρησιμοποιείται μόνο η πρώτη εικόνα — κάθε κατηγορία έχει μία εικόνα.");
     }
     void uploadFile(file);
   }
@@ -241,8 +244,8 @@ export function WebsiteCategoryImageUpload({
         event.preventDefault();
         setDragOver(false);
         if (isDisabled) return;
-        if (event.dataTransfer.files?.length) {
-          handleFiles(event.dataTransfer.files);
+        if (event.dataTransfer.files?.length || event.dataTransfer.items?.length) {
+          handleFiles(event.dataTransfer);
         }
       }}
       className={cn(
