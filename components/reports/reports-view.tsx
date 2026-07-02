@@ -375,25 +375,53 @@ export function ReportsView() {
       {!error ? (
         <>
           {activeTab === "overview" ? (
-            <OverviewReportTab analytics={analytics} loading={loading} />
+            <OverviewReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "sales" ? (
-            <SalesReportTab analytics={analytics} loading={loading} />
+            <SalesReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "products" ? (
-            <ProductsReportTab analytics={analytics} loading={loading} />
+            <ProductsReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "customers" ? (
-            <CustomersReportTab analytics={analytics} loading={loading} />
+            <CustomersReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "warehouse" ? (
-            <WarehouseReportTab analytics={analytics} loading={loading} />
+            <WarehouseReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "drivers" ? (
-            <DriversReportTab analytics={analytics} loading={loading} />
+            <DriversReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
           {activeTab === "profitability" ? (
-            <ProfitabilityReportTab analytics={analytics} loading={loading} />
+            <ProfitabilityReportTab
+              analytics={analytics}
+              loading={loading}
+              rangeLabel={range.label}
+            />
           ) : null}
         </>
       ) : null}
