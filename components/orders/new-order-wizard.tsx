@@ -45,6 +45,12 @@ import {
 } from "@/lib/ui/premium-styles";
 import { masterGroupGridClass } from "@/components/products/master-group-ui";
 import {
+  buildOrderDeliveryPayload,
+  getDeliveryFieldErrors,
+  type DeliveryFieldKey,
+  type DeliveryFormValues,
+} from "@/lib/orders/delivery-fields";
+import {
   computeOrderVatSummary,
   type OrderDocumentType,
 } from "@/lib/orders/order-vat";
@@ -127,10 +133,12 @@ export function NewOrderWizard() {
   const [deliveryMethod, setDeliveryMethod] = React.useState<DeliveryMethod | "">(
     "",
   );
+  const [deliveryRecipientName, setDeliveryRecipientName] = React.useState("");
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [deliveryCity, setDeliveryCity] = React.useState("");
   const [deliveryPostalCode, setDeliveryPostalCode] = React.useState("");
   const [pickupAgency, setPickupAgency] = React.useState("");
+  const [step1Attempted, setStep1Attempted] = React.useState(false);
   const [specialInstructions, setSpecialInstructions] = React.useState("");
 
   const [productQuery, setProductQuery] = React.useState("");
@@ -148,6 +156,30 @@ export function NewOrderWizard() {
   const [reservedUntil, setReservedUntil] = React.useState("");
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+
+  const deliveryValues = React.useMemo<DeliveryFormValues>(
+    () => ({
+      deliveryMethod,
+      deliveryRecipientName,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+      pickupAgency,
+    }),
+    [
+      deliveryMethod,
+      deliveryRecipientName,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+      pickupAgency,
+    ],
+  );
+
+  const deliveryErrors = React.useMemo(
+    () => getDeliveryFieldErrors(deliveryValues),
+    [deliveryValues],
+  );
 
   React.useEffect(() => {
     if (selectedCustomer?.payment_terms) {
@@ -315,18 +347,26 @@ export function NewOrderWizard() {
     setLineItems((items) => items.filter((item) => item.id !== id));
   }
 
+  function validateDeliveryFields(): boolean {
+    const errors = getDeliveryFieldErrors(deliveryValues);
+    if (Object.keys(errors).length > 0) {
+      setStep1Attempted(true);
+      setStep(1);
+      setError("Συμπληρώστε όλα τα υποχρεωτικά πεδία παράδοσης.");
+      return false;
+    }
+    return true;
+  }
+
   function validateStep(current: number): boolean {
     if (current === 1) {
+      setStep1Attempted(true);
       if (!selectedCustomerId) {
         setError("Επιλέξτε πελάτη για να συνεχίσετε.");
         return false;
       }
-      if (deliveryMethod === "address" && !deliveryAddress.trim()) {
-        setError("Συμπληρώστε διεύθυνση παράδοσης.");
-        return false;
-      }
-      if (deliveryMethod === "pickup" && !pickupAgency.trim()) {
-        setError("Συμπληρώστε πρακτορείο παραλαβής.");
+      if (Object.keys(deliveryErrors).length > 0) {
+        setError("Συμπληρώστε όλα τα υποχρεωτικά πεδία παράδοσης.");
         return false;
       }
     }
@@ -356,6 +396,10 @@ export function NewOrderWizard() {
     if (!selectedCustomerId || lineItems.length === 0) {
       setError("Απαιτείται πελάτης και τουλάχιστον ένα προϊόν.");
       setStep(!selectedCustomerId ? 1 : 2);
+      return;
+    }
+
+    if (!validateDeliveryFields()) {
       return;
     }
 
@@ -410,15 +454,7 @@ export function NewOrderWizard() {
       created_by: session.user.id,
       is_reserved: reserveActive,
       reserved_until: reserveActive ? reservedUntil : null,
-      delivery_method: deliveryMethod || null,
-      delivery_address:
-        deliveryMethod === "address" ? deliveryAddress.trim() || null : null,
-      delivery_city:
-        deliveryMethod === "address" ? deliveryCity.trim() || null : null,
-      delivery_postal_code:
-        deliveryMethod === "address" ? deliveryPostalCode.trim() || null : null,
-      pickup_agency:
-        deliveryMethod === "pickup" ? pickupAgency.trim() || null : null,
+      ...buildOrderDeliveryPayload(deliveryValues),
       document_type: documentType === "invoice" ? "invoice" : "receipt",
       vat_number:
         documentType === "invoice"
@@ -492,10 +528,15 @@ export function NewOrderWizard() {
     if (!deliveryMethod) {
       setDeliveryMethod("address");
     }
+    setDeliveryRecipientName(customer.name);
     setDeliveryAddress(customer.address?.trim() || "");
     setDeliveryCity(customer.city?.trim() || "");
     setDeliveryPostalCode(customer.postal_code?.trim() || "");
     setDocumentType(customer.vat?.trim() ? "invoice" : "receipt");
+  }
+
+  function showDeliveryFieldError(field: DeliveryFieldKey) {
+    return step1Attempted ? deliveryErrors[field] : undefined;
   }
 
   return (
@@ -682,7 +723,12 @@ export function NewOrderWizard() {
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setDeliveryMethod(option.value)}
+                        onClick={() => {
+                          setDeliveryMethod(option.value);
+                          if (!deliveryRecipientName.trim() && selectedCustomer?.name) {
+                            setDeliveryRecipientName(selectedCustomer.name);
+                          }
+                        }}
                         className={cn(
                           "rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors",
                           deliveryMethod === option.value
@@ -694,7 +740,31 @@ export function NewOrderWizard() {
                       </button>
                     ))}
                   </div>
+                  {showDeliveryFieldError("delivery_method") ? (
+                    <p className="text-xs text-red-500">
+                      {showDeliveryFieldError("delivery_method")}
+                    </p>
+                  ) : null}
                 </div>
+
+                {deliveryMethod ? (
+                  <div className="space-y-2">
+                    <FormFieldLabel htmlFor="delivery-recipient-name">
+                      Όνομα παραλήπτη
+                    </FormFieldLabel>
+                    <Input
+                      id="delivery-recipient-name"
+                      value={deliveryRecipientName}
+                      onChange={(e) => setDeliveryRecipientName(e.target.value)}
+                      aria-invalid={!!showDeliveryFieldError("delivery_recipient_name")}
+                    />
+                    {showDeliveryFieldError("delivery_recipient_name") ? (
+                      <p className="text-xs text-red-500">
+                        {showDeliveryFieldError("delivery_recipient_name")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {deliveryMethod === "address" ? (
                   <div className="space-y-3 rounded-xl border border-kartex-gold/20 bg-[#F8F9FC]/80 p-4">
@@ -708,7 +778,13 @@ export function NewOrderWizard() {
                         onChange={(e) => setDeliveryAddress(e.target.value)}
                         className={premiumTextarea}
                         rows={2}
+                        aria-invalid={!!showDeliveryFieldError("delivery_address")}
                       />
+                      {showDeliveryFieldError("delivery_address") ? (
+                        <p className="text-xs text-red-500">
+                          {showDeliveryFieldError("delivery_address")}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -717,7 +793,13 @@ export function NewOrderWizard() {
                           id="delivery-city"
                           value={deliveryCity}
                           onChange={(e) => setDeliveryCity(e.target.value)}
+                          aria-invalid={!!showDeliveryFieldError("delivery_city")}
                         />
+                        {showDeliveryFieldError("delivery_city") ? (
+                          <p className="text-xs text-red-500">
+                            {showDeliveryFieldError("delivery_city")}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="space-y-2">
                         <FormFieldLabel htmlFor="delivery-postal">Τ.Κ.</FormFieldLabel>
@@ -725,7 +807,13 @@ export function NewOrderWizard() {
                           id="delivery-postal"
                           value={deliveryPostalCode}
                           onChange={(e) => setDeliveryPostalCode(e.target.value)}
+                          aria-invalid={!!showDeliveryFieldError("delivery_postal_code")}
                         />
+                        {showDeliveryFieldError("delivery_postal_code") ? (
+                          <p className="text-xs text-red-500">
+                            {showDeliveryFieldError("delivery_postal_code")}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -739,7 +827,13 @@ export function NewOrderWizard() {
                       value={pickupAgency}
                       onChange={(e) => setPickupAgency(e.target.value)}
                       placeholder="π.χ. ACS Μεταμόρφωσης"
+                      aria-invalid={!!showDeliveryFieldError("pickup_agency")}
                     />
+                    {showDeliveryFieldError("pickup_agency") ? (
+                      <p className="text-xs text-red-500">
+                        {showDeliveryFieldError("pickup_agency")}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1088,6 +1182,7 @@ export function NewOrderWizard() {
                   <h3 className="font-medium text-kartex-navy">Πελάτης</h3>
                   <p>{selectedCustomer?.name ?? "—"}</p>
                   <p className="text-muted-foreground">
+                    {deliveryRecipientName ? `${deliveryRecipientName} · ` : ""}
                     {deliveryMethod === "pickup"
                       ? `Παραλαβή: ${pickupAgency || "—"}`
                       : [
