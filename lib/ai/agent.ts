@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { ANTHROPIC_MODEL } from "@/lib/ai/anthropic-model";
 import { DOLPHIN_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { executeTool, type ToolExecutorContext } from "@/lib/ai/tool-executor";
 import type { DolphinAgentResult, PendingAction } from "@/lib/ai/types";
@@ -12,7 +13,6 @@ import {
   type ToolName,
 } from "@/lib/ai/tools";
 
-const MODEL = "claude-sonnet-4-5";
 const MAX_ITERATIONS = 10;
 
 function extractAssistantText(
@@ -57,7 +57,7 @@ export async function runDolphinAgent(options: {
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration += 1) {
     const response = await anthropic.messages.create({
-      model: MODEL,
+      model: ANTHROPIC_MODEL,
       max_tokens: 4096,
       system: DOLPHIN_SYSTEM_PROMPT,
       tools: DOLPHIN_TOOLS,
@@ -121,7 +121,7 @@ export async function runDolphinAgent(options: {
       ];
 
       const followUp = await anthropic.messages.create({
-        model: MODEL,
+        model: ANTHROPIC_MODEL,
         max_tokens: 4096,
         system: DOLPHIN_SYSTEM_PROMPT,
         tools: DOLPHIN_TOOLS,
