@@ -11,6 +11,8 @@ type RouteContext = {
 type OrderItemRow = {
   product_id: string | null;
   quantity: number;
+  picked_at?: string | null;
+  color_id?: string | null;
 };
 
 export async function POST(_request: Request, context: RouteContext) {
@@ -42,7 +44,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const { data: items, error: itemsError } = await supabase
     .from("order_items")
-    .select("product_id, quantity")
+    .select("product_id, quantity, picked_at, color_id")
     .eq("order_id", orderId);
 
   if (itemsError) {
@@ -54,6 +56,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   for (const item of lines) {
     if (!item.product_id) continue;
+    if (item.picked_at) continue;
 
     const quantity = item.quantity ?? 0;
     if (quantity <= 0) continue;
@@ -61,6 +64,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const { error: rpcError } = await supabase.rpc("decrease_stock", {
       p_product_id: item.product_id,
       p_quantity: quantity,
+      p_color_id: item.color_id ?? null,
     });
 
     if (rpcError) {

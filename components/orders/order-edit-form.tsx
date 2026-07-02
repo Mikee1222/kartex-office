@@ -94,7 +94,7 @@ export function OrderEditForm({ orderId, initial }: OrderEditFormProps) {
     if (status === OrderStatus.Shipped && !wasShipped) {
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
-        .select("product_id, quantity")
+        .select("product_id, quantity, picked_at, color_id")
         .eq("order_id", orderId);
 
       if (itemsError) {
@@ -106,6 +106,7 @@ export function OrderEditForm({ orderId, initial }: OrderEditFormProps) {
 
       for (const item of items ?? []) {
         if (!item.product_id) continue;
+        if (item.picked_at) continue;
 
         const quantity = item.quantity ?? 0;
         if (quantity <= 0) continue;
@@ -113,6 +114,7 @@ export function OrderEditForm({ orderId, initial }: OrderEditFormProps) {
         const { error: rpcError } = await supabase.rpc("decrease_stock", {
           p_product_id: item.product_id,
           p_quantity: quantity,
+          p_color_id: item.color_id ?? null,
         });
 
         if (rpcError) {

@@ -60,7 +60,7 @@ export async function submitPartialDelivery(
 
     const { data: orderItem, error: fetchItemError } = await supabase
       .from("order_items")
-      .select("id, quantity, quantity_delivered")
+      .select("id, quantity, quantity_delivered, picked_at, color_id")
       .eq("id", line.orderItemId)
       .eq("order_id", input.orderId)
       .single();
@@ -98,33 +98,36 @@ export async function submitPartialDelivery(
       return { ok: false, error: updateItemError.message };
     }
 
-    const { error: stockError } = await supabase.rpc("decrease_stock", {
-      p_product_id: line.productId,
-      p_quantity: line.quantity,
-    });
-
-    if (stockError) {
-      return { ok: false, error: stockError.message };
-    }
-
-    if (input.isReserved) {
-      const { error: releaseError } = await supabase.rpc("release_reserved_stock", {
+    if (!orderItem.picked_at) {
+      const { error: stockError } = await supabase.rpc("decrease_stock", {
         p_product_id: line.productId,
         p_quantity: line.quantity,
+        p_color_id: orderItem.color_id ?? null,
       });
-      if (releaseError) {
-        return { ok: false, error: releaseError.message };
-      }
-    }
 
-    await logInventoryMovement(supabase, {
-      product_id: line.productId,
-      type: "out",
-      quantity: line.quantity,
-      reason: "Παράδοση παραγγελίας",
-      order_id: input.orderId,
-      created_by: user?.id ?? null,
-    });
+      if (stockError) {
+        return { ok: false, error: stockError.message };
+      }
+
+      if (input.isReserved) {
+        const { error: releaseError } = await supabase.rpc("release_reserved_stock", {
+          p_product_id: line.productId,
+          p_quantity: line.quantity,
+        });
+        if (releaseError) {
+          return { ok: false, error: releaseError.message };
+        }
+      }
+
+      await logInventoryMovement(supabase, {
+        product_id: line.productId,
+        type: "out",
+        quantity: line.quantity,
+        reason: "Παράδοση παραγγελίας",
+        order_id: input.orderId,
+        created_by: user?.id ?? null,
+      });
+    }
   }
 
   const { data: allItems, error: itemsError } = await supabase

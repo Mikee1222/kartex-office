@@ -86,6 +86,7 @@ type LineItem = {
   cleanName?: string;
   quantity: number;
   price: number;
+  colorId?: string | null;
 };
 
 const DELIVERY_METHODS: { value: DeliveryMethod; label: string }[] = [
@@ -341,9 +342,18 @@ export function NewOrderWizard() {
     return group.masterId ? `master:${group.masterId}` : `${group.cleanName}__${group.category}`;
   }
 
+  function resolveDefaultColorId(productId: string): string | null {
+    const rows = variantsByProduct.get(productId) ?? [];
+    const active = rows.filter((row) => row.isActive && row.color);
+    const primary = active.find((row) => row.isPrimary);
+    return (primary ?? active[0])?.colorId ?? null;
+  }
+
   function addVariant(group: MasterGroup, variantId: string) {
     const variant = group.variants.find((item) => item.id === variantId);
     if (!variant) return;
+
+    const colorId = resolveDefaultColorId(variant.id);
 
     setLineItems((items) => {
       const existing = items.find((i) => i.id === variant.id);
@@ -360,6 +370,7 @@ export function NewOrderWizard() {
           cleanName: group.cleanName,
           quantity: 1,
           price: variant.salePrice,
+          colorId,
         },
       ];
     });
@@ -553,6 +564,7 @@ export function NewOrderWizard() {
       product_name: item.cleanName || item.name,
       quantity: item.quantity,
       unit_price: item.price,
+      color_id: item.colorId ?? null,
     }));
 
     const { data: itemsData, error: itemsError } = await supabase
