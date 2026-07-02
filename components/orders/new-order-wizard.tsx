@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Calendar,
   Check,
+  Minus,
   Plus,
   Search,
   Trash2,
@@ -21,7 +22,12 @@ import {
 } from "@/components/orders/document-type-picker";
 import { OrderStatus } from "@/components/orders/types";
 import { CategoryBadge } from "@/components/products/category-badge";
+import {
+  masterGroupGridClass,
+  VariantDimensionBadges,
+} from "@/components/products/master-group-ui";
 import { Button } from "@/components/ui/button";
+import { ColorCirclesRow } from "@/components/ui/color-picker";
 import {
   Card,
   CardContent,
@@ -32,18 +38,19 @@ import {
 import { FormFieldLabel } from "@/components/ui/form-field-label";
 import { Input } from "@/components/ui/input";
 import { FIELD_TOOLTIPS } from "@/lib/forms/field-tooltips";
+import { fetchVariantsForProducts } from "@/lib/products/color-variants";
 import {
   buildMasterGroups,
   type MasterGroup,
-  variantLabel,
+  type ProductVariant,
 } from "@/lib/products/master-groups";
+import type { ProductColorVariant } from "@/lib/products/types";
 import {
   premiumFormCard,
   premiumFormGrid,
   premiumGoldButton,
   premiumCard,
 } from "@/lib/ui/premium-styles";
-import { masterGroupGridClass } from "@/components/products/master-group-ui";
 import {
   buildOrderDeliveryPayload,
   getDeliveryFieldErrors,
@@ -113,6 +120,19 @@ function lineTotal(item: LineItem) {
   return Math.round(item.quantity * item.price * 100) / 100;
 }
 
+function variantRowColors(
+  productId: string,
+  variantsByProduct: Map<string, ProductColorVariant[]>,
+) {
+  return (variantsByProduct.get(productId) ?? [])
+    .filter((row) => row.color && row.isActive)
+    .map((row) => ({
+      id: row.colorId,
+      name: row.color!.name,
+      hexCode: row.color!.hexCode,
+    }));
+}
+
 export function NewOrderWizard() {
   const router = useRouter();
   const [step, setStep] = React.useState(1);
@@ -143,6 +163,12 @@ export function NewOrderWizard() {
 
   const [productQuery, setProductQuery] = React.useState("");
   const [lineItems, setLineItems] = React.useState<LineItem[]>([]);
+  const [priceDrafts, setPriceDrafts] = React.useState<Record<string, string>>(
+    {},
+  );
+  const [variantsByProduct, setVariantsByProduct] = React.useState<
+    Map<string, ProductColorVariant[]>
+  >(new Map());
 
   const [deliveryDate, setDeliveryDate] = React.useState("");
   const [pickingDate, setPickingDate] = React.useState("");
@@ -253,7 +279,15 @@ export function NewOrderWizard() {
         return;
       }
 
-      setProductRows((data ?? []) as unknown as ProductRow[]);
+      const rows = (data ?? []) as unknown as ProductRow[];
+      setProductRows(rows);
+
+      const mapped = rows.map((row) => mapProductRow(row));
+      const variantMap = await fetchVariantsForProducts(
+        supabase,
+        mapped.map((product) => product.id),
+      );
+      setVariantsByProduct(variantMap);
       setProductsLoading(false);
     };
 
@@ -331,20 +365,55 @@ export function NewOrderWizard() {
     });
   }
 
-  function updateLineItem(
-    id: string,
-    field: "quantity" | "price",
-    value: number,
-  ) {
+  function updateLineItemQuantity(id: string, value: number) {
     setLineItems((items) =>
       items.map((item) =>
-        item.id === id ? { ...item, [field]: Math.max(0, value) } : item,
+        item.id === id
+          ? { ...item, quantity: Math.max(1, Math.round(value)) }
+          : item,
       ),
     );
   }
 
+  function adjustLineItemQuantity(id: string, delta: number) {
+    setLineItems((items) =>
+      items.map((item) =>
+        item.id === id
+          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+          : item,
+      ),
+    );
+  }
+
+  function handlePriceDraftChange(id: string, value: string) {
+    setPriceDrafts((drafts) => ({ ...drafts, [id]: value }));
+  }
+
+  function commitPriceDraft(id: string) {
+    const draft = priceDrafts[id];
+    if (draft === undefined) return;
+
+    const parsed = draft.trim() === "" ? 0 : Number.parseFloat(draft);
+    const value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+
+    setLineItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, price: value } : item)),
+    );
+    setPriceDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[id];
+      return next;
+    });
+  }
+
   function removeLineItem(id: string) {
     setLineItems((items) => items.filter((item) => item.id !== id));
+    setPriceDrafts((drafts) => {
+      if (!(id in drafts)) return drafts;
+      const next = { ...drafts };
+      delete next[id];
+      return next;
+    });
   }
 
   function validateDeliveryFields(): boolean {
@@ -909,7 +978,7 @@ export function NewOrderWizard() {
                 {!productsLoading && filteredMasterGroups.length > 0 ? (
                   <div className={masterGroupGridClass}>
                     {filteredMasterGroups.map((group) => {
-                      const groupKey = `${group.cleanName}__${group.category}`;
+                      const groupKey = masterGroupKey(group);
                       const isExpanded = expandedMasterKey === groupKey;
                       return (
                         <div
@@ -917,6 +986,7 @@ export function NewOrderWizard() {
                           className={cn(
                             premiumCard,
                             "border-l-[3px] border-l-kartex-gold/40 p-4",
+                            isExpanded && "col-span-full",
                           )}
                         >
                           <button
@@ -937,36 +1007,22 @@ export function NewOrderWizard() {
                                 </span>
                               </div>
                             </div>
-                            <span className="text-xs font-semibold text-kartex-gold">
+                            <span className="shrink-0 text-xs font-semibold text-kartex-gold">
                               {isExpanded ? "Κλείσιμο" : "Επιλογή"}
                             </span>
                           </button>
                           {isExpanded ? (
-                            <ul className="mt-3 space-y-2 border-t border-border/60 pt-3">
+                            <ul className="mt-3 max-h-96 space-y-1 overflow-y-auto border-t border-border/60 pt-3">
                               {group.variants.map((variant) => (
-                                <li
+                                <OrderWizardVariantRow
                                   key={variant.id}
-                                  className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
-                                >
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-medium text-kartex-navy">
-                                      {variantLabel(variant)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {variant.sku} · {formatEur(variant.salePrice)}
-                                    </div>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="shrink-0 border-kartex-gold/30 text-kartex-gold hover:bg-kartex-gold/10"
-                                    onClick={() => addVariant(group, variant.id)}
-                                  >
-                                    <Plus className="size-3.5" />
-                                    Προσθήκη
-                                  </Button>
-                                </li>
+                                  variant={variant}
+                                  colors={variantRowColors(
+                                    variant.id,
+                                    variantsByProduct,
+                                  )}
+                                  onAdd={() => addVariant(group, variant.id)}
+                                />
                               ))}
                             </ul>
                           ) : null}
@@ -980,49 +1036,112 @@ export function NewOrderWizard() {
                   </p>
                 ) : null}
                 {lineItems.length > 0 ? (
-                  <div className="space-y-2">
-                    {lineItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_5rem_5rem_auto]"
-                      >
-                        <span className="text-sm font-medium">
-                          {item.cleanName || item.name}
-                        </span>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateLineItem(
-                              item.id,
-                              "quantity",
-                              Number(e.target.value),
-                            )
-                          }
-                          aria-label="Ποσότητα"
-                        />
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={item.price}
-                          onChange={(e) =>
-                            updateLineItem(item.id, "price", Number(e.target.value))
-                          }
-                          aria-label="Τιμή"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLineItem(item.id)}
-                          aria-label="Αφαίρεση"
+                  <div className="space-y-3 border-t border-border/60 pt-4">
+                    <h3 className="text-sm font-semibold text-kartex-navy">
+                      Επιλεγμένα ({lineItems.length})
+                    </h3>
+                    {lineItems.map((item) => {
+                      const priceDraft = priceDrafts[item.id];
+                      const priceValue =
+                        priceDraft !== undefined
+                          ? priceDraft
+                          : String(item.price);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-border bg-[#F8F9FC]/60 p-3"
                         >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="mb-3 text-sm font-medium text-kartex-navy">
+                            {item.cleanName || item.name}
+                          </div>
+                          <div className="flex flex-wrap items-end gap-4">
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Ποσότητα
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="size-9 shrink-0"
+                                  onClick={() =>
+                                    adjustLineItemQuantity(item.id, -1)
+                                  }
+                                  disabled={item.quantity <= 1}
+                                  aria-label="Μείωση ποσότητας"
+                                >
+                                  <Minus className="size-4" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    updateLineItemQuantity(
+                                      item.id,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                  className="h-9 w-16 text-center tabular-nums"
+                                  aria-label="Ποσότητα"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="size-9 shrink-0"
+                                  onClick={() =>
+                                    adjustLineItemQuantity(item.id, 1)
+                                  }
+                                  aria-label="Αύξηση ποσότητας"
+                                >
+                                  <Plus className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Τιμή
+                              </span>
+                              <div className="relative">
+                                <span
+                                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                                  aria-hidden
+                                >
+                                  €
+                                </span>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={priceValue}
+                                  onChange={(e) =>
+                                    handlePriceDraftChange(
+                                      item.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  onBlur={() => commitPriceDraft(item.id)}
+                                  className="h-9 w-28 pl-7 tabular-nums"
+                                  aria-label="Τιμή"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="ml-auto size-9 shrink-0"
+                              onClick={() => removeLineItem(item.id)}
+                              aria-label="Αφαίρεση"
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
@@ -1319,5 +1438,44 @@ export function NewOrderWizard() {
         </div>
       </div>
     </div>
+  );
+}
+
+type OrderWizardVariantRowProps = {
+  variant: ProductVariant;
+  colors: { id: string; name: string; hexCode: string }[];
+  onAdd: () => void;
+};
+
+function OrderWizardVariantRow({
+  variant,
+  colors,
+  onAdd,
+}: OrderWizardVariantRowProps) {
+  return (
+    <li className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+      <div className="w-14 shrink-0">
+        <ColorCirclesRow colors={colors} maxVisible={4} size={14} />
+      </div>
+      <div className="min-w-0 space-y-1">
+        <VariantDimensionBadges variant={variant} />
+        <p className="truncate font-mono text-[10px] text-muted-foreground">
+          {variant.sku}
+        </p>
+      </div>
+      <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-kartex-navy">
+        {formatEur(variant.salePrice)}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="shrink-0 border-kartex-gold/30 text-kartex-gold hover:bg-kartex-gold/10"
+        onClick={onAdd}
+      >
+        <Plus className="size-3.5" />
+        <span className="hidden sm:inline">Προσθήκη</span>
+      </Button>
+    </li>
   );
 }
