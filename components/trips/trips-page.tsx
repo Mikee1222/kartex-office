@@ -196,12 +196,6 @@ export function TripsPage() {
     setUnassignedOrder(order);
   }
 
-  function handleCreateTripFromUnassigned(deliveryDate: string) {
-    setNewTripDate(deliveryDate);
-    setPresetDriverId(null);
-    setNewTripOpen(true);
-  }
-
   const visibleGroups = driverFilter
     ? groups.filter((g) => g.driverId === driverFilter)
     : groups;
