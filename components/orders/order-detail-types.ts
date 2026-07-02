@@ -1,5 +1,6 @@
 import { type StatusHistoryEntry } from "@/lib/orders/status-timeline";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
+import type { TripStatus } from "@/lib/trips/types";
 
 export type OrderLineProduct = {
   id: string;
@@ -47,6 +48,13 @@ export type OrderDeliveryHistoryEntry = {
   items: { productName: string; quantity: number }[];
 };
 
+export type OrderTripStop = {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  deliverySequence: number | null;
+};
+
 export type OrderTripInfo = {
   id: string;
   tripNumber: number;
@@ -54,6 +62,8 @@ export type OrderTripInfo = {
   driverId: string;
   driverName: string;
   vehiclePlate: string | null;
+  status: TripStatus;
+  stops: OrderTripStop[];
 };
 
 export type OrderDetail = {
@@ -97,6 +107,7 @@ export type OrderDetail = {
   reservedUntil: string | null;
   assignedDriverId: string | null;
   assignedDriverName: string | null;
+  deliverySequence: number | null;
   trip: OrderTripInfo | null;
   boxesCount: number | null;
   boxesNotes: string | null;

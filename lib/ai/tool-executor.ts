@@ -191,7 +191,7 @@ export async function executeTool(
           ? String(input.vehicle_id)
           : driver.vehicleId;
 
-      const { error } = await assignDriverToOrder({
+      const result = await assignDriverToOrder({
         orderId,
         driverId,
         driverName: driver.name,
@@ -204,8 +204,17 @@ export async function executeTool(
         changedByEmail: ctx.userEmail,
       });
 
-      if (error) return `Σφάλμα: ${error}`;
-      return `Ο οδηγός «${driver.name}» ανατέθηκε επιτυχώς.`;
+      if (result.error) return `Σφάλμα: ${result.error}`;
+      const tripNote =
+        result.tripNumber != null ? ` (δρομολόγιο #${result.tripNumber}` : "";
+      const stopNote =
+        result.deliverySequence != null
+          ? `, στάση #${result.deliverySequence})`
+          : tripNote
+            ? ")"
+            : "";
+      const warningNote = result.warning ? ` Προειδοποίηση: ${result.warning}` : "";
+      return `Ο οδηγός «${driver.name}» ανατέθηκε επιτυχώς${tripNote}${stopNote}.${warningNote}`;
     }
 
     case "create_delivery_trip": {

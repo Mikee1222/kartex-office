@@ -1,6 +1,7 @@
 import {
   type OrderDetail,
   type OrderQuoteRequestInfo,
+  type OrderTripStop,
   type DeliveryMethod,
 } from "@/components/orders/order-detail-types";
 import { type OrderStatus, type PaymentStatus } from "@/components/orders/types";
@@ -10,6 +11,7 @@ import {
 } from "@/lib/orders/order-vat";
 import { parseStatusHistory } from "@/lib/orders/status-timeline";
 import { formatDeliveryDisplay, formatDateEl, mapDbCustomerType, normalizeOrderStatus } from "@/types/database";
+import type { TripStatus } from "@/lib/trips/types";
 
 type CustomerJoin = {
   id: string;
@@ -75,7 +77,14 @@ export const ORDER_DETAIL_SELECT = `
     trip_date,
     driver_id,
     driver_name,
-    vehicles ( plate, model )
+    status,
+    vehicles ( plate, model ),
+    orders (
+      id,
+      order_number,
+      delivery_sequence,
+      customers ( name )
+    )
   ),
   quote_request:quote_request_id (
     id,
@@ -92,13 +101,25 @@ export const ORDER_DETAIL_SELECT = `
   )
 `;
 
+type TripOrderJoin = {
+  id: string;
+  order_number: string;
+  delivery_sequence: number | null;
+  customers?:
+    | { name: string }
+    | { name: string }[]
+    | null;
+};
+
 type TripJoin = {
   id: string;
   trip_number: number;
   trip_date: string;
   driver_id: string;
   driver_name: string;
+  status: string;
   vehicles?: { plate: string; model: string | null } | { plate: string; model: string | null }[] | null;
+  orders?: TripOrderJoin[] | null;
 };
 
 export type OrderEditFormData = {
@@ -135,6 +156,7 @@ export type OrderDetailQueryRow = {
   assigned_driver_name?: string | null;
   vehicle_id?: string | null;
   trip_id?: string | null;
+  delivery_sequence?: number | null;
   boxes_count?: number | null;
   boxes_notes?: string | null;
   status_history?: unknown;
@@ -157,6 +179,29 @@ export type OrderDetailQueryRow = {
   quote_request?: QuoteRequestJoin | QuoteRequestJoin[] | null;
 };
 
+function mapTripStops(orders: TripOrderJoin[] | null | undefined): OrderTripStop[] {
+  return (orders ?? [])
+    .map((row) => {
+      const customer = pickOne(row.customers);
+      return {
+        id: row.id,
+        orderNumber: row.order_number,
+        customerName: customer?.name?.trim() || "—",
+        deliverySequence: row.delivery_sequence,
+      };
+    })
+    .sort((a, b) => {
+      const seqA = a.deliverySequence ?? Number.MAX_SAFE_INTEGER;
+      const seqB = b.deliverySequence ?? Number.MAX_SAFE_INTEGER;
+      return seqA - seqB;
+    });
+}
+
+function normalizeTripStatus(status: string): TripStatus {
+  if (status === "in_progress" || status === "completed") return status;
+  return "pending";
+}
+
 function mapTripJoin(
   trips: OrderDetailQueryRow["delivery_trips"],
 ): OrderDetail["trip"] {
@@ -171,6 +216,8 @@ function mapTripJoin(
     driverId: row.driver_id,
     driverName: row.driver_name?.trim() || "—",
     vehiclePlate: vehicle?.plate?.trim() || null,
+    status: normalizeTripStatus(row.status),
+    stops: mapTripStops(row.orders),
   };
 }
 
@@ -346,6 +393,7 @@ export function mapSupabaseOrderToDetail(row: OrderDetailQueryRow): OrderDetail 
     statusHistory: parseStatusHistory(row.status_history),
     assignedDriverId: row.assigned_driver_id ?? null,
     assignedDriverName: row.assigned_driver_name?.trim() || null,
+    deliverySequence: row.delivery_sequence ?? null,
     vehicleId: row.vehicle_id ?? null,
     trip: mapTripJoin(row.delivery_trips),
     boxesCount:

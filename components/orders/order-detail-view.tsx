@@ -7,7 +7,6 @@ import {
   Clock,
   CreditCard,
   Download,
-  Package,
   Pencil,
   Printer,
   Truck,
@@ -22,7 +21,6 @@ import { OrderStatus } from "@/components/orders/types";
 
 import {
   type OrderDetail,
-  type OrderTripInfo,
 } from "@/components/orders/order-detail-types";
 import { PartialDeliveryModal } from "@/components/orders/partial-delivery-modal";
 import { OrderStatusDropdown } from "@/components/orders/order-status-dropdown";
@@ -32,6 +30,7 @@ import { fetchOrderDetailById } from "@/lib/orders/fetch-order-detail-client";
 import { fetchBoxPhotos, type OrderBoxPhoto } from "@/lib/orders/order-photos";
 import { computeOrderVatSummary } from "@/lib/orders/order-vat";
 import { DriverAssignmentSection } from "@/components/orders/driver-assignment-section";
+import { OrderTripCard } from "@/components/orders/order-trip-card";
 import { updateOrderStatus } from "@/lib/orders/update-order-status";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -398,7 +397,13 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
               onConfirmPayment={() => void handleConfirmPayment()}
             />
           ) : null}
-          {order.trip ? <TripCard trip={order.trip} /> : null}
+          {order.trip ? (
+            <OrderTripCard
+              trip={order.trip}
+              currentOrderId={orderId}
+              onUpdated={handleOrderUpdated}
+            />
+          ) : null}
           <DriverAssignmentSection
             order={order}
             orderId={orderId}
@@ -425,37 +430,6 @@ export function OrderDetailView({ orderId, initialOrder }: OrderDetailViewProps)
         </div>
       </div>
     </div>
-  );
-}
-
-function TripCard({ trip }: { trip: OrderTripInfo }) {
-  const tripDateLabel = formatDateEl(`${trip.tripDate}T12:00:00Z`);
-  const tripsHref = `/trips?date=${encodeURIComponent(trip.tripDate)}&driver=${encodeURIComponent(trip.driverId)}`;
-
-  return (
-    <Card className="border-border/80 shadow-sm print:hidden">
-      <CardHeader>
-        <CardTitle className="text-lg text-kartex-navy">Δρομολόγιο</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <p className="flex items-center gap-1.5 font-semibold text-kartex-navy">
-          <Package className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          Δρομολόγιο #{trip.tripNumber}
-        </p>
-        <InfoRow label="Οδηγός" value={trip.driverName} />
-        <InfoRow
-          label="Όχημα"
-          value={trip.vehiclePlate?.trim() || "—"}
-        />
-        <InfoRow label="Ημερομηνία" value={tripDateLabel} />
-        <Link
-          href={tripsHref}
-          className="inline-block pt-1 font-medium text-kartex-gold hover:underline"
-        >
-          Δείτε δρομολόγιο →
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 

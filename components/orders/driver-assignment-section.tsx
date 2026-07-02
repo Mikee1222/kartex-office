@@ -2,6 +2,7 @@
 
 import { Package } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 
 import { OrderStatus } from "@/components/orders/types";
 import { type OrderDetail } from "@/components/orders/order-detail-types";
@@ -154,13 +155,27 @@ export function DriverAssignmentSection({
       }),
     });
 
-    const json = (await res.json()) as { error?: string };
+    const json = (await res.json()) as {
+      error?: string;
+      warning?: string;
+      tripNumber?: number;
+      deliverySequence?: number;
+    };
     setAssigning(false);
     setModalStep(null);
 
     if (!res.ok) {
       setError(json.error ?? "Αποτυχία ανάθεσης.");
       return;
+    }
+
+    const tripLabel =
+      json.tripNumber != null
+        ? `Δρομολόγιο #${json.tripNumber}${json.deliverySequence != null ? `, στάση #${json.deliverySequence}` : ""}`
+        : "Η παραγγελία ανατέθηκε";
+    toast.success(tripLabel);
+    if (json.warning) {
+      toast.warning(json.warning);
     }
 
     onUpdated();

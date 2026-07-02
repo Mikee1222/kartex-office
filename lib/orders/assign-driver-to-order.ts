@@ -1,10 +1,10 @@
-import { OrderStatus } from "@/components/orders/types";
-import {
-  appendStatusHistory,
-  type StatusHistoryEntry,
-} from "@/lib/orders/status-timeline";
 import { resolveScheduleDate } from "@/lib/drivers/capacity";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  addOrderToTrip,
+  createDeliveryTrip,
+} from "@/lib/trips/trip-mutations";
+import type { StatusHistoryEntry } from "@/lib/orders/status-timeline";
 
 export type AssignDriverPayload = {
   orderId: string;
@@ -17,37 +17,103 @@ export type AssignDriverPayload = {
   changedByEmail: string;
 };
 
+export type AssignDriverResult = {
+  error: string | null;
+  tripId?: string;
+  tripNumber?: number;
+  deliverySequence?: number;
+  totalBoxes?: number;
+  warning?: string;
+};
+
+type ActiveTripRow = {
+  id: string;
+  status: string;
+  trip_number: number;
+};
+
 /**
- * Legacy direct driver assignment (without delivery_trips).
- * Capacity is tracked via delivery_trips — driver_schedules is no longer written here.
+ * Assign an order to a driver by finding or creating a delivery trip for the day,
+ * then appending the order as a stop via trip-mutations.
  */
 export async function assignDriverToOrder(
   payload: AssignDriverPayload,
-): Promise<{ error: string | null }> {
+): Promise<AssignDriverResult> {
   const admin = createAdminClient();
+  const scheduleDate = resolveScheduleDate(payload.deliveryDate);
 
-  const nextHistory = appendStatusHistory(
-    payload.statusHistory,
-    OrderStatus.Shipped,
-    payload.changedByEmail,
-  );
+  const { data: existingTrips, error: tripsError } = await admin
+    .from("delivery_trips")
+    .select("id, status, trip_number")
+    .eq("driver_id", payload.driverId)
+    .eq("trip_date", scheduleDate)
+    .neq("status", "completed")
+    .order("trip_number", { ascending: false });
 
-  const { error: orderError } = await admin
+  if (tripsError) {
+    return { error: tripsError.message };
+  }
+
+  let tripId: string;
+  let tripNumber: number;
+  let warning: string | undefined;
+
+  const trips = (existingTrips ?? []) as ActiveTripRow[];
+
+  if (trips.length > 0) {
+    const pendingTrip = trips.find((trip) => trip.status === "pending");
+    const chosen = pendingTrip ?? trips[0];
+    tripId = chosen.id;
+    tripNumber = chosen.trip_number;
+    if (trips.length > 1) {
+      warning = `Βρέθηκαν ${trips.length} ενεργά δρομολόγια — προστέθηκε στο #${tripNumber}.`;
+    }
+  } else {
+    const created = await createDeliveryTrip({
+      driverId: payload.driverId,
+      driverName: payload.driverName,
+      vehicleId: payload.vehicleId,
+      tripDate: scheduleDate,
+    });
+
+    if (created.error || !created.id) {
+      return {
+        error: created.error ?? "Αποτυχία δημιουργίας δρομολογίου.",
+      };
+    }
+
+    tripId = created.id;
+    tripNumber = created.tripNumber ?? 1;
+  }
+
+  const { error: addError, totalBoxes } = await addOrderToTrip({
+    tripId,
+    orderId: payload.orderId,
+    changedByEmail: payload.changedByEmail,
+  });
+
+  if (addError) {
+    return { error: addError };
+  }
+
+  const { data: orderRow, error: orderError } = await admin
     .from("orders")
-    .update({
-      assigned_driver_id: payload.driverId,
-      assigned_driver_name: payload.driverName,
-      vehicle_id: payload.vehicleId,
-      status: OrderStatus.Shipped,
-      status_history: nextHistory,
-    })
-    .eq("id", payload.orderId);
+    .select("delivery_sequence")
+    .eq("id", payload.orderId)
+    .maybeSingle();
 
   if (orderError) {
     return { error: orderError.message };
   }
 
-  return { error: null };
+  return {
+    error: null,
+    tripId,
+    tripNumber,
+    deliverySequence: orderRow?.delivery_sequence ?? undefined,
+    totalBoxes,
+    warning,
+  };
 }
 
 export async function getDriverCapacityForAssign(

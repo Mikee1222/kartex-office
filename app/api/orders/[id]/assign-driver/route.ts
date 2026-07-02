@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Απαιτείται οδηγός." }, { status: 400 });
   }
 
-  const { error } = await assignDriverToOrder({
+  const result = await assignDriverToOrder({
     orderId,
     driverId: body.driverId,
     driverName: body.driverName,
@@ -37,9 +37,16 @@ export async function POST(request: Request, context: RouteContext) {
     changedByEmail: access.email,
   });
 
-  if (error) {
-    return NextResponse.json({ error }, { status: 500 });
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    tripId: result.tripId,
+    tripNumber: result.tripNumber,
+    deliverySequence: result.deliverySequence,
+    totalBoxes: result.totalBoxes,
+    warning: result.warning,
+  });
 }
