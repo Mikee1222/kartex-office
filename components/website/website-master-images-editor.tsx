@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { postWebsiteImageUpload } from "@/lib/website/client-image-upload";
 import {
   MAX_RAW_UPLOAD_BYTES,
   UPLOAD_MIME_ERROR_EL,
@@ -313,14 +314,8 @@ export function WebsiteMasterImagesEditor({
         { id: uploadId, name: file.name, status: "uploading" },
       ]);
 
-      const formData = new FormData();
-      formData.append("file", file);
-
       try {
-        const response = await fetch(imagesApiBase, {
-          method: "POST",
-          body: formData,
-        });
+        const response = await postWebsiteImageUpload(file, imagesApiBase);
         const payload = await readUploadJsonResponse<UploadResponsePayload>(response);
 
         if (!response.ok) {

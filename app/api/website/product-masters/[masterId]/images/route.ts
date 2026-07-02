@@ -4,22 +4,15 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  MAX_UPLOAD_BYTES,
-  PRODUCT_IMAGES_BUCKET,
-  UPLOAD_GENERIC_ERROR_EL,
-  UPLOAD_MIME_ERROR_EL,
-  UPLOAD_SIZE_ERROR_EL,
-} from "@/lib/website/constants";
-import {
-  compressProductImage,
-  isCompressedWithinLimit,
-} from "@/lib/website/compress-product-image";
+  resolveImageUploadBuffer,
+  uploadCompressedCatalogImageFromBuffer,
+} from "@/lib/website/catalog-image-storage";
+import { UPLOAD_GENERIC_ERROR_EL, PRODUCT_IMAGES_BUCKET } from "@/lib/website/constants";
 import {
   mapProductMasterImageRow,
   primaryImageUrl,
   sortImages,
 } from "@/lib/website/product-master-images";
-import { isAllowedProductImageFile } from "@/lib/website/product-image-upload";
 import {
   mapWebsiteProductMasterRow,
   WEBSITE_PRODUCT_MASTER_DETAIL_SELECT,
@@ -67,48 +60,20 @@ async function loadGalleryMaster(
   };
 }
 
-function mapStorageUploadError(message: string): { status: number; error: string } {
-  const normalized = message.toLowerCase();
-  if (
-    normalized.includes("too large") ||
-    normalized.includes("file size") ||
-    normalized.includes("payload too large") ||
-    normalized.includes("exceeded")
-  ) {
-    return { status: 413, error: UPLOAD_SIZE_ERROR_EL };
-  }
-
-  if (normalized.includes("mime") || normalized.includes("content type")) {
-    return { status: 415, error: UPLOAD_MIME_ERROR_EL };
-  }
-
-  return { status: 500, error: UPLOAD_GENERIC_ERROR_EL };
-}
-
 export async function POST(request: Request, context: RouteContext) {
   const access = await requireWebsiteAdmin();
   if (isNextResponse(access)) return access;
 
   const { masterId } = await context.params;
-
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: UPLOAD_GENERIC_ERROR_EL }, { status: 400 });
-  }
-
-  const file = formData.get("file");
-
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Missing file." }, { status: 400 });
-  }
-
-  if (!isAllowedProductImageFile(file)) {
-    return NextResponse.json({ error: UPLOAD_MIME_ERROR_EL }, { status: 415 });
-  }
-
   const admin = createAdminClient();
+
+  const bufferResult = await resolveImageUploadBuffer(request, admin);
+  if ("error" in bufferResult) {
+    return NextResponse.json(
+      { error: bufferResult.error },
+      { status: bufferResult.status },
+    );
+  }
 
   const { data: master, error: masterError } = await admin
     .from("product_masters")
@@ -137,37 +102,20 @@ export async function POST(request: Request, context: RouteContext) {
   const imageId = randomUUID();
   const storagePath = `masters/${masterId}/${imageId}.jpg`;
 
-  let compressed: Buffer;
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    if (buffer.length === 0) {
-      return NextResponse.json({ error: UPLOAD_GENERIC_ERROR_EL }, { status: 400 });
-    }
+  const uploadResult = await uploadCompressedCatalogImageFromBuffer(
+    admin,
+    storagePath,
+    bufferResult.buffer,
+  );
 
-    compressed = await compressProductImage(buffer);
-  } catch {
-    return NextResponse.json({ error: UPLOAD_GENERIC_ERROR_EL }, { status: 400 });
+  if ("error" in uploadResult) {
+    return NextResponse.json(
+      { error: uploadResult.error },
+      { status: uploadResult.status },
+    );
   }
 
-  if (!isCompressedWithinLimit(compressed)) {
-    return NextResponse.json({ error: UPLOAD_SIZE_ERROR_EL }, { status: 413 });
-  }
-
-  const { error: uploadError } = await admin.storage
-    .from(PRODUCT_IMAGES_BUCKET)
-    .upload(storagePath, compressed, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-
-  if (uploadError) {
-    const mapped = mapStorageUploadError(uploadError.message);
-    return NextResponse.json({ error: mapped.error }, { status: mapped.status });
-  }
-
-  const {
-    data: { publicUrl },
-  } = admin.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(storagePath);
+  const publicUrl = uploadResult.publicUrl;
 
   const { data: imageRow, error: insertError } = await admin
     .from("product_master_images")

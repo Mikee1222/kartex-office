@@ -19,8 +19,17 @@ export const PRODUCT_IMAGES_BUCKET = "product-images";
 /** Supabase bucket file_size_limit — also enforced after server compression. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-/** Reject raw uploads larger than this before the round-trip (server compresses first). */
-export const MAX_RAW_UPLOAD_BYTES = 50 * 1024 * 1024;
+/**
+ * Raw files above this size bypass the Next.js API body (Vercel ~4.5MB limit) via
+ * signed direct-to-Supabase upload, then a small JSON finalize request.
+ */
+export const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
+
+/** Staging prefix for signed client uploads before server compression. */
+export const TEMP_UPLOAD_PREFIX = "uploads/tmp";
+
+/** Reject raw uploads larger than this before upload (bucket file_size_limit is 10MB). */
+export const MAX_RAW_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export const UPLOAD_SIZE_ERROR_EL =
   "Η εικόνα είναι πολύ μεγάλη (μέγιστο 10MB). Δοκιμάστε να τη συμπιέσετε πρώτα.";

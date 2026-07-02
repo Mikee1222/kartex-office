@@ -7,9 +7,10 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   // Prevent Next.js from inferring /Users/mikee (parent lockfile) as workspace root.
   outputFileTracingRoot: projectRoot,
-  // Allow large multipart uploads to reach route handlers (middleware buffers the body).
+  // Vercel serverless functions reject request bodies above ~4.5MB (FUNCTION_PAYLOAD_TOO_LARGE).
+  // Large uploads use signed direct-to-Supabase staging, then a small JSON finalize call.
   experimental: {
-    middlewareClientMaxBodySize: "50mb",
+    middlewareClientMaxBodySize: "15mb",
   },
   // Hide the Next.js dev-tools badge (bottom-left triangle in development).
   devIndicators: false,

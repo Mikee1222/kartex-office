@@ -5,10 +5,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   removeCatalogImageByUrl,
-  uploadCompressedCatalogImage,
+  resolveImageUploadBuffer,
+  uploadCompressedCatalogImageFromBuffer,
 } from "@/lib/website/catalog-image-storage";
-import { UPLOAD_GENERIC_ERROR_EL, UPLOAD_MIME_ERROR_EL } from "@/lib/website/constants";
-import { isAllowedProductImageFile } from "@/lib/website/product-image-upload";
+import { UPLOAD_GENERIC_ERROR_EL } from "@/lib/website/constants";
 import {
   isNextResponse,
   requireWebsiteAdmin,
@@ -22,23 +22,15 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { categoryId } = await context.params;
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: UPLOAD_GENERIC_ERROR_EL }, { status: 400 });
-  }
-
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Missing file." }, { status: 400 });
-  }
-
-  if (!isAllowedProductImageFile(file)) {
-    return NextResponse.json({ error: UPLOAD_MIME_ERROR_EL }, { status: 415 });
-  }
-
   const admin = createAdminClient();
+
+  const bufferResult = await resolveImageUploadBuffer(request, admin);
+  if ("error" in bufferResult) {
+    return NextResponse.json(
+      { error: bufferResult.error },
+      { status: bufferResult.status },
+    );
+  }
 
   const { data: category, error: categoryError } = await admin
     .from("website_categories")
@@ -57,7 +49,11 @@ export async function POST(request: Request, context: RouteContext) {
   const imageId = randomUUID();
   const storagePath = `categories/${categoryId}/${imageId}.jpg`;
 
-  const uploadResult = await uploadCompressedCatalogImage(admin, storagePath, file);
+  const uploadResult = await uploadCompressedCatalogImageFromBuffer(
+    admin,
+    storagePath,
+    bufferResult.buffer,
+  );
   if ("error" in uploadResult) {
     return NextResponse.json(
       { error: uploadResult.error },

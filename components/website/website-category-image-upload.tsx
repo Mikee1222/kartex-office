@@ -6,6 +6,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { postWebsiteImageUpload } from "@/lib/website/client-image-upload";
 import {
   MAX_RAW_UPLOAD_BYTES,
   UPLOAD_MIME_ERROR_EL,
@@ -81,14 +82,9 @@ export function WebsiteCategoryImageUpload({
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
 
     try {
-      const response = await fetch(imageApiPath(entityType, entityId), {
-        method: "POST",
-        body: formData,
-      });
+      const response = await postWebsiteImageUpload(file, imageApiPath(entityType, entityId));
       const payload = await readUploadJsonResponse<{ imageUrl?: string; error?: string }>(
         response,
       );
@@ -299,13 +295,10 @@ export async function uploadPendingCatalogImage(
   entityId: string,
   file: File,
 ): Promise<string | null> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(imageApiPath(entityType, entityId), {
-    method: "POST",
-    body: formData,
-  });
+  const response = await postWebsiteImageUpload(
+    file,
+    imageApiPath(entityType, entityId),
+  );
   const payload = await readUploadJsonResponse<{ imageUrl?: string; error?: string }>(
     response,
   );
