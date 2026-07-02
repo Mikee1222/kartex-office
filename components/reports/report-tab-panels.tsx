@@ -12,6 +12,7 @@ import {
   MonthlyGrossProfitChart,
   ProfitabilityTables,
   ReportKpiRow,
+  ReportSection,
   ReportTable,
   RevenueAreaChart,
   VerticalBarChart,
@@ -20,7 +21,28 @@ import {
 type TabPanelProps = {
   analytics: FullAnalytics;
   loading: boolean;
+  rangeLabel?: string;
 };
+
+export function OverviewReportTab({ analytics, loading, rangeLabel }: TabPanelProps) {
+  const { overview, sales } = analytics;
+  return (
+    <div className="space-y-6">
+      <ReportSection
+        title="Επισκόπηση"
+        description={`Website, Dolphin AI, προσφορές και παραδόσεις · ${rangeLabel ?? "τρέχουσα περίοδος"}`}
+      >
+        <ReportKpiRow kpis={overview.kpis} loading={loading} columns={3} />
+      </ReportSection>
+      <ReportSection
+        title="Πωλήσεις (σύνοψη)"
+        description={`Βασικά μετρικά πωλήσεων · ${rangeLabel ?? "τρέχουσα περίοδος"}`}
+      >
+        <ReportKpiRow kpis={sales.kpis} loading={loading} />
+      </ReportSection>
+    </div>
+  );
+}
 
 export function SalesReportTab({ analytics, loading }: TabPanelProps) {
   const { sales } = analytics;

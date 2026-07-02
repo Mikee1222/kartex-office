@@ -20,29 +20,66 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { driverInitials } from "@/lib/drivers/driver-initials";
 import type {
   ChartPoint,
   ProfitMonthPoint,
   ReportKpi,
   ReportTableRow,
 } from "@/lib/reports/compute-analytics";
-import { premiumStatCard } from "@/lib/ui/premium-styles";
+import {
+  premiumCard,
+  premiumStatCard,
+  premiumTableHead,
+  premiumTableWrap,
+} from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
 const NAVY = "#0A1628";
 const GOLD = "#D4AF37";
 
+export function ReportSection({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("space-y-4", className)}>
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-navy-900">{title}</h2>
+        <p className="mt-0.5 text-sm text-gray-400">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function ReportKpiRow({
   kpis,
   loading,
+  columns = 4,
 }: {
   kpis: ReportKpi[];
   loading?: boolean;
+  columns?: 3 | 4 | 6;
 }) {
+  const gridClass =
+    columns === 6
+      ? "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+      : columns === 3
+        ? "sm:grid-cols-2 xl:grid-cols-3"
+        : "sm:grid-cols-2 xl:grid-cols-4";
+
   if (loading) {
     return (
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <section className={cn("grid gap-4", gridClass)}>
+        {Array.from({ length: columns }).map((_, index) => (
           <Card key={index} className={cn(premiumStatCard, "border-l-4 border-l-kartex-gold")}>
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-32" />
@@ -57,7 +94,7 @@ export function ReportKpiRow({
   }
 
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section className={cn("grid gap-4", gridClass)}>
       {kpis.map((kpi) => (
         <Card
           key={kpi.key}
@@ -92,6 +129,9 @@ export function ReportKpiRow({
                 kpi.key === "avgMargin" && kpi.tone === "warning" && "text-amber-700",
                 kpi.key === "avgMargin" && kpi.tone === "danger" && "text-red-700",
                 kpi.key === "worstProduct" && "text-red-700",
+                (kpi.key === "picking" || kpi.key === "avg") &&
+                  kpi.value.includes("Δεν υπάρχουν") &&
+                  "text-base text-muted-foreground",
               )}
             >
               {kpi.value}
@@ -108,21 +148,23 @@ export function ReportKpiRow({
 
 function ChartCard({
   title,
+  description,
   children,
   className,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover",
-        className,
-      )}
-    >
-      <h3 className="mb-4 text-sm font-semibold text-kartex-navy">{title}</h3>
+    <div className={cn(premiumCard, "p-5", className)}>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-navy-900">{title}</h3>
+        {description ? (
+          <p className="mt-0.5 text-xs text-gray-400">{description}</p>
+        ) : null}
+      </div>
       {children}
     </div>
   );
@@ -480,15 +522,25 @@ export function ReportTable({
 export function DriverCardsGrid({
   drivers,
   loading,
+  periodLabel,
 }: {
   drivers: import("@/lib/reports/compute-analytics").DriverCardData[];
   loading?: boolean;
+  periodLabel?: string;
 }) {
+  const driverInitials = (name: string) =>
+    name
+      .split(" ")
+      .map((part) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
   if (loading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-48 w-full rounded-xl" />
+          <Skeleton key={index} className="h-52 w-full rounded-2xl" />
         ))}
       </div>
     );
@@ -496,8 +548,8 @@ export function DriverCardsGrid({
 
   if (drivers.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        Δεν βρέθηκαν οδηγοί.
+      <p className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-muted-foreground">
+        Δεν βρέθηκαν δρομολόγια στην επιλεγμένη περίοδο.
       </p>
     );
   }
@@ -507,49 +559,49 @@ export function DriverCardsGrid({
       {drivers.map((driver) => (
         <div
           key={driver.id}
-          className="rounded-xl border border-border bg-card p-5 shadow-sm"
+          className={cn(
+            premiumCard,
+            "flex flex-col gap-3 p-5",
+          )}
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-kartex-navy/10 text-sm font-bold text-kartex-navy">
-              {driver.name
-                .split(" ")
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-900/5 text-sm font-bold text-navy-900">
+              {driverInitials(driver.name)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold text-navy-900">{driver.name}</p>
+              <p className="text-xs text-gray-400">Όχημα: {driver.vehiclePlate}</p>
             </div>
-            <div>
-              <p className="font-semibold text-kartex-navy">{driver.name}</p>
-              <p className="text-xs text-muted-foreground">
-                Όχημα: {driver.vehiclePlate}
-              </p>
-            </div>
+            <span className="inline-flex shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">
+              {driver.tripsCount} δρομολόγια
+            </span>
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Σήμερα:{" "}
-            <span className="font-semibold text-kartex-navy">
+
+          <p className="text-sm text-gray-500">
+            {periodLabel ?? "Περίοδος"}:{" "}
+            <span className="font-semibold text-navy-900">
               {driver.deliveriesToday}/{driver.deliveriesTotal} παραδόσεις
             </span>
           </p>
-          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
+
+          <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
             <div
-              className="h-full rounded-full bg-kartex-gold transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-400 transition-all"
               style={{ width: `${driver.progressPct}%` }}
             />
           </div>
-          <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">
-            {driver.progressPct}%
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <p className="text-right text-xs tabular-nums text-gray-400">{driver.progressPct}% επιτυχία</p>
+
+          <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs">
             <p>
-              <span className="text-muted-foreground">Κιβώτια: </span>
-              <span className="font-medium text-kartex-navy">
+              <span className="text-gray-400">Κιβώτια: </span>
+              <span className="font-medium text-navy-900">
                 {driver.boxesDone}/{driver.boxesTotal}
               </span>
             </p>
-            <p>
-              <span className="text-muted-foreground">Δρομολόγια: </span>
-              <span className="font-medium text-kartex-navy">{driver.tripsCount}</span>
+            <p className="text-right">
+              <span className="text-gray-400">Δρομολόγια: </span>
+              <span className="font-medium text-navy-900">{driver.tripsCount}</span>
             </p>
           </div>
         </div>
@@ -561,13 +613,17 @@ export function DriverCardsGrid({
 export function MonthlyGrossProfitChart({
   data,
   loading,
+  title = "Μηνιαίο Μικτό Κέρδος (12 μήνες)",
+  description,
 }: {
   data: ProfitMonthPoint[];
   loading?: boolean;
+  title?: string;
+  description?: string;
 }) {
   if (loading) return <ChartSkeleton className="lg:col-span-2" />;
   return (
-    <ChartCard title="Μηνιαίο Μικτό Κέρδος (12 μήνες)" className="lg:col-span-2">
+    <ChartCard title={title} description={description} className="lg:col-span-2">
       <div className="h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -608,16 +664,18 @@ export function MonthlyGrossProfitChart({
 
 export function MarginPercentBarChart({
   title,
+  description,
   data,
   loading,
 }: {
   title: string;
+  description?: string;
   data: ChartPoint[];
   loading?: boolean;
 }) {
   if (loading) return <ChartSkeleton className="lg:col-span-2" />;
   return (
-    <ChartCard title={title} className="lg:col-span-2">
+    <ChartCard title={title} description={description} className="lg:col-span-2">
       <div className="h-[420px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -675,11 +733,13 @@ export function ProfitabilityTables({
   priceReviewProducts,
   customerProfitability,
   loading,
+  rangeLabel,
 }: {
   topProfitableProducts: ReportTableRow[];
   priceReviewProducts: import("@/lib/reports/compute-analytics").PriceReviewProductRow[];
   customerProfitability: ReportTableRow[];
   loading?: boolean;
+  rangeLabel?: string;
 }) {
   if (loading) {
     return (
@@ -694,16 +754,17 @@ export function ProfitabilityTables({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-kartex-navy">
-              Top 10 Πιο Κερδοφόρα Προϊόντα
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto p-0 sm:p-6 sm:pt-0">
+        <div className={premiumTableWrap}>
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h3 className="text-lg font-semibold text-navy-900">Top 10 Πιο Κερδοφόρα Προϊόντα</h3>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Τιμή πώλησης καταλόγου · κόστος από αγορά ή internal_price_eur · πωλήσεις τρέχοντος μήνα
+            </p>
+          </div>
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-left">
+                <tr className={premiumTableHead}>
                   {[
                     "Προϊόν",
                     "Αγορά (€)",
@@ -713,7 +774,7 @@ export function ProfitabilityTables({
                     "Πωλήσεις",
                     "Κέρδος Μήνα (€)",
                   ].map((label) => (
-                    <th key={label} className="px-3 py-3 font-medium text-muted-foreground">
+                    <th key={label} className="px-4 py-3">
                       {label}
                     </th>
                   ))}
@@ -746,19 +807,22 @@ export function ProfitabilityTables({
                 )}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-kartex-navy">
+        <div className={premiumTableWrap}>
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h3 className="text-lg font-semibold text-navy-900">
               Προϊόντα προς Αναθεώρηση Τιμής (&lt;15% margin)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto p-0 sm:p-6 sm:pt-0">
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Προτεινόμενη τιμή για ~30% margin · unit_price = τιμή χρέωσης, internal_price_eur = εσωτερική αναφορά
+            </p>
+          </div>
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-left">
+                <tr className={premiumTableHead}>
                   {[
                     "Προϊόν",
                     "Margin %",
@@ -767,7 +831,7 @@ export function ProfitabilityTables({
                     "Προτεινόμενη (30%)",
                     "",
                   ].map((label) => (
-                    <th key={label || "action"} className="px-3 py-3 font-medium text-muted-foreground">
+                    <th key={label || "action"} className="px-4 py-3">
                       {label}
                     </th>
                   ))}
@@ -809,21 +873,25 @@ export function ProfitabilityTables({
                 )}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-kartex-navy">Κερδοφορία ανά Πελάτη</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto p-0 sm:p-6 sm:pt-0">
+      <div className={premiumTableWrap}>
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h3 className="text-lg font-semibold text-navy-900">Κερδοφορία ανά Πελάτη</h3>
+          <p className="mt-0.5 text-xs text-gray-400">
+            Έσοδα από unit_price παραγγελιών · κόστος από purchase/internal_price_eur
+            {rangeLabel ? ` · ${rangeLabel}` : ""}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/40 text-left">
+              <tr className={premiumTableHead}>
                 {["Πελάτης", "Τύπος", "Έσοδα (€)", "Κόστος (€)", "Κέρδος (€)", "Margin %"].map(
                   (label) => (
-                    <th key={label} className="px-3 py-3 font-medium text-muted-foreground">
+                    <th key={label} className="px-4 py-3">
                       {label}
                     </th>
                   ),
@@ -851,8 +919,8 @@ export function ProfitabilityTables({
               )}
             </tbody>
           </table>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

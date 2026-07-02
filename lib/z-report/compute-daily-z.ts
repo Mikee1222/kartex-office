@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { OrderStatus } from "@/components/orders/types";
 import { getAthensDateString, isIsoOnAthensDay } from "@/lib/datetime";
+import { resolveReportProductCategory } from "@/lib/reports/product-meta";
 import { mapDbCustomerType } from "@/types/database";
 
 import type {
@@ -117,7 +118,9 @@ export async function computeDailyZReport(
   if (orderIds.length > 0) {
     const { data: items, error: itemsError } = await supabase
       .from("order_items")
-      .select("order_id, quantity, unit_price, products(category, name)")
+      .select(
+        "order_id, quantity, unit_price, products(name, clean_name, category, master_id, product_masters(clean_name, category))",
+      )
       .in("order_id", orderIds);
 
     if (itemsError) {
@@ -126,7 +129,15 @@ export async function computeDailyZReport(
 
     for (const item of (items ?? []) as OrderItemForZ[]) {
       const product = normalizeJoin(item.products);
-      const category = product?.category?.trim() || "Άλλα";
+      const category =
+        resolveReportProductCategory(
+          product
+            ? {
+                ...product,
+                name: product.name ?? "—",
+              }
+            : null,
+        ) || "Άλλα";
       const lineGross = toNumber(item.quantity) * toNumber(item.unit_price);
       const { net, vat } = splitVatFromGross(lineGross);
       const existing = categoryMap.get(category) ?? {

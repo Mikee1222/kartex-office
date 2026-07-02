@@ -5,10 +5,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  resolveReportDateRange,
-  type ReportDatePreset,
-} from "@/lib/reports/date-range";
+import { type ReportDatePreset } from "@/lib/reports/date-range";
 import { premiumFilterTabActive, premiumFilterTabInactive, premiumGoldButton } from "@/lib/ui/premium-styles";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +21,7 @@ type ReportToolbarProps = {
   preset: ReportDatePreset;
   customStart: string;
   customEnd: string;
+  rangeLabel: string;
   onPresetChange: (preset: ReportDatePreset) => void;
   onCustomStartChange: (value: string) => void;
   onCustomEndChange: (value: string) => void;
@@ -31,12 +29,14 @@ type ReportToolbarProps = {
   onPrint: () => void;
   onRefresh: () => void;
   refreshing?: boolean;
+  exportDisabled?: boolean;
 };
 
 export function ReportToolbar({
   preset,
   customStart,
   customEnd,
+  rangeLabel,
   onPresetChange,
   onCustomStartChange,
   onCustomEndChange,
@@ -44,9 +44,8 @@ export function ReportToolbar({
   onPrint,
   onRefresh,
   refreshing,
+  exportDisabled,
 }: ReportToolbarProps) {
-  const range = resolveReportDateRange(preset, customStart, customEnd);
-
   return (
     <div className="flex flex-col gap-3 print:hidden lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap gap-2">
@@ -84,10 +83,10 @@ export function ReportToolbar({
             />
           </>
         ) : (
-          <span className="text-xs text-muted-foreground">{range.label}</span>
+          <span className="text-xs text-muted-foreground">{rangeLabel}</span>
         )}
 
-        <Button type="button" variant="outline" size="sm" onClick={onExport}>
+        <Button type="button" variant="outline" size="sm" onClick={onExport} disabled={exportDisabled}>
           <Download className="size-4" />
           Εξαγωγή CSV
         </Button>
@@ -111,6 +110,7 @@ export function ReportToolbar({
 }
 
 export const REPORT_TABS = [
+  { id: "overview", label: "Επισκόπηση" },
   { id: "sales", label: "Πωλήσεις" },
   { id: "products", label: "Προϊόντα" },
   { id: "customers", label: "Πελάτες" },
@@ -129,7 +129,7 @@ type ReportTabBarProps = {
 export function ReportTabBar({ activeTab, onChange }: ReportTabBarProps) {
   return (
     <div
-      className="flex flex-wrap gap-2 border-b border-border pb-3 print:hidden"
+      className="flex flex-wrap gap-2 rounded-2xl border border-gray-200/80 bg-white p-2 shadow-card print:hidden"
       role="tablist"
       aria-label="Κατηγορίες αναφορών"
     >
@@ -143,10 +143,7 @@ export function ReportTabBar({ activeTab, onChange }: ReportTabBarProps) {
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-kartex-navy text-white shadow-sm"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-kartex-navy",
+              isActive ? premiumFilterTabActive : premiumFilterTabInactive,
             )}
           >
             {tab.label}

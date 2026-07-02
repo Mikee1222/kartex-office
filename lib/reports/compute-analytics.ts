@@ -1,10 +1,11 @@
 import { CustomerType } from "@/components/customers/types";
 import { OrderStatus } from "@/components/orders/types";
-import { getStockStatus } from "@/components/products/types";
+import { ProductCategory, getStockStatus } from "@/components/products/types";
 import { getAthensDateString, getAthensYearMonth } from "@/lib/datetime";
 import {
   getLast12AthensMonths,
   getPreviousPeriod,
+  isDateInReportRange,
   isIsoInReportRange,
   resolveReportDateRange,
   type ReportDateRange,
@@ -15,7 +16,15 @@ import {
   type ReportOrderItemRow,
   type ReportOrderRow,
 } from "@/lib/reports/compute-reports";
+import type { OverviewMetrics } from "@/lib/reports/fetch-overview-metrics";
+import {
+  resolveReportProductMeta,
+  type ReportProductJoin,
+} from "@/lib/reports/product-meta";
 import { mapDbCustomerType, type CustomerRow, type ProductRow } from "@/types/database";
+
+export const LAST_12_MONTHS_LABEL = "Τελευταίοι 12 Μήνες";
+const INSUFFICIENT_DATA = "Δεν υπάρχουν αρκετά δεδομένα ακόμα";
 
 export type ReportKpi = {
   key: string;
@@ -45,6 +54,7 @@ export type DriverCardData = {
   boxesDone: number;
   boxesTotal: number;
   tripsCount: number;
+  statusLabel: string;
 };
 
 export type InventoryMovementRow = {
@@ -98,6 +108,7 @@ export type ReportRawData = {
   inventoryMovements: InventoryMovementRow[];
   deliveryTrips: DeliveryTripRow[];
   drivers: DriverOption[];
+  overview?: OverviewMetrics | null;
 };
 
 export type SalesAnalytics = {
@@ -167,7 +178,12 @@ export type ProfitabilityAnalytics = {
   customerProfitability: ReportTableRow[];
 };
 
+export type OverviewAnalytics = {
+  kpis: ReportKpi[];
+};
+
 export type FullAnalytics = {
+  overview: OverviewAnalytics;
   sales: SalesAnalytics;
   products: ProductsAnalytics;
   customers: CustomersAnalytics;
@@ -192,7 +208,32 @@ const STATUS_COLORS = [
   "#64748B",
 ];
 
-const CATEGORY_COLORS = ["#0A1628", "#D4AF37", "#14B8A6", "#10B981", "#F59E0B"];
+const CATEGORY_COLORS = [
+  "#0A1628", "#D4AF37", "#14B8A6", "#10B981", "#F59E0B",
+  "#6366F1", "#EC4899", "#8B5CF6", "#06B6D4", "#84CC16",
+  "#F97316", "#64748B", "#EF4444", "#3B82F6",
+];
+
+const MASTER_CATEGORY_ORDER = Object.values(ProductCategory);
+
+function productRowMeta(product: ProductRow) {
+  return resolveReportProductMeta({
+    name: product.name,
+    clean_name: product.clean_name,
+    category: product.category,
+    master_id: product.master_id,
+    purchase_price: product.purchase_price,
+    sale_price: product.sale_price,
+    internal_price_eur: product.internal_price_eur,
+    product_masters: product.product_masters,
+  });
+}
+
+function itemProductMeta(item: ReportOrderItemRow) {
+  return resolveReportProductMeta(
+    normalizeJoin(item.products) as ReportProductJoin | null,
+  );
+}
 
 export function calcMargin(purchase: number, sale: number): number {
   return sale > 0 ? ((sale - purchase) / sale) * 100 : 0;
@@ -233,20 +274,19 @@ type ProductMarginRow = {
 
 function buildProductMargins(products: ProductRow[]): ProductMarginRow[] {
   return products
-    .filter((product) => toNumber(product.sale_price) > 0)
     .map((product) => {
-      const purchase = toNumber(product.purchase_price);
-      const sale = toNumber(product.sale_price);
+      const meta = productRowMeta(product);
       return {
         id: product.id,
-        name: product.name,
+        name: meta.displayName,
         sku: product.sku,
-        purchase,
-        sale,
-        marginPct: calcMargin(purchase, sale),
-        marginEuro: sale - purchase,
+        purchase: meta.purchasePrice,
+        sale: meta.salePrice,
+        marginPct: calcMargin(meta.purchasePrice, meta.salePrice),
+        marginEuro: meta.salePrice - meta.purchasePrice,
       };
-    });
+    })
+    .filter((row) => row.sale > 0);
 }
 
 function getCompletedOrderIds(
@@ -265,19 +305,24 @@ function getCompletedOrderIds(
 }
 
 function getItemPurchasePrice(
-  item: ReportOrderItemRow & {
-    products?: { purchase_price?: number | string } | { purchase_price?: number | string }[] | null;
-  },
+  item: ReportOrderItemRow,
   purchaseByProductId: Map<string, number>,
 ): number {
-  const product = normalizeJoin(item.products);
-  if (product?.purchase_price != null) {
-    return toNumber(product.purchase_price);
-  }
+  const meta = itemProductMeta(item);
+  if (meta.purchasePrice > 0) return meta.purchasePrice;
   if (item.product_id) {
     return purchaseByProductId.get(item.product_id) ?? 0;
   }
   return 0;
+}
+
+function getProductPurchaseById(products: ProductRow[]): Map<string, number> {
+  return new Map(
+    products.map((product) => {
+      const meta = productRowMeta(product);
+      return [product.id, meta.purchasePrice] as const;
+    }),
+  );
 }
 
 function calcGrossProfitFromItems(
@@ -310,9 +355,7 @@ function computeProfitability(data: ReportRawData, range: ReportDateRange): Prof
   const completedMonthOrderIds = getCompletedOrderIds(data.orders, monthRange);
   const completedRangeOrderIds = getCompletedOrderIds(data.orders, range);
 
-  const purchaseByProductId = new Map(
-    data.products.map((product) => [product.id, toNumber(product.purchase_price)] as const),
-  );
+  const purchaseByProductId = getProductPurchaseById(data.products);
 
   const productMargins = buildProductMargins(data.products);
   const avgMargin =
@@ -491,7 +534,7 @@ function computeProfitability(data: ReportRawData, range: ReportDateRange): Prof
         key: "grossProfit",
         label: "Συνολικό Μικτό Κέρδος (€)",
         value: `€${formatEuro(totalGrossProfit)}`,
-        hint: "Ολοκληρωμένες παραγγελίες μήνα",
+        hint: "Ολοκληρωμένες παραγγελίες μήνα · κόστος από τιμή αγοράς ή εσωτερική αναφορά",
       },
       {
         key: "bestProduct",
@@ -642,20 +685,20 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
     (product) => getStockStatus(product.stock, product.min_stock) !== "adequate",
   );
 
-  const inventoryValue = products.reduce(
-    (sum, product) => sum + product.stock * toNumber(product.purchase_price),
-    0,
-  );
+  const inventoryValue = products.reduce((sum, product) => {
+    const meta = productRowMeta(product);
+    return sum + product.stock * meta.purchasePrice;
+  }, 0);
 
   const productQty = new Map<string, { name: string; quantity: number }>();
   for (const item of data.orderItems) {
     const order = data.orders.find((row) => row.id === item.order_id);
     if (!order || !isIsoInReportRange(order.created_at, range)) continue;
-    const productId = item.product_id ?? "unknown";
-    const product = normalizeJoin(item.products);
-    const prev = productQty.get(productId);
-    productQty.set(productId, {
-      name: product?.name ?? "—",
+    const meta = itemProductMeta(item);
+    const groupKey = meta.masterKey;
+    const prev = productQty.get(groupKey);
+    productQty.set(groupKey, {
+      name: meta.displayName,
       quantity: (prev?.quantity ?? 0) + (item.quantity ?? 0),
     });
   }
@@ -670,6 +713,7 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
     .sort((a, b) => a.stock - b.stock)
     .slice(0, 20)
     .map((product) => {
+      const meta = productRowMeta(product);
       const status = getStockStatus(product.stock, product.min_stock);
       const color =
         status === "adequate"
@@ -679,7 +723,10 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
             : "#EF4444";
       return {
         id: product.id,
-        label: product.name.length > 18 ? `${product.name.slice(0, 16)}…` : product.name,
+        label:
+          meta.displayName.length > 18
+            ? `${meta.displayName.slice(0, 16)}…`
+            : meta.displayName,
         value: product.stock,
         color,
       };
@@ -687,17 +734,15 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
 
   const categoryStock = new Map<string, number>();
   for (const product of products) {
-    const category = product.category?.trim() || "Άλλο";
+    const category = productRowMeta(product).category;
     categoryStock.set(category, (categoryStock.get(category) ?? 0) + product.stock);
   }
-  const stockByCategory = [...categoryStock.entries()]
-    .map(([label, value], index) => ({
-      id: label,
-      label,
-      value,
-      color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-    }))
-    .sort((a, b) => b.value - a.value);
+  const stockByCategory = MASTER_CATEGORY_ORDER.map((label, index) => ({
+    id: label,
+    label,
+    value: categoryStock.get(label) ?? 0,
+    color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  })).filter((row) => row.value > 0);
 
   const colorSales = new Map<string, ColorSalesRow>();
   for (const item of data.orderItems) {
@@ -727,8 +772,10 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
     .filter((product) => getStockStatus(product.stock, product.min_stock) !== "adequate")
     .sort((a, b) => a.stock - b.stock)
     .slice(0, 15)
-    .map((product) => ({
-      product: product.name,
+    .map((product) => {
+      const meta = productRowMeta(product);
+      return {
+      product: meta.displayName,
       sku: product.sku,
       stock: product.stock,
       minStock: product.min_stock,
@@ -736,7 +783,7 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
         getStockStatus(product.stock, product.min_stock) === "critical"
           ? "Κρίσιμο"
           : "Χαμηλό",
-    }));
+    };});
 
   return {
     kpis: [
@@ -772,7 +819,6 @@ function computeProducts(data: ReportRawData, range: ReportDateRange): ProductsA
 
 function computeCustomers(data: ReportRawData, range: ReportDateRange): CustomersAnalytics {
   const ordersInRange = filterOrdersByRange(data.orders, range);
-  const customerIdsInRange = new Set(ordersInRange.map((order) => order.customer_id));
 
   const newCustomers = data.customers.filter((customer) =>
     isIsoInReportRange(customer.created_at, range),
@@ -783,7 +829,7 @@ function computeCustomers(data: ReportRawData, range: ReportDateRange): Customer
     { name: string; type: string; orders: number; total: number; lastOrder: string }
   >();
 
-  for (const order of data.orders) {
+  for (const order of ordersInRange) {
     const customer = normalizeJoin(order.customers);
     const prev = spendByCustomer.get(order.customer_id);
     spendByCustomer.set(order.customer_id, {
@@ -798,17 +844,14 @@ function computeCustomers(data: ReportRawData, range: ReportDateRange): Customer
     });
   }
 
-  const rangeSpend = [...spendByCustomer.entries()]
-    .filter(([customerId]) => customerIdsInRange.has(customerId))
-    .map(([, row]) => row);
+  const rangeSpend = [...spendByCustomer.values()];
 
   const totalCustomerRevenue = rangeSpend.reduce((sum, row) => sum + row.total, 0);
-  const activeCustomers = customerIdsInRange.size;
+  const activeCustomers = spendByCustomer.size;
   const avgCustomerValue =
     activeCustomers > 0 ? totalCustomerRevenue / activeCustomers : 0;
 
   const bestCustomer = [...spendByCustomer.entries()]
-    .filter(([id]) => customerIdsInRange.has(id))
     .sort((a, b) => b[1].total - a[1].total)[0];
 
   const typeCounts = new Map<string, number>();
@@ -854,7 +897,6 @@ function computeCustomers(data: ReportRawData, range: ReportDateRange): Customer
   });
 
   const topCustomers = [...spendByCustomer.entries()]
-    .filter(([id]) => customerIdsInRange.has(id))
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 10)
     .map(([customerId, row]) => ({
@@ -934,12 +976,28 @@ function computeWarehouse(data: ReportRawData, range: ReportDateRange): Warehous
     color: STATUS_COLORS[index % STATUS_COLORS.length],
   }));
 
+  const itemsByOrder = new Map<string, ReportRawData["orderItems"]>();
+  for (const item of data.orderItems) {
+    const list = itemsByOrder.get(item.order_id) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.order_id, list);
+  }
+
   const pickingByDay = new Map<string, { totalMinutes: number; count: number }>();
   for (const order of ordersInRange) {
-    const day = getAthensDateString(new Date(order.created_at));
+    const orderItems = itemsByOrder.get(order.id) ?? [];
+    const pickedTimes = orderItems
+      .map((item) => item.picked_at)
+      .filter((value): value is string => Boolean(value))
+      .map((iso) => new Date(iso).getTime())
+      .filter((time) => !Number.isNaN(time));
+    if (pickedTimes.length === 0) continue;
     const created = new Date(order.created_at).getTime();
-    const readyAt = created + 45 * 60 * 1000;
-    const minutes = Math.max(15, Math.round((readyAt - created) / 60000));
+    if (Number.isNaN(created)) continue;
+    const lastPicked = Math.max(...pickedTimes);
+    const minutes = Math.round((lastPicked - created) / 60000);
+    if (minutes <= 0 || minutes > 48 * 60) continue;
+    const day = getAthensDateString(new Date(order.created_at));
     const prev = pickingByDay.get(day);
     pickingByDay.set(day, {
       totalMinutes: (prev?.totalMinutes ?? 0) + minutes,
@@ -977,21 +1035,26 @@ function computeWarehouse(data: ReportRawData, range: ReportDateRange): Warehous
       value2: row.outQty,
     }));
 
+  const pickingSamples = [...pickingByDay.values()].reduce((sum, row) => sum + row.count, 0);
   const avgPicking =
-    pickingTimeByDay.length > 0
+    pickingSamples > 0
       ? Math.round(
           pickingTimeByDay.reduce((sum, row) => sum + row.value, 0) /
-            pickingTimeByDay.length,
+            Math.max(pickingTimeByDay.length, 1),
         )
-      : 0;
+      : null;
 
   const recentMovements = [...movementsInRange]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 12)
     .map((movement) => {
       const product = normalizeJoin(movement.products);
+      const meta = resolveReportProductMeta(
+        product as ReportProductJoin | null,
+        product?.name ?? "—",
+      );
       return {
-        product: product?.name ?? "—",
+        product: meta.displayName,
         type:
           movement.type === "in"
             ? "Εισερχόμενο"
@@ -1010,7 +1073,11 @@ function computeWarehouse(data: ReportRawData, range: ReportDateRange): Warehous
       {
         key: "picking",
         label: "Μέσος Χρόνος Picking",
-        value: `${avgPicking} λεπτά`,
+        value: avgPicking != null ? `${avgPicking} λεπτά` : INSUFFICIENT_DATA,
+        hint:
+          avgPicking != null
+            ? "Από δημιουργία παραγγελίας έως τελευταίο picked_at"
+            : undefined,
       },
       { key: "today", label: "Παραγγελίες Σήμερα", value: String(todayOrders) },
       {
@@ -1027,17 +1094,41 @@ function computeWarehouse(data: ReportRawData, range: ReportDateRange): Warehous
   };
 }
 
-function computeDrivers(data: ReportRawData): DriversAnalytics {
+function tripDurationMinutes(trip: DeliveryTripRow): number | null {
+  if (!trip.departed_at || !trip.returned_at) return null;
+  const start = new Date(trip.departed_at).getTime();
+  const end = new Date(trip.returned_at).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+  const minutes = Math.round((end - start) / 60000);
+  return minutes > 0 && minutes <= 24 * 60 ? minutes : null;
+}
+
+function computeDrivers(data: ReportRawData, range: ReportDateRange): DriversAnalytics {
   const today = getAthensDateString();
+  const tripsInRange = data.deliveryTrips.filter((trip) =>
+    isDateInReportRange(trip.trip_date, range),
+  );
   const tripsToday = data.deliveryTrips.filter((trip) => trip.trip_date === today);
+  const tripIdsInRange = new Set(tripsInRange.map((trip) => trip.id));
   const tripIdsToday = new Set(tripsToday.map((trip) => trip.id));
 
+  const ordersOnTrips = data.orders.filter(
+    (order) => order.trip_id && tripIdsInRange.has(order.trip_id),
+  );
   const ordersOnTripsToday = data.orders.filter(
     (order) => order.trip_id && tripIdsToday.has(order.trip_id),
   );
 
-  const completedToday = tripsToday.filter((trip) => trip.status === "completed").length;
-  const pendingToday = tripsToday.length - completedToday;
+  const completedTrips = tripsInRange.filter((trip) => trip.status === "completed");
+  const pendingTrips = tripsInRange.length - completedTrips.length;
+
+  const durationSamples = tripsInRange
+    .map((trip) => tripDurationMinutes(trip))
+    .filter((value): value is number => value != null);
+  const avgDeliveryMinutes =
+    durationSamples.length > 0
+      ? Math.round(durationSamples.reduce((sum, v) => sum + v, 0) / durationSamples.length)
+      : null;
 
   const driverCards: DriverCardData[] = data.drivers.map((driver) => {
     const driverTripsToday = tripsToday.filter((trip) => trip.driver_id === driver.id);
@@ -1045,19 +1136,14 @@ function computeDrivers(data: ReportRawData): DriversAnalytics {
     const driverOrdersToday = ordersOnTripsToday.filter(
       (order) => order.trip_id && driverTripIds.has(order.trip_id),
     );
-    const deliveriesTotal = Math.max(driverOrdersToday.length, driverTripsToday.length * 3, 1);
+    const deliveriesTotal = driverOrdersToday.length;
     const deliveriesDone = driverOrdersToday.filter(
       (order) => order.status === OrderStatus.Completed,
     ).length;
     const boxesDone = driverTripsToday.reduce((sum, trip) => sum + trip.total_boxes, 0);
-    const vehicle = driverTripsToday[0]
-      ? normalizeJoin(driverTripsToday[0].vehicles)
-      : null;
-    const boxesTotal = Math.max(
-      vehicle?.max_boxes ?? boxesDone,
-      boxesDone,
-      1,
-    );
+    const vehicle = driverTripsToday[0] ? normalizeJoin(driverTripsToday[0].vehicles) : null;
+    const boxesTotal = Math.max(vehicle?.max_boxes ?? 0, boxesDone, 1);
+    const activeTrips = driverTripsToday.filter((trip) => trip.status !== "completed").length;
 
     return {
       id: driver.id,
@@ -1070,57 +1156,166 @@ function computeDrivers(data: ReportRawData): DriversAnalytics {
       boxesDone,
       boxesTotal,
       tripsCount: driverTripsToday.length,
+      statusLabel:
+        driverTripsToday.length === 0
+          ? "Χωρίς δρομολόγιο"
+          : activeTrips > 0
+            ? "Σε δρόμο"
+            : deliveriesTotal > 0 && deliveriesDone === deliveriesTotal
+              ? "Ολοκληρώθηκε"
+              : "Σε εξέλιξη",
     };
   });
 
-  const deliveriesPerDriver = driverCards.map((driver) => ({
-    id: driver.id,
-    label: driver.name.split(" ")[0] ?? driver.name,
-    value: driver.deliveriesToday,
-    color: "#0A1628",
-  }));
+  const rangeStatsByDriver = new Map<string, { deliveries: number; completed: number; label: string }>();
+  for (const driver of data.drivers) {
+    rangeStatsByDriver.set(driver.id, {
+      deliveries: 0,
+      completed: 0,
+      label: driver.name.split(" ")[0] ?? driver.name,
+    });
+  }
+  for (const order of ordersOnTrips) {
+    const trip = tripsInRange.find((row) => row.id === order.trip_id);
+    if (!trip) continue;
+    const stats = rangeStatsByDriver.get(trip.driver_id);
+    if (!stats) continue;
+    stats.deliveries += 1;
+    if (order.status === OrderStatus.Completed) stats.completed += 1;
+  }
 
-  const deliverySuccessRate = driverCards.map((driver) => ({
-    id: driver.id,
-    label: driver.name.split(" ")[0] ?? driver.name,
-    value: driver.progressPct,
-    color: driver.progressPct >= 80 ? "#10B981" : "#F59E0B",
-  }));
+  const deliveriesPerDriver = [...rangeStatsByDriver.entries()]
+    .filter(([, stats]) => stats.deliveries > 0)
+    .map(([id, stats]) => ({
+      id,
+      label: stats.label,
+      value: stats.deliveries,
+      color: "#0A1628",
+    }))
+    .sort((a, b) => b.value - a.value);
 
-  const avgDeliveryMinutes = 42;
-  const driverStatusTable = driverCards.map((driver) => ({
-    driver: driver.name,
-    vehicle: driver.vehiclePlate,
-    deliveries: `${driver.deliveriesToday}/${driver.deliveriesTotal}`,
-    boxes: `${driver.boxesDone}/${driver.boxesTotal}`,
-    trips: driver.tripsCount,
-    status: driver.progressPct >= 100 ? "Ολοκληρώθηκε" : "Σε εξέλιξη",
-  }));
+  const deliverySuccessRate = [...rangeStatsByDriver.entries()]
+    .filter(([, stats]) => stats.deliveries > 0)
+    .map(([id, stats]) => {
+      const pct = stats.deliveries > 0 ? Math.round((stats.completed / stats.deliveries) * 100) : 0;
+      return { id, label: stats.label, value: pct, color: pct >= 80 ? "#10B981" : "#F59E0B" };
+    })
+    .sort((a, b) => b.value - a.value);
 
-  const totalDeliveriesToday = driverCards.reduce(
-    (sum, driver) => sum + driver.deliveriesToday,
-    0,
-  );
+  const driverStatusTable = driverCards
+    .filter((driver) => driver.tripsCount > 0)
+    .map((driver) => ({
+      driver: driver.name,
+      vehicle: driver.vehiclePlate,
+      deliveries: `${driver.deliveriesToday}/${driver.deliveriesTotal}`,
+      boxes: `${driver.boxesDone}/${driver.boxesTotal}`,
+      trips: driver.tripsCount,
+      status: driver.statusLabel,
+    }));
+
+  const totalDeliveries = driverCards.reduce((sum, driver) => sum + driver.deliveriesToday, 0);
+  const totalOrdersOnTrips = ordersOnTrips.length;
+  const completedOrdersOnTrips = ordersOnTrips.filter((o) => o.status === OrderStatus.Completed).length;
+  const successPct =
+    totalOrdersOnTrips > 0 ? Math.round((completedOrdersOnTrips / totalOrdersOnTrips) * 100) : 0;
 
   return {
     kpis: [
       {
         key: "today",
-        label: "Παραδόσεις Σήμερα",
-        value: String(totalDeliveriesToday),
+        label: "Παραδόσεις Περιόδου",
+        value: String(totalDeliveries),
+        hint: range.label,
       },
-      { key: "done", label: "Ολοκληρωμένες", value: String(completedToday) },
-      { key: "pending", label: "Εκκρεμείς", value: String(pendingToday) },
+      { key: "done", label: "Ολοκληρωμένα Δρομολόγια", value: String(completedTrips.length) },
+      { key: "pending", label: "Εκκρεμή Δρομολόγια", value: String(pendingTrips) },
+      {
+        key: "success",
+        label: "Επιτυχία Παραδόσεων (%)",
+        value: totalOrdersOnTrips > 0 ? `${successPct}%` : INSUFFICIENT_DATA,
+      },
       {
         key: "avg",
         label: "Μέσος Χρόνος Παράδοσης",
-        value: `${avgDeliveryMinutes} λεπτά`,
+        value: avgDeliveryMinutes != null ? `${avgDeliveryMinutes} λεπτά` : INSUFFICIENT_DATA,
+        hint: avgDeliveryMinutes != null ? "Από departed_at έως returned_at" : undefined,
       },
     ],
-    driverCards,
+    driverCards: driverCards.filter((d) => d.tripsCount > 0),
     deliveriesPerDriver,
     deliverySuccessRate,
     driverStatusTable,
+  };
+}
+
+function computeOverview(
+  metrics: OverviewMetrics | null | undefined,
+  range: ReportDateRange,
+): OverviewAnalytics {
+  if (!metrics) {
+    return {
+      kpis: [
+        { key: "sessions", label: "Συνεδρίες Website", value: "—" },
+        { key: "conversion", label: "Conversion Rate Website", value: "—" },
+        { key: "referrer", label: "Κορυφαία Πηγή", value: "—" },
+        { key: "dolphin", label: "Dolphin AI", value: "—" },
+        { key: "quoteConv", label: "Προσφορά → Παραγγελία", value: "—" },
+        { key: "onTime", label: "Παράδοση εγκαίρως", value: "—" },
+      ],
+    };
+  }
+
+  return {
+    kpis: [
+      {
+        key: "sessions",
+        label: "Συνεδρίες Website",
+        value: metrics.sessions.toLocaleString("el-GR"),
+        hint: range.label,
+      },
+      {
+        key: "conversion",
+        label: "Conversion Rate Website",
+        value: `${metrics.conversionRatePct}%`,
+        hint: "Συνεδρίες με αίτημα προσφοράς",
+      },
+      {
+        key: "referrer",
+        label: "Κορυφαία Πηγή",
+        value: metrics.topReferrer,
+        hint: range.label,
+      },
+      {
+        key: "dolphin",
+        label: "Dolphin AI",
+        value: `${metrics.dolphinConversations} συνομιλίες`,
+        hint: `${metrics.dolphinTokens.toLocaleString("el-GR")} tokens συνολικά`,
+      },
+      {
+        key: "quoteConv",
+        label: "Προσφορά → Παραγγελία",
+        value: `${metrics.quoteConversionPct}%`,
+        hint: `${metrics.quotesConverted}/${metrics.quotesTotal} αιτήματα`,
+      },
+      {
+        key: "onTime",
+        label: "Παράδοση εγκαίρως",
+        value:
+          metrics.deliveryOnTimePct != null
+            ? `${metrics.deliveryOnTimePct}%`
+            : INSUFFICIENT_DATA,
+        hint:
+          metrics.deliveryOnTimePct != null
+            ? `${metrics.deliveryEligible} παραδόσεις με ημερομηνία`
+            : "Απαιτούνται ≥3 ολοκληρωμένες παραδόσεις",
+        tone:
+          metrics.deliveryOnTimePct != null && metrics.deliveryOnTimePct >= 90
+            ? "success"
+            : metrics.deliveryOnTimePct != null && metrics.deliveryOnTimePct < 75
+              ? "warning"
+              : "default",
+      },
+    ],
   };
 }
 
@@ -1129,11 +1324,12 @@ export function computeFullAnalytics(
   range: ReportDateRange,
 ): FullAnalytics {
   return {
+    overview: computeOverview(data.overview, range),
     sales: computeSales(data, range),
     products: computeProducts(data, range),
     customers: computeCustomers(data, range),
     warehouse: computeWarehouse(data, range),
-    drivers: computeDrivers(data),
+    drivers: computeDrivers(data, range),
     profitability: computeProfitability(data, range),
   };
 }

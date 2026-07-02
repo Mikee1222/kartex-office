@@ -48,7 +48,7 @@ export function resolveMasterGroupKey(group: MasterGroup): string {
   return getMasterGroupKey(group.cleanName, group.category);
 }
 
-function resolveMasterGroupMeta(product: Product): {
+export function resolveMasterGroupMeta(product: Product): {
   cleanName: string;
   category: string;
 } {
